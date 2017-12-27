@@ -33,7 +33,10 @@ def read_dir(path, folder):
     # TODO: warn or error if no files found?
     full_path = os.path.join(path, folder)
     fnames = iglob(f"{full_path}/*.*")
-    return [os.path.relpath(f,path) for f in fnames]
+    if any(fnames):
+        return [os.path.relpath(f,path) for f in fnames]
+    else:
+        raise FileNotFoundError("{} folder doesn't exist or is empty".format(folder))
 
 def read_dirs(path, folder):
     labels, filenames, all_labels = [], [], []
@@ -61,10 +64,11 @@ def folder_source(path, folder):
 def parse_csv_labels(fn, skip_header=True):
     skip = 1 if skip_header else 0
     csv_lines = [o.strip().split(',') for o in open(fn)][skip:]
+    fnames = [fname for fname, _ in csv_lines]
     csv_labels = {a:b.split(' ') for a,b in csv_lines}
     all_labels = sorted(list(set(p for o in csv_labels.values() for p in o)))
     label2idx = {v:k for k,v in enumerate(all_labels)}
-    return sorted(csv_labels.keys()), csv_labels, all_labels, label2idx
+    return sorted(fnames), csv_labels, all_labels, label2idx
 
 def nhot_labels(label2idx, csv_labels, fnames, c):
     all_idx = {k: n_hot([label2idx[o] for o in v], c)
@@ -113,16 +117,34 @@ class BaseDataset(Dataset):
     @property
     def is_reg(self): return False
 
+def open_image(fn):
+    """ Opens an image using OpenCV given the file path.
+
+    Arguments:
+        fn: the file path of the image
+
+    Returns:
+        The numpy array representation of the image in the RGB format
+    """
+    flags = cv2.IMREAD_UNCHANGED+cv2.IMREAD_ANYDEPTH+cv2.IMREAD_ANYCOLOR
+    if not os.path.exists(fn):
+        print('No such file or directory: {}'.format(fn))
+    elif os.path.isdir(fn):
+        print('Is a directory: {}'.format(fn))
+    else:
+        try:
+            return cv2.cvtColor(cv2.imread(fn, flags), cv2.COLOR_BGR2RGB).astype(np.float32)/255
+        except Exception as e:
+            print(fn, e)
+
 class FilesDataset(BaseDataset):
     def __init__(self, fnames, transform, path):
         self.path,self.fnames = path,fnames
         super().__init__(transform)
     def get_n(self): return len(self.y)
     def get_sz(self): return self.transform.sz
-    def get_x(self, i):
-        flags = cv2.IMREAD_UNCHANGED+cv2.IMREAD_ANYDEPTH+cv2.IMREAD_ANYCOLOR
-        fn = os.path.join(self.path, self.fnames[i])
-        return cv2.cvtColor(cv2.imread(fn, flags), cv2.COLOR_BGR2RGB).astype(np.float32)/255
+    def get_x(self, i): return open_image(os.path.join(self.path, self.fnames[i]))
+
     def resize_imgs(self, targ, new_path):
         dest = resize_imgs(self.fnames, targ, self.path, new_path)
         return self.__class__(self.fnames, self.y, self.transform, dest)
@@ -171,6 +193,7 @@ class ArraysDataset(BaseDataset):
 
 class ArraysIndexDataset(ArraysDataset):
     def get_c(self): return int(self.y.max())+1
+    def get_y(self, i): return self.y[i]
 
 
 class ArraysNhotDataset(ArraysDataset):
@@ -362,3 +385,4 @@ def split_by_idx(idxs, *a):
     mask = np.zeros(len(a[0]),dtype=bool)
     mask[np.array(idxs)] = True
     return [(o[mask],o[~mask]) for o in a]
+

@@ -21,9 +21,10 @@ class SingleModel(BasicModel):
 
 
 class Learner():
-    def __init__(self, data, models, opt_fn=None, tmp_name='tmp', models_name='models', metrics=None):
+    def __init__(self, data, models, opt_fn=None, tmp_name='tmp', models_name='models', metrics=None, clip=None):
         self.data_,self.models,self.metrics = data,models,metrics
         self.sched=None
+        self.wd_sched = None
         self.clip = None
         self.opt_fn = opt_fn or SGD_Momentum(0.9)
         self.tmp_path = os.path.join(self.data.path, tmp_name)
@@ -31,6 +32,12 @@ class Learner():
         os.makedirs(self.tmp_path, exist_ok=True)
         os.makedirs(self.models_path, exist_ok=True)
         self.crit,self.reg_fn,self.crit = None,None,None
+
+    @classmethod
+    def from_model_data(cls, m, data):
+        self = cls(data, BasicModel(to_gpu(m)))
+        self.unfreeze()
+        return self
 
     def __getitem__(self,i): return self.children[i]
 
@@ -74,9 +81,73 @@ class Learner():
     def load_cycle(self, name, cycle): self.load(f'{name}_cyc_{cycle}')
 
     def fit_gen(self, model, data, layer_opt, n_cycle, cycle_len=None, cycle_mult=1, cycle_save_name=None,
-                metrics=None, callbacks=None, **kwargs):
+                metrics=None, callbacks=None, use_wd_sched=False, norm_wds=False, wds_sched_mult=None, **kwargs):
+        """Method does some preparation before finally delegating to the 'fit' method for
+        fitting the model. Namely, if cycle_len is defined, it adds a 'Cosine Annealing'
+        scheduler for varying the learning rate across iterations.
+
+        Method also computes the total number of epochs to fit based on provided 'cycle_len',
+        'cycle_mult', and 'n_cycle' parameters.
+
+        Args:
+            model (Learner):  Any neural architecture for solving a supported problem.
+                Eg. ResNet-34, RNN_Learner etc.
+
+            data (ModelData): An instance of ModelData.
+
+            layer_opt (LayerOptimizer): An instance of the LayerOptimizer class
+
+            n_cycle (int): number of cycles
+
+            cycle_len (int):  number of cycles before lr is reset to the initial value.
+                E.g if cycle_len = 3, then the lr is varied between a maximum
+                and minimum value over 3 epochs.
+
+            cycle_mult (int): additional parameter for influencing how the lr resets over
+                the cycles. For an intuitive explanation, please see
+                https://github.com/fastai/fastai/blob/master/courses/dl1/lesson1.ipynb
+
+            cycle_save_name (str): use to save the weights at end of each cycle
+
+            metrics (function): some function for evaluating a desired metric. Eg. accuracy.
+
+            callbacks (list(Callback)): callbacks to apply during the training.
+
+            use_wd_sched (bool, optional): set to True to enable weight regularization using
+                the technique mentioned in https://arxiv.org/abs/1711.05101. When this is True
+                alone (see below), the regularization is detached from gradient update and
+                applied directly to the weights.
+
+            norm_wds (bool, optional): when this is set to True along with use_wd_sched, the
+                regularization factor is normalized with each training cycle.
+
+            wds_sched_mult (function, optional): when this is provided along with use_wd_sched
+                as True, the value computed by this function is multiplied with the regularization
+                strength. This function is passed the WeightDecaySchedule object. And example
+                function that can be passed is:
+                            f = lambda x: np.array(x.layer_opt.lrs) / x.init_lrs
+
+            kwargs: other optional arguments
+
+        Returns:
+            None
+        """
+
         if callbacks is None: callbacks=[]
         if metrics is None: metrics=self.metrics
+
+        if use_wd_sched:
+            # This needs to come before CosAnneal() because we need to read the initial learning rate from
+            # layer_opt.lrs - but CosAnneal() alters the layer_opt.lrs value initially (divides by 100)
+            if np.sum(layer_opt.wds) == 0:
+                print('fit() warning: use_wd_sched is set to True, but weight decay(s) passed are 0. Use wds to '
+                      'pass weight decay values.')
+            batch_per_epoch = len(data.trn_dl)
+            cl = cycle_len if cycle_len else 1
+            self.wd_sched = WeightDecaySchedule(layer_opt, batch_per_epoch, cl, cycle_mult, n_cycle,
+                                                norm_wds, wds_sched_mult)
+            callbacks += [self.wd_sched]
+
         if cycle_len:
             cycle_end = self.get_cycle_end(cycle_save_name)
             cycle_batches = len(data.trn_dl)*cycle_len
@@ -91,9 +162,52 @@ class Learner():
     def get_layer_groups(self): return self.models.get_layer_groups()
 
     def get_layer_opt(self, lrs, wds):
+
+        """Method returns an instance of the LayerOptimizer class, which
+        allows for setting differential learning rates for different
+        parts of the model.
+
+        An example of how a model maybe differentiated into different parts
+        for application of differential learning rates and weight decays is
+        seen in ../.../courses/dl1/fastai/conv_learner.py, using the dict
+        'model_meta'. Currently, this seems supported only for convolutional
+        networks such as VGG-19, ResNet-XX etc.
+
+        Args:
+            lrs (float or list(float)): learning rate(s) for the model
+
+            wds (float or list(float)): weight decay parameter(s).
+
+        Returns:
+            An instance of a LayerOptimizer
+        """
         return LayerOptimizer(self.opt_fn, self.get_layer_groups(), lrs, wds)
 
     def fit(self, lrs, n_cycle, wds=None, **kwargs):
+
+        """Method gets an instance of LayerOptimizer and delegates to self.fit_gen(..)
+
+        Note that one can specify a list of learning rates which, when appropriately
+        defined, will be applied to different segments of an architecture. This seems
+        mostly relevant to ImageNet-trained models, where we want to alter the layers
+        closest to the images by much smaller amounts.
+
+        Likewise, a single or list of weight decay parameters can be specified, which
+        if appropriate for a model, will apply variable weight decay parameters to
+        different segments of the model.
+
+        Args:
+            lrs (float or list(float)): learning rate for the model
+
+            n_cycle (int): number of cycles (or iterations) to fit the model for
+
+            wds (float or list(float)): weight decay parameter(s).
+
+            kwargs: other arguments
+
+        Returns:
+            None
+        """
         self.sched = None
         layer_opt = self.get_layer_opt(lrs, wds)
         self.fit_gen(self.model, self.data, layer_opt, n_cycle, **kwargs)
@@ -101,13 +215,13 @@ class Learner():
     def lr_find(self, start_lr=1e-5, end_lr=10, wds=None):
         """Helps you find an optimal learning rate for a model.
 
-         It uses the technique developed in the 2015 paper 
-         `Cyclical Learning Rates for Training Neural Networks`, where 
-         we simply keep increasing the learning rate from a very small value, 
+         It uses the technique developed in the 2015 paper
+         `Cyclical Learning Rates for Training Neural Networks`, where
+         we simply keep increasing the learning rate from a very small value,
          until the loss starts decreasing.
 
         Args:
-            start_lr (float/numpy array) : Passing in a numpy array allows you 
+            start_lr (float/numpy array) : Passing in a numpy array allows you
                 to specify learning rates for a learner's layer_groups
             end_lr (float) : The maximum learning rate to try.
             wds (iterable/float)
@@ -169,5 +283,5 @@ class Learner():
         preds1,targs = predict_with_targs(self.model, dl1)
         preds1 = [preds1]*math.ceil(n_aug/4)
         preds2 = [predict_with_targs(self.model, dl2)[0] for i in tqdm(range(n_aug), leave=False)]
-        return np.stack(preds1+preds2).mean(0), targs
+        return np.stack(preds1+preds2), targs
 

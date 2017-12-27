@@ -1,13 +1,15 @@
 name: fastai
 channels:
 - fastai
-- soumith
+- pytorch
 - defaults
 dependencies:
 - scipy
+- cuda90
 - numpy
 - pillow
 - jpeg
+- spacy
 - zlib
 - freetype
 - libtiff
@@ -106,7 +108,6 @@ dependencies:
   - feather-format
   - jupyter_contrib_nbextensions
   - plotnine
-  - docrepr
   - awscli
   - kaggle-cli
   - ipywidgets
