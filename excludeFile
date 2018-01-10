@@ -1,0 +1,15 @@
+*.bak
+*.csv
+*.findresult
+*.gz
+*.ipynb
+*.jpg
+*.orig
+*.png
+*.pyc
+*.sw[a-z]
+*.zip
+*/.ipynb_checkpoints
+.git
+setup
+srts
