@@ -20,24 +20,20 @@
 
 # Put these at the top of every notebook, to get automatic reloading and
 # inline plotting
-get_ipython().magic(u'reload_ext autoreload')
-get_ipython().magic(u'autoreload 2')
-get_ipython().magic(u'matplotlib inline')
 
 
 # Here we import the libraries we need. We'll learn about what each does
 # during the course.
 
 # This file contains all the main external libs we'll use
-from fastai.imports import *
 
-
-from fastai.transforms import *
 from fastai.conv_learner import *
-from fastai.model import *
 from fastai.dataset import *
-from fastai.sgdr import *
+from fastai.imports import *
+from fastai.model import *
 from fastai.plots import *
+from fastai.sgdr import *
+from fastai.transforms import *
 
 
 PATH = "data/dogscats/"

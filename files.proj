@@ -180,6 +180,7 @@
 "./prunefix.conf"
 "./python.tpl"
 "./requirements.txt"
+"./run.sh"
 "./setup.cfg"
 "./setup.py"
 "./tutorials/__init__.py"
