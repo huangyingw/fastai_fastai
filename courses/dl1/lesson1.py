@@ -77,18 +77,16 @@ sz = 224
 # It also assumes that each dir will have subdirs for each class you wish
 # to recognize (in this case, 'cats' and 'dogs').
 
-get_ipython().system(u'ls {PATH}')
+import subprocess
+command = "ls %svalid/cats | head" % (PATH)
+files = subprocess.getoutput(command).split()
 
-
-get_ipython().system(u'ls {PATH}valid')
-
-
-files = get_ipython().getoutput(u'ls {PATH}valid/cats | head')
-files
-
-
-img = plt.imread(f'{PATH}valid/cats/{files[0]}')
+file_name = "%svalid/cats/%s" % (PATH, files[0])
+img = plt.imread(file_name)
+'''
 plt.imshow(img)
+plt.show()
+'''
 
 
 # Here is how the raw data looks like
@@ -109,7 +107,8 @@ img[:4, :4]
 # code, and under 20 seconds:
 
 # Uncomment the below if you need to reset your precomputed activations
-get_ipython().system(u'rm -rf {PATH}tmp')
+command = "rm -rf %stmp" % (PATH)
+subprocess.getoutput(command)
 
 
 arch = resnet34
