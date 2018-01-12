@@ -34,10 +34,12 @@ from fastai.model import *
 from fastai.plots import *
 from fastai.sgdr import *
 from fastai.transforms import *
+import os
 
+dir_path = os.path.dirname(os.path.realpath(__file__))
+os.chdir(dir_path)
 
 PATH = "data/dogscats/"
-
 
 sz = 224
 

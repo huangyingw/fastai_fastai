@@ -5,5 +5,4 @@ cd "$SCRIPTPATH"
 
 source /root/anaconda3/bin/activate fastai
 
-cd courses/dl1
-python lesson1.py
+python ./courses/dl1/lesson1.py
