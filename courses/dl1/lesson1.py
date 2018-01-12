@@ -36,8 +36,7 @@ from fastai.sgdr import *
 from fastai.transforms import *
 import os
 
-dir_path = os.path.dirname(os.path.realpath(__file__))
-os.chdir(dir_path)
+os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 PATH = "data/dogscats/"
 
