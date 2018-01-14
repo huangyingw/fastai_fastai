@@ -1,6 +1,3 @@
-
-# coding: utf-8
-
 # ## Image classification with Convolutional Neural Networks
 
 # Welcome to the first week of the second deep learning certificate! We're
@@ -84,10 +81,7 @@ files = subprocess.getoutput(command).split()
 
 file_name = "%svalid/cats/%s" % (PATH, files[0])
 img = plt.imread(file_name)
-'''
 plt.imshow(img)
-plt.show()
-'''
 
 
 # Here is how the raw data looks like
@@ -115,9 +109,11 @@ subprocess.getoutput(command)
 arch = resnet34
 data = ImageClassifierData.from_paths(PATH, tfms=tfms_from_model(arch, sz))
 learn = ConvLearner.pretrained(arch, data, precompute=True)
-learn.fit(0.01, 3)
+learn.fit(0.01, 1)
+learn.save('lesson1_1')
 
 
+'''
 # How good is this model? Well, as we mentioned, prior to this
 # competition, the state of the art was 80% accuracy. But the competition
 # resulted in a huge jump to 98.9% accuracy, with the author of a popular
@@ -179,12 +175,11 @@ def plots(ims, figsize=(12, 6), rows=1, titles=None):
         if titles is not None:
             sp.set_title(titles[i], fontsize=16)
         plt.imshow(ims[i])
+    # plt.show()
 
 
-def load_img_id(
-    ds, idx): return np.array(
-        PIL.Image.open(
-            PATH + ds.fnames[idx]))
+def load_img_id(ds, idx):
+    return np.array(PIL.Image.open(PATH + ds.fnames[idx]))
 
 
 def plot_val_with_title(idxs, title):
@@ -528,3 +523,4 @@ binary_loss(acts, preds)
 #
 # Why not just maximize accuracy? The binary classification loss is an
 # easier function to optimize.
+'''
