@@ -82,7 +82,7 @@ files = subprocess.getoutput(command).split()
 
 file_name = "%svalid/cats/%s" % (PATH, files[0])
 img = plt.imread(file_name)
-plt.imshow(img)
+# plt.imshow(img)
 
 
 # Here is how the raw data looks like
@@ -242,10 +242,9 @@ plot_val_with_title(most_uncertain, "Most uncertain predictions")
 #
 # We first create a new learner, since we want to know how to set the
 # learning rate for a new (untrained) model.
+'''
 
 learn = ConvLearner.pretrained(arch, data, precompute=True)
-
-
 lrf = learn.lr_find()
 
 
@@ -265,6 +264,7 @@ learn.sched.plot_lr()
 learn.sched.plot()
 
 
+'''
 # The loss is still clearly improving at lr=1e-2 (0.01), so that's what we
 # use. Note that the optimal learning rate can change as we training the
 # model, so you may want to re-run this function from time to time.
