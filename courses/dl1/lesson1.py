@@ -32,6 +32,7 @@ from fastai.plots import *
 from fastai.sgdr import *
 from fastai.transforms import *
 import os
+import os.path
 
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
@@ -109,9 +110,18 @@ subprocess.getoutput(command)
 arch = resnet34
 data = ImageClassifierData.from_paths(PATH, tfms=tfms_from_model(arch, sz))
 learn = ConvLearner.pretrained(arch, data, precompute=True)
-learn.fit(0.01, 1)
-learn.save('lesson1_1')
 
+model_name = 'lesson1_1'
+if os.path.isfile(learn.get_model_path(model_name)):
+    learn.load(model_name)
+else:
+    learn.fit(0.01, 3)
+    learn.save(model_name)
+
+import pprint
+pp = pprint.PrettyPrinter(indent=4)
+print('learn --> ')
+pp.pprint(learn)
 
 '''
 # How good is this model? Well, as we mentioned, prior to this
