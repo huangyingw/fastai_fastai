@@ -4,3 +4,5 @@
 [gsync]
     remote = fastai
     branch = master
+[commit]
+	message = n

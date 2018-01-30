@@ -123,7 +123,6 @@ pp = pprint.PrettyPrinter(indent=4)
 print('learn --> ')
 pp.pprint(learn)
 
-'''
 # How good is this model? Well, as we mentioned, prior to this
 # competition, the state of the art was 80% accuracy. But the competition
 # resulted in a huge jump to 98.9% accuracy, with the author of a popular
@@ -185,9 +184,10 @@ def plots(ims, figsize=(12, 6), rows=1, titles=None):
         if titles is not None:
             sp.set_title(titles[i], fontsize=16)
         plt.imshow(ims[i])
-    # plt.show()
+    plt.show()
 
 
+'''
 def load_img_id(ds, idx):
     return np.array(PIL.Image.open(PATH + ds.fnames[idx]))
 
@@ -264,7 +264,6 @@ learn.sched.plot_lr()
 learn.sched.plot()
 
 
-'''
 # The loss is still clearly improving at lr=1e-2 (0.01), so that's what we
 # use. Note that the optimal learning rate can change as we training the
 # model, so you may want to re-run this function from time to time.
@@ -306,7 +305,12 @@ data = ImageClassifierData.from_paths(PATH, tfms=tfms)
 learn = ConvLearner.pretrained(arch, data, precompute=True)
 
 
-learn.fit(1e-2, 1)
+model_name = 'lesson1_1e-2'
+if os.path.isfile(learn.get_model_path(model_name)):
+    learn.load(model_name)
+else:
+    learn.fit(1e-2, 1)
+    learn.save(model_name)
 
 
 learn.precompute = False
@@ -316,7 +320,12 @@ learn.precompute = False
 # *frozen*. That means that it's still only updating the weights in the
 # last layer when we call `fit`.
 
-learn.fit(1e-2, 3, cycle_len=1)
+model_name = 'lesson1_1e-2-3'
+if os.path.isfile(learn.get_model_path(model_name)):
+    learn.load(model_name)
+else:
+    learn.fit(1e-2, 3, cycle_len=1)
+    learn.save(model_name)
 
 
 # What is that `cycle_len` parameter? What we've done here is used a technique called *stochastic gradient descent with restarts (SGDR)*, a variant of *learning rate annealing*, which gradually decreases the learning rate as training progresses. This is helpful because as we get closer to the optimal weights, we want to take smaller steps.
@@ -367,6 +376,7 @@ learn.unfreeze()
 # there's no standard name for this techique in the literature that we're
 # aware of.
 
+'''
 lr = np.array([1e-4, 1e-3, 1e-2])
 
 
