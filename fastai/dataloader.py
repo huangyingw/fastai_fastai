@@ -1,6 +1,7 @@
 import torch, queue
 from torch.utils.data.sampler import SequentialSampler, RandomSampler, BatchSampler
 from .imports import *
+from .core import *
 import collections,sys,traceback,threading
 
 string_classes = (str, bytes)
@@ -10,8 +11,7 @@ def jag_stack(b, pad_idx):
     ml = max(len(o) for o in b)
     if min(len(o) for o in b)==ml: return np.stack(b)
     res = np.zeros((len(b), ml), dtype=b[0].dtype) + pad_idx
-    for i,o in enumerate(b): res[i, :len(o)] = o
-    #for i,o in enumerate(b): res[i, -len(o):] = o
+    for i,o in enumerate(b): res[i, -len(o):] = o
     return res
 
 def np_collate(batch, pad_idx):
@@ -28,7 +28,7 @@ def np_collate(batch, pad_idx):
 
 def get_tensor(batch, pin):
     if isinstance(batch, (np.ndarray, np.generic)):
-        batch = torch.from_numpy(batch).contiguous()
+        batch = T(batch).contiguous()
         return batch.pin_memory() if pin else batch
     elif isinstance(batch, string_classes): return batch
     elif isinstance(batch, collections.Mapping):

@@ -5,24 +5,20 @@ import copy
 
 class Callback:
     def on_train_begin(self): pass
-
     def on_batch_begin(self): pass
-
     def on_epoch_end(self, metrics): pass
-
     def on_batch_end(self, metrics): pass
-
     def on_train_end(self): pass
 
 
 class LossRecorder(Callback):
     def __init__(self, layer_opt):
         super().__init__()
-        self.layer_opt = layer_opt
-        self.init_lrs = np.array(layer_opt.lrs)
+        self.layer_opt=layer_opt
+        self.init_lrs=np.array(layer_opt.lrs)
 
     def on_train_begin(self):
-        self.losses, self.lrs, self.iterations = [], [], []
+        self.losses,self.lrs,self.iterations = [],[],[]
         self.iteration = 0
         self.epoch = 0
 
@@ -42,7 +38,6 @@ class LossRecorder(Callback):
         plt.xlabel("iterations")
         plt.ylabel("learning rate")
         plt.plot(self.iterations, self.lrs)
-        plt.show()
 
 
 class LR_Updater(LossRecorder):
@@ -72,17 +67,16 @@ class LR_Finder(LR_Updater):
 
     def on_train_begin(self):
         super().on_train_begin()
-        self.best = 1e9
+        self.best=1e9
 
     def calc_lr(self, init_lrs):
         mult = self.lr_mult*self.iteration if self.linear else self.lr_mult**self.iteration
         return init_lrs * mult
 
     def on_batch_end(self, loss):
-        if math.isnan(loss) or loss > self.best * 4:
+        if math.isnan(loss) or loss>self.best*4:
             return True
-        if (loss < self.best and self.iteration > 10):
-            self.best = loss
+        if (loss<self.best and self.iteration>10): self.best=loss
         return super().on_batch_end(loss)
 
     def plot(self, n_skip=10):
@@ -90,26 +84,25 @@ class LR_Finder(LR_Updater):
         plt.xlabel("learning rate (log scale)")
         plt.plot(self.lrs[n_skip:-5], self.losses[n_skip:-5])
         plt.xscale('log')
-        plt.show()
 
 
 class CosAnneal(LR_Updater):
     def __init__(self, layer_opt, nb, on_cycle_end=None, cycle_mult=1):
-        self.nb, self.on_cycle_end, self.cycle_mult = nb, on_cycle_end, cycle_mult
+        self.nb,self.on_cycle_end,self.cycle_mult = nb,on_cycle_end,cycle_mult
         super().__init__(layer_opt)
 
     def on_train_begin(self):
-        self.cycle_iter, self.cycle_count = 0, 0
+        self.cycle_iter,self.cycle_count=0,0
         super().on_train_begin()
 
     def calc_lr(self, init_lrs):
-        if self.iteration < self.nb / 20:
+        if self.iteration<self.nb/20:
             self.cycle_iter += 1
-            return init_lrs / 100.
+            return init_lrs/100.
 
-        cos_out = np.cos(np.pi * (self.cycle_iter) / self.nb) + 1
+        cos_out = np.cos(np.pi*(self.cycle_iter)/self.nb) + 1
         self.cycle_iter += 1
-        if self.cycle_iter == self.nb:
+        if self.cycle_iter==self.nb:
             self.cycle_iter = 0
             self.nb *= self.cycle_mult
             if self.on_cycle_end: self.on_cycle_end(self, self.cycle_count)
@@ -156,12 +149,9 @@ class WeightDecaySchedule(Callback):
         self.layer_opt = layer_opt
         self.batch_per_epoch = batch_per_epoch
         self.init_wds = np.array(layer_opt.wds)  # Weights as set by user
-        # Learning rates as set by user
-        self.init_lrs = np.array(layer_opt.lrs)
-        # Holds the new weight decay factors, calculated in on_batch_begin()
-        self.new_wds = None
-        # Caches the old parameter values in on_batch_begin()
-        self.param_groups_old = None
+        self.init_lrs = np.array(layer_opt.lrs)  # Learning rates as set by user
+        self.new_wds = None                      # Holds the new weight decay factors, calculated in on_batch_begin()
+        self.param_groups_old = None             # Caches the old parameter values in on_batch_begin()
         self.iteration = 0
         self.epoch = 0
         self.wds_sched_mult = wds_sched_mult
@@ -193,8 +183,7 @@ class WeightDecaySchedule(Callback):
 
         # Weight decay normalized. Optional.
         if self.norm_wds:
-            wdn = wdn / np.sqrt(self.batch_per_epoch *
-                                self.epoch_to_num_cycles[self.epoch])
+            wdn = wdn / np.sqrt(self.batch_per_epoch * self.epoch_to_num_cycles[self.epoch])
 
         # Final wds
         self.new_wds = wdm * wdn

@@ -53,12 +53,11 @@ class Stepper():
         if isinstance(preds,(tuple,list)): preds=preds[0]
         return preds, self.crit(preds, y)
 
-from . import lm_rnn
 def set_train_mode(m):
-    #if ((hasattr(m, 'running_mean') or isinstance(m, (nn.Dropout, lm_rnn.LockedDropout)))
-    if (hasattr(m, 'running_mean')
-        and (getattr(m,'bn_freeze',False) or not getattr(m,'trainable',False))):
-        m.eval()
+    if (hasattr(m, 'running_mean') and (getattr(m,'bn_freeze',False)
+              or not getattr(m,'trainable',False))): m.eval()
+    elif (getattr(m,'drop_freeze',False) and hasattr(m, 'p')
+          and ('drop' in type(m).__name__.lower())): m.eval()
     else: m.train()
 
 
@@ -79,10 +78,18 @@ def fit(model, data, epochs, opt, crit, metrics=None, callbacks=None, **kwargs):
     avg_mom=0.98
     batch_num,avg_loss=0,0.
     for cb in callbacks: cb.on_train_begin()
+    names = ["epoch", "trn_loss", "val_loss"] + [f.__name__ for f in metrics]
+    layout = "{!s:10} " * len(names)
+    
+    num_batch = len(data.trn_dl)
+    if epochs<1:
+        num_batch = int(num_batch*epochs)
+        epochs = 1
 
     for epoch in tnrange(epochs, desc='Epoch'):
         stepper.reset(True)
-        t = tqdm(iter(data.trn_dl), leave=False, total=len(data.trn_dl))
+        t = tqdm(iter(data.trn_dl), leave=False, total=num_batch)
+        i = 0
         for (*x,y) in t:
             batch_num += 1
             for cb in callbacks: cb.on_batch_begin()
@@ -93,23 +100,32 @@ def fit(model, data, epochs, opt, crit, metrics=None, callbacks=None, **kwargs):
             stop=False
             for cb in callbacks: stop = stop or cb.on_batch_end(debias_loss)
             if stop: return
+            if i>num_batch: break
+            i += 1
 
         vals = validate(stepper, data.val_dl, metrics)
-        print(np.round([epoch, debias_loss] + vals, 6))
+        if epoch == 0: print(layout.format(*names))
+        print_stats(epoch, [debias_loss] + vals)
         stop=False
         for cb in callbacks: stop = stop or cb.on_epoch_end(vals)
         if stop: break
 
     for cb in callbacks: cb.on_train_end()
+    return vals
 
 
+def print_stats(epoch, values, decimals=6):
+    layout = "{!s:^10}" + " {!s:10}" * len(values)
+    values = [epoch] + list(np.round(values, decimals))
+    print(layout.format(*values))
+    
 def validate(stepper, dl, metrics):
     loss,res = [],[]
     stepper.reset(False)
     for (*x,y) in iter(dl):
         preds,l = stepper.evaluate(VV(x), VV(y))
         loss.append(to_np(l))
-        res.append([f(to_np(preds),to_np(y)) for f in metrics])
+        res.append([f(preds.data,y) for f in metrics])
     return [np.mean(loss)] + list(np.mean(np.stack(res),0))
 
 def get_prediction(x):

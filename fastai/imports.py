@@ -1,6 +1,6 @@
 from IPython.lib.deepreload import reload as dreload
 import PIL, os, numpy as np, math, collections, threading, json, bcolz, random, scipy, cv2
-import random, pandas as pd, pickle, sys, itertools, string, sys, re, datetime, time
+import random, pandas as pd, pickle, sys, itertools, string, sys, re, datetime, time, shutil
 import seaborn as sns, matplotlib
 import IPython, graphviz, sklearn_pandas, sklearn, warnings
 from abc import abstractmethod
@@ -21,7 +21,8 @@ from ipywidgets import interact, interactive, fixed, widgets
 matplotlib.rc('animation', html='html5')
 np.set_printoptions(precision=5, linewidth=110, suppress=True)
 
-def in_notebook(): return 'ipykernel' in sys.modules
+from ipykernel.kernelapp import IPKernelApp
+def in_notebook(): return IPKernelApp.initialized()
 
 import tqdm as tq
 from tqdm import tqdm_notebook, tnrange

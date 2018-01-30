@@ -14,8 +14,8 @@ def T(a):
         if a.dtype in (np.int8, np.int16, np.int32, np.int64):
             res = torch.LongTensor(a.astype(np.int64))
         elif a.dtype in (np.float32, np.float64):
-            return torch.FloatTensor(a.astype(np.float32))
-        else: raise NotImplementedError
+            res = torch.FloatTensor(a.astype(np.float32))
+        else: raise NotImplementedError(a.dtype)
     return to_gpu(res, async=True)
 
 def create_variable(x, volatile, requires_grad=False):
@@ -74,3 +74,28 @@ def SGD_Momentum(momentum):
     return lambda *args, **kwargs: optim.SGD(*args, momentum=momentum, **kwargs)
 
 def one_hot(a,c): return np.eye(c)[a]
+
+def partition(a, sz): return [a[i:i+sz] for i in range(0, len(a), sz)]
+
+def partition_by_cores(a):
+    return partition(a, len(a)//num_cpus() + 1)
+
+def num_cpus():
+    try:
+        return len(os.sched_getaffinity(0))
+    except AttributeError:
+        return os.cpu_count()
+
+
+class BasicModel():
+    def __init__(self,model,name='unnamed'): self.model,self.name = model,name
+    def get_layer_groups(self, do_fc=False): return children(self.model)
+
+class SingleModel(BasicModel):
+    def get_layer_groups(self): return [self.model]
+
+def save(fn, a): pickle.dump(a, open(fn,'wb'))
+def load(fn): return pickle.load(open(fn,'rb'))
+def load2(fn): return pickle.load(open(fn,'rb'), encoding='iso-8859-1')
+
+def load_array(fname): return bcolz.open(fname)[:]
