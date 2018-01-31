@@ -1,9 +1,9 @@
 
 # coding: utf-8
 
-get_ipython().magic(u'reload_ext autoreload')
-get_ipython().magic(u'autoreload 2')
-get_ipython().magic(u'matplotlib inline')
+get_ipython().magic('reload_ext autoreload')
+get_ipython().magic('autoreload 2')
+get_ipython().magic('matplotlib inline')
 
 from fastai.io import *
 from fastai.conv_learner import *
@@ -63,22 +63,22 @@ idx[:10]
 # then 3rd characters
 
 cs = 3
-c1_dat = [idx[i] for i in range(0, len(idx) - 1 - cs, cs)]
-c2_dat = [idx[i + 1] for i in range(0, len(idx) - 1 - cs, cs)]
-c3_dat = [idx[i + 2] for i in range(0, len(idx) - 1 - cs, cs)]
-c4_dat = [idx[i + 3] for i in range(0, len(idx) - 1 - cs, cs)]
+c1_dat = [idx[i] for i in range(0, len(idx) - cs, cs)]
+c2_dat = [idx[i + 1] for i in range(0, len(idx) - cs, cs)]
+c3_dat = [idx[i + 2] for i in range(0, len(idx) - cs, cs)]
+c4_dat = [idx[i + 3] for i in range(0, len(idx) - cs, cs)]
 
 
 # Our inputs
 
-x1 = np.stack(c1_dat[:-2])
-x2 = np.stack(c2_dat[:-2])
-x3 = np.stack(c3_dat[:-2])
+x1 = np.stack(c1_dat)
+x2 = np.stack(c2_dat)
+x3 = np.stack(c3_dat)
 
 
 # Our output
 
-y = np.stack(c4_dat[:-2])
+y = np.stack(c4_dat)
 
 
 # The first 4 inputs and outputs
@@ -192,13 +192,13 @@ cs = 8
 # For each of 0 through 7, create a list of every 8th character with that
 # starting point. These will be the 8 inputs to out model.
 
-c_in_dat = [[idx[i + j] for i in range(cs)] for j in range(len(idx) - cs - 1)]
+c_in_dat = [[idx[i + j] for i in range(cs)] for j in range(len(idx) - cs)]
 
 
 # Then create a list of the next character in each of these series. This
 # will be the labels for our model.
 
-c_out_dat = [idx[j + cs] for j in range(len(idx) - cs - 1)]
+c_out_dat = [idx[j + cs] for j in range(len(idx) - cs)]
 
 
 xs = np.stack(c_in_dat, axis=0)
@@ -497,10 +497,10 @@ VAL_PATH = 'val/'
 TRN = f'{PATH}{TRN_PATH}'
 VAL = f'{PATH}{VAL_PATH}'
 
-get_ipython().magic(u'ls {PATH}')
+get_ipython().magic('ls {PATH}')
 
 
-get_ipython().magic(u'ls {PATH}trn')
+get_ipython().magic('ls {PATH}trn')
 
 
 TEXT = data.Field(lower=True, tokenize=list)

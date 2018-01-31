@@ -3,9 +3,9 @@
 
 # ## Movielens
 
-get_ipython().magic(u'reload_ext autoreload')
-get_ipython().magic(u'autoreload 2')
-get_ipython().magic(u'matplotlib inline')
+get_ipython().magic('reload_ext autoreload')
+get_ipython().magic('autoreload 2')
+get_ipython().magic('matplotlib inline')
 
 from fastai.learner import *
 from fastai.column_data import *
@@ -64,7 +64,7 @@ cf = CollabFilterDataset.from_csv(
 learn = cf.get_learner(n_factors, val_idxs, 64, opt_fn=optim.Adam)
 
 
-learn.fit(1e-2, 2, wds=wd, cycle_len=1, cycle_mult=2, use_wd_sched=True)
+learn.fit(1e-2, 2, wds=wd, cycle_len=1, cycle_mult=2)
 
 
 # Let's compare to some benchmarks. Here's [some

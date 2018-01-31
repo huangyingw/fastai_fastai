@@ -9,7 +9,7 @@
 # generate some data and show them in action. We'll start off by importing
 # the libraries we'll be using today.
 
-get_ipython().magic(u'matplotlib inline')
+get_ipython().magic('matplotlib inline')
 import math
 import numpy as np
 import matplotlib.pyplot as plt
@@ -158,7 +158,7 @@ def meanshift(data):
     return X
 
 
-get_ipython().magic(u'time X=meanshift(data)')
+get_ipython().magic('time X=meanshift(data)')
 
 
 # We can see that mean shift clustering has almost reproduced our original clustering. The one exception are the very close clusters, but if we really wanted to differentiate them we could lower the bandwidth.
@@ -254,8 +254,7 @@ np.broadcast_to(c, m.shape)
 # was a column vector, i.e. a 3x1 array?
 
 # Indexing an axis with None adds a unit axis in that location
-cc = c[:, None]
-cc
+cc = c[:, None]; cc
 
 
 m + cc
@@ -352,7 +351,7 @@ def meanshift(data):
 
 # Let's try it out...
 
-get_ipython().magic(u'time X = meanshift(data).cpu().numpy()')
+get_ipython().magic('time X = meanshift(data).cpu().numpy()')
 plot_data(centroids + 2, X, n_samples)
 
 
@@ -403,7 +402,7 @@ torch.from_numpy(np.copy(data)).cuda()
 # now fewer iterations, and the acceleration from updating a batch of
 # points more than makes up for it.
 
-get_ipython().magic(u'time X = meanshift(data).cpu().numpy()')
+get_ipython().magic('time X = meanshift(data).cpu().numpy()')
 
 
 # That's more like it! We've gone from 2000ms to 26ms, which is a speedup

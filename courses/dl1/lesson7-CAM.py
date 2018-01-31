@@ -3,9 +3,9 @@
 
 # ## Dogs v Cats
 
-get_ipython().magic(u'reload_ext autoreload')
-get_ipython().magic(u'autoreload 2')
-get_ipython().magic(u'matplotlib inline')
+get_ipython().magic('reload_ext autoreload')
+get_ipython().magic('autoreload 2')
+get_ipython().magic('matplotlib inline')
 
 from fastai.imports import *
 

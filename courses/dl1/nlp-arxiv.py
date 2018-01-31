@@ -1,9 +1,9 @@
 
 # coding: utf-8
 
-get_ipython().magic(u'reload_ext autoreload')
-get_ipython().magic(u'autoreload 2')
-get_ipython().magic(u'matplotlib inline')
+get_ipython().magic('reload_ext autoreload')
+get_ipython().magic('autoreload 2')
+get_ipython().magic('matplotlib inline')
 
 from fastai.nlp import *
 from sklearn.linear_model import LogisticRegression
@@ -84,7 +84,7 @@ plt.xlabel('Recall')
 plt.ylabel('Precision')
 plt.ylim([0.0, 1.05])
 plt.xlim([0.0, 1.0])
-plt.title('Precision-Recall curve: AUC={0:0.2f}'.format(average_precision))
+plt.title('Precision-Recall curve: AUC={0:0.2f}'.format(average_precision));
 
 
 recall[precision >= 0.6][0]

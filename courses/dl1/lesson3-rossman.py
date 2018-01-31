@@ -11,9 +11,9 @@
 # end-to-end process of using neural networks with practical structured
 # data problems.
 
-get_ipython().magic(u'matplotlib inline')
-get_ipython().magic(u'reload_ext autoreload')
-get_ipython().magic(u'autoreload 2')
+get_ipython().magic('matplotlib inline')
+get_ipython().magic('reload_ext autoreload')
+get_ipython().magic('autoreload 2')
 
 
 from fastai.structured import *
@@ -166,8 +166,8 @@ add_datepart(train, "Date", drop=False)
 add_datepart(test, "Date", drop=False)
 
 
-# The Google trends data has a special category for the whole of the US -
-# we'll pull that out so we can use it explicitly.
+# The Google trends data has a special category for the whole of the
+# Germany - we'll pull that out so we can use it explicitly.
 
 trend_de = googletrend[googletrend.file == 'Rossmann_DE']
 

@@ -1,9 +1,9 @@
 
 # coding: utf-8
 
-get_ipython().magic(u'reload_ext autoreload')
-get_ipython().magic(u'autoreload 2')
-get_ipython().magic(u'matplotlib inline')
+get_ipython().magic('reload_ext autoreload')
+get_ipython().magic('autoreload 2')
+get_ipython().magic('matplotlib inline')
 
 from fastai.model import fit
 from fastai.dataset import *
@@ -199,7 +199,7 @@ class ArxivDataset(torchtext.data.Dataset):
         fields = [('text', text_field), ('label', label_field)]
         examples = []
         for label in ['yes', 'no']:
-            for fname in iglob(os.path.join(path, label, '*.txt')):
+            for fname in glob(os.path.join(path, label, '*.txt')):
                 with open(fname, 'r') as f:
                     text = f.readline()
                 examples.append(data.Example.fromlist([text, label], fields))

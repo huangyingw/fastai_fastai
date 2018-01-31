@@ -1,9 +1,9 @@
 
 # coding: utf-8
 
-get_ipython().magic(u'reload_ext autoreload')
-get_ipython().magic(u'autoreload 2')
-get_ipython().magic(u'matplotlib inline')
+get_ipython().magic('reload_ext autoreload')
+get_ipython().magic('autoreload 2')
+get_ipython().magic('matplotlib inline')
 
 from fastai.nlp import *
 from sklearn.linear_model import LogisticRegression
@@ -29,17 +29,17 @@ PATH = 'data/aclImdb/'
 names = ['neg', 'pos']
 
 
-get_ipython().magic(u'ls {PATH}')
+get_ipython().magic('ls {PATH}')
 
 
-get_ipython().magic(u'ls {PATH}train')
+get_ipython().magic('ls {PATH}train')
 
 
-get_ipython().magic(u'ls {PATH}train/pos | head')
+get_ipython().magic('ls {PATH}train/pos | head')
 
 
-trn, trn_y = texts_from_folders(f'{PATH}train', names)
-val, val_y = texts_from_folders(f'{PATH}test', names)
+trn, trn_y = texts_labels_from_folders(f'{PATH}train', names)
+val, val_y = texts_labels_from_folders(f'{PATH}test', names)
 
 
 # Here is the text of the first review
@@ -67,8 +67,7 @@ trn_term_doc
 trn_term_doc[0]
 
 
-vocab = veczr.get_feature_names()
-vocab[5000:5005]
+vocab = veczr.get_feature_names(); vocab[5000:5005]
 
 
 w0 = set([o.lower() for o in trn[0].split(' ')])

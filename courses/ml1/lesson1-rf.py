@@ -97,10 +97,10 @@
 
 # ## Imports
 
-get_ipython().magic(u'load_ext autoreload')
-get_ipython().magic(u'autoreload 2')
+get_ipython().magic('load_ext autoreload')
+get_ipython().magic('autoreload 2')
 
-get_ipython().magic(u'matplotlib inline')
+get_ipython().magic('matplotlib inline')
 
 
 from fastai.imports import *
@@ -116,7 +116,7 @@ from sklearn import metrics
 PATH = "data/bulldozers/"
 
 
-get_ipython().system(u'ls {PATH}')
+get_ipython().system('ls {PATH}')
 
 
 # # Introduction to *Blue Book for Bulldozers*
@@ -345,7 +345,7 @@ def print_score(m):
 
 
 m = RandomForestRegressor(n_jobs=-1)
-get_ipython().magic(u'time m.fit(X_train, y_train)')
+get_ipython().magic('time m.fit(X_train, y_train)')
 print_score(m)
 
 
@@ -362,7 +362,7 @@ y_train, _ = split_vals(y_trn, 20000)
 
 
 m = RandomForestRegressor(n_jobs=-1)
-get_ipython().magic(u'time m.fit(X_train, y_train)')
+get_ipython().magic('time m.fit(X_train, y_train)')
 print_score(m)
 
 
@@ -413,7 +413,7 @@ preds.shape
 
 
 plt.plot([metrics.r2_score(y_valid, np.mean(preds[:i + 1], axis=0))
-          for i in range(10)])
+          for i in range(10)]);
 
 
 # The shape of this curve suggests that adding more trees isn't going to
@@ -478,7 +478,7 @@ set_rf_samples(20000)
 
 
 m = RandomForestRegressor(n_jobs=-1, oob_score=True)
-get_ipython().magic(u'time m.fit(X_train, y_train)')
+get_ipython().magic('time m.fit(X_train, y_train)')
 print_score(m)
 
 

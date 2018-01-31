@@ -5,9 +5,9 @@
 
 # Put these at the top of every notebook, to get automatic reloading and
 # inline plotting
-get_ipython().magic(u'reload_ext autoreload')
-get_ipython().magic(u'autoreload 2')
-get_ipython().magic(u'matplotlib inline')
+get_ipython().magic('reload_ext autoreload')
+get_ipython().magic('autoreload 2')
+get_ipython().magic('matplotlib inline')
 
 
 # This file contains all the main external libs we'll use

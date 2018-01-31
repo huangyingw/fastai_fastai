@@ -1,9 +1,9 @@
 
 # coding: utf-8
 
-get_ipython().magic(u'reload_ext autoreload')
-get_ipython().magic(u'autoreload 2')
-get_ipython().magic(u'matplotlib inline')
+get_ipython().magic('reload_ext autoreload')
+get_ipython().magic('autoreload 2')
+get_ipython().magic('matplotlib inline')
 
 from fastai.learner import *
 
@@ -43,18 +43,18 @@ VAL_PATH = 'test/all/'
 TRN = f'{PATH}{TRN_PATH}'
 VAL = f'{PATH}{VAL_PATH}'
 
-get_ipython().magic(u'ls {PATH}')
+get_ipython().magic('ls {PATH}')
 
 
 # Let's look inside the training folder...
 
-trn_files = get_ipython().getoutput(u'ls {TRN}')
+trn_files = get_ipython().getoutput('ls {TRN}')
 trn_files[:10]
 
 
 # ...and at an example review.
 
-review = get_ipython().getoutput(u'cat {TRN}{trn_files[6]}')
+review = get_ipython().getoutput('cat {TRN}{trn_files[6]}')
 review[0]
 
 
@@ -62,10 +62,10 @@ review[0]
 #
 # Now we'll check how many words are in the dataset.
 
-get_ipython().system(u"find {TRN} -name '*.txt' | xargs cat | wc -w")
+get_ipython().system("find {TRN} -name '*.txt' | xargs cat | wc -w")
 
 
-get_ipython().system(u"find {VAL} -name '*.txt' | xargs cat | wc -w")
+get_ipython().system("find {VAL} -name '*.txt' | xargs cat | wc -w")
 
 
 # Before we can analyze text, we must first *tokenize* it. This refers to
@@ -317,7 +317,7 @@ m3.fit(lrs, 7, metrics=[accuracy], cycle_len=2, cycle_save_name='imdb2')
 m3.load_cycle('imdb2', 4)
 
 
-accuracy(*m3.predict_with_targs())
+accuracy_np(*m3.predict_with_targs())
 
 
 # A recent paper from Bradbury et al, [Learned in translation: contextualized word vectors](https://einstein.ai/research/learned-in-translation-contextualized-word-vectors), has a handy summary of the latest academic research in solving this IMDB sentiment analysis problem. Many of the latest algorithms shown are tuned for this specific problem.

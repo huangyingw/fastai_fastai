@@ -3,11 +3,11 @@
 
 # # Random Forest Model interpretation
 
-get_ipython().magic(u'load_ext autoreload')
-get_ipython().magic(u'autoreload 2')
+get_ipython().magic('load_ext autoreload')
+get_ipython().magic('autoreload 2')
 
 
-get_ipython().magic(u'matplotlib inline')
+get_ipython().magic('matplotlib inline')
 
 from fastai.imports import *
 from fastai.structured import *
@@ -82,7 +82,7 @@ print_score(m)
 # when we looked at bagging:
 
 get_ipython().magic(
-    u'time preds = np.stack([t.predict(X_valid) for t in m.estimators_])')
+    'time preds = np.stack([t.predict(X_valid) for t in m.estimators_])')
 np.mean(preds[:, 0]), np.std(preds[:, 0])
 
 
@@ -93,7 +93,7 @@ np.mean(preds[:, 0]), np.std(preds[:, 0])
 def get_preds(t): return t.predict(X_valid)
 
 
-get_ipython().magic(u'time preds = np.stack(parallel_trees(m, get_preds))')
+get_ipython().magic('time preds = np.stack(parallel_trees(m, get_preds))')
 np.mean(preds[:, 0]), np.std(preds[:, 0])
 
 
@@ -146,8 +146,7 @@ summ
 # predictions - we also want to know *how* it's making predictions. The
 # most important way to see this is with *feature importance*.
 
-fi = rf_feat_importance(m, df_trn)
-fi[:10]
+fi = rf_feat_importance(m, df_trn); fi[:10]
 
 
 fi.plot('cols', 'imp', figsize=(10, 6), legend=False)
@@ -158,7 +157,7 @@ def plot_fi(fi): return fi.plot(
         12, 7), legend=False)
 
 
-plot_fi(fi[:30])
+plot_fi(fi[:30]);
 
 
 to_keep = fi[fi.imp > 0.005].cols
@@ -195,7 +194,7 @@ print_score(m)
 
 
 fi = rf_feat_importance(m, df_trn2)
-plot_fi(fi[:25])
+plot_fi(fi[:25]);
 
 
 # # Removing redundant features
@@ -304,7 +303,7 @@ m = RandomForestRegressor(
 m.fit(X_train, y_train)
 
 
-plot_fi(rf_feat_importance(m, df_trn2)[:10])
+plot_fi(rf_feat_importance(m, df_trn2)[:10]);
 
 
 df_raw.plot('YearMade', 'saleElapsed', 'scatter', alpha=0.01, figsize=(10, 8))
@@ -402,8 +401,7 @@ m.fit(x, y)
 m.oob_score_
 
 
-fi = rf_feat_importance(m, x)
-fi[:10]
+fi = rf_feat_importance(m, x); fi[:10]
 
 
 feats = ['SalesID', 'saleElapsed', 'MachineID']
@@ -428,8 +426,7 @@ m.fit(x, y)
 m.oob_score_
 
 
-fi = rf_feat_importance(m, x)
-fi[:10]
+fi = rf_feat_importance(m, x); fi[:10]
 
 
 set_rf_samples(50000)
@@ -497,5 +494,5 @@ m = RandomForestRegressor(
     max_features=0.5,
     n_jobs=-1,
     oob_score=True)
-get_ipython().magic(u'time m.fit(X_train, y_train)')
+get_ipython().magic('time m.fit(X_train, y_train)')
 print_score(m)

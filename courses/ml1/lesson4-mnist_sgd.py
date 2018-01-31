@@ -44,9 +44,9 @@
 # in the terminal, within the directory I'm working in,
 # `home/fastai/courses/ml1`.
 
-get_ipython().magic(u'load_ext autoreload')
-get_ipython().magic(u'autoreload 2')
-get_ipython().magic(u'matplotlib inline')
+get_ipython().magic('load_ext autoreload')
+get_ipython().magic('autoreload 2')
+get_ipython().magic('matplotlib inline')
 
 
 from fastai.imports import *
@@ -409,8 +409,7 @@ vxmb = Variable(xmb.cuda())
 vxmb
 
 
-preds = net2(vxmb).exp()
-preds[:3]
+preds = net2(vxmb).exp(); preds[:3]
 
 
 preds = preds.data.max(1)[1]
@@ -558,8 +557,7 @@ c[:, None]
 c[None] > c[:, None]
 
 
-xg, yg = np.ogrid[0:5, 0:5]
-xg, yg
+xg, yg = np.ogrid[0:5, 0:5]; xg, yg
 
 
 xg + yg

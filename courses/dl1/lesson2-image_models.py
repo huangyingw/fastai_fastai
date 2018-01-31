@@ -3,9 +3,9 @@
 
 # ## Multi-label classification
 
-get_ipython().magic(u'reload_ext autoreload')
-get_ipython().magic(u'autoreload 2')
-get_ipython().magic(u'matplotlib inline')
+get_ipython().magic('reload_ext autoreload')
+get_ipython().magic('autoreload 2')
+get_ipython().magic('matplotlib inline')
 
 
 from fastai.conv_learner import *
@@ -20,10 +20,10 @@ os.makedirs('data/planet/models', exist_ok=True)
 os.makedirs('/cache/planet/tmp', exist_ok=True)
 
 get_ipython().system(
-    u'ln -s /datasets/kaggle/planet-understanding-the-amazon-from-space/train-jpg {PATH}')
+    'ln -s /datasets/kaggle/planet-understanding-the-amazon-from-space/train-jpg {PATH}')
 get_ipython().system(
-    u'ln -s /datasets/kaggle/planet-understanding-the-amazon-from-space/train_v2.csv {PATH}')
-get_ipython().system(u'ln -s /cache/planet/tmp {PATH}')
+    'ln -s /datasets/kaggle/planet-understanding-the-amazon-from-space/train_v2.csv {PATH}')
+get_ipython().system('ln -s /cache/planet/tmp {PATH}')
 
 
 ls {PATH}
@@ -166,8 +166,8 @@ learn.fit(lrs, 3, cycle_len=1, cycle_mult=2)
 learn.save(f'{sz}')
 
 
-log_preds, y = learn.TTA()
-preds = np.mean(np.exp(log_preds), 0)
+multi_preds, y = learn.TTA()
+preds = np.mean(multi_preds, 0)
 
 
 f2(preds, y)

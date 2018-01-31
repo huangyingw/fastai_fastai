@@ -3,9 +3,9 @@
 
 # ## Introduction to our first task: 'Dogs vs Cats'
 
-get_ipython().magic(u'reload_ext autoreload')
-get_ipython().magic(u'autoreload 2')
-get_ipython().magic(u'matplotlib inline')
+get_ipython().magic('reload_ext autoreload')
+get_ipython().magic('autoreload 2')
+get_ipython().magic('matplotlib inline')
 
 
 PATH = "data/dogscats/"
@@ -60,9 +60,9 @@ model.compile(
 
 
 get_ipython().run_cell_magic(
-    u'time',
-    u'',
-    u'model.fit_generator(train_generator, train_generator.n // batch_size, epochs=3, workers=4,\n        validation_data=validation_generator, validation_steps=validation_generator.n // batch_size)')
+    'time',
+    '',
+    'model.fit_generator(train_generator, train_generator.n // batch_size, epochs=3, workers=4,\n        validation_data=validation_generator, validation_steps=validation_generator.n // batch_size)')
 
 
 split_at = 140
@@ -77,6 +77,6 @@ model.compile(
 
 
 get_ipython().run_cell_magic(
-    u'time',
-    u'',
-    u'model.fit_generator(train_generator, train_generator.n // batch_size, epochs=1, workers=3,\n        validation_data=validation_generator, validation_steps=validation_generator.n // batch_size)')
+    'time',
+    '',
+    'model.fit_generator(train_generator, train_generator.n // batch_size, epochs=1, workers=3,\n        validation_data=validation_generator, validation_steps=validation_generator.n // batch_size)')

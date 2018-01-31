@@ -46,8 +46,8 @@
 
 # ### Imports
 
-get_ipython().magic(u'load_ext autoreload')
-get_ipython().magic(u'autoreload 2')
+get_ipython().magic('load_ext autoreload')
+get_ipython().magic('autoreload 2')
 
 from fastai.imports import *
 from fastai.torch_imports import *
@@ -154,7 +154,7 @@ x_valid.mean(), x_valid.std()
 
 # #### Helper methods
 
-get_ipython().magic(u'matplotlib inline')
+get_ipython().magic('matplotlib inline')
 import numpy as np
 import matplotlib.pyplot as plt
 

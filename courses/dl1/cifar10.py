@@ -3,9 +3,9 @@
 
 # ## CIFAR 10
 
-get_ipython().magic(u'matplotlib inline')
-get_ipython().magic(u'reload_ext autoreload')
-get_ipython().magic(u'autoreload 2')
+get_ipython().magic('matplotlib inline')
+get_ipython().magic('reload_ext autoreload')
+get_ipython().magic('autoreload 2')
 
 
 from fastai.conv_learner import *
@@ -29,7 +29,7 @@ stats = (np.array([0.4914, 0.48216, 0.44653]),
 
 
 def get_data(sz, bs):
-    tfms = tfms_from_stats(stats, sz, aug_tfms=[RandomFlipXY()], pad=sz // 8)
+    tfms = tfms_from_stats(stats, sz, aug_tfms=[RandomFlip()], pad=sz // 8)
     return ImageClassifierData.from_paths(
         PATH, val_name='test', tfms=tfms, bs=bs)
 
@@ -76,7 +76,7 @@ learn.lr_find()
 learn.sched.plot()
 
 
-get_ipython().magic(u'time learn.fit(lr, 1)')
+get_ipython().magic('time learn.fit(lr, 1)')
 
 
 learn.fit(lr, 2, cycle_len=1)
@@ -96,7 +96,7 @@ learn.load('8x8_8')
 learn.set_data(get_data(16, bs * 2))
 
 
-get_ipython().magic(u'time learn.fit(1e-3, 1, wds=wd)')
+get_ipython().magic('time learn.fit(1e-3, 1, wds=wd)')
 
 
 learn.unfreeze()

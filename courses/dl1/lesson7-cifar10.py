@@ -3,9 +3,9 @@
 
 # ## CIFAR 10
 
-get_ipython().magic(u'matplotlib inline')
-get_ipython().magic(u'reload_ext autoreload')
-get_ipython().magic(u'autoreload 2')
+get_ipython().magic('matplotlib inline')
+get_ipython().magic('reload_ext autoreload')
+get_ipython().magic('autoreload 2')
 
 
 # You can get the data via:
@@ -96,10 +96,10 @@ learn.lr_find()
 learn.sched.plot()
 
 
-get_ipython().magic(u'time learn.fit(lr, 2)')
+get_ipython().magic('time learn.fit(lr, 2)')
 
 
-get_ipython().magic(u'time learn.fit(lr, 2, cycle_len=1)')
+get_ipython().magic('time learn.fit(lr, 2, cycle_len=1)')
 
 
 # ## CNN
@@ -132,10 +132,10 @@ learn.lr_find(end_lr=100)
 learn.sched.plot()
 
 
-get_ipython().magic(u'time learn.fit(1e-1, 2)')
+get_ipython().magic('time learn.fit(1e-1, 2)')
 
 
-get_ipython().magic(u'time learn.fit(1e-1, 4, cycle_len=1)')
+get_ipython().magic('time learn.fit(1e-1, 4, cycle_len=1)')
 
 
 # ## Refactored
@@ -168,10 +168,10 @@ learn = ConvLearner.from_model_data(ConvNet2([3, 20, 40, 80], 10), data)
 learn.summary()
 
 
-get_ipython().magic(u'time learn.fit(1e-1, 2)')
+get_ipython().magic('time learn.fit(1e-1, 2)')
 
 
-get_ipython().magic(u'time learn.fit(1e-1, 2, cycle_len=1)')
+get_ipython().magic('time learn.fit(1e-1, 2, cycle_len=1)')
 
 
 # ## BatchNorm
@@ -215,10 +215,10 @@ learn = ConvLearner.from_model_data(ConvBnNet([10, 20, 40, 80, 160], 10), data)
 learn.summary()
 
 
-get_ipython().magic(u'time learn.fit(3e-2, 2)')
+get_ipython().magic('time learn.fit(3e-2, 2)')
 
 
-get_ipython().magic(u'time learn.fit(1e-1, 4, cycle_len=1)')
+get_ipython().magic('time learn.fit(1e-1, 4, cycle_len=1)')
 
 
 # ## Deep BatchNorm
@@ -246,10 +246,10 @@ class ConvBnNet2(nn.Module):
 learn = ConvLearner.from_model_data((ConvBnNet2([10, 20, 40, 80, 160], 10), data)
 
 
-get_ipython().magic(u'time learn.fit(1e-2, 2)')
+get_ipython().magic('time learn.fit(1e-2, 2)')
 
 
-get_ipython().magic(u'time learn.fit(1e-2, 2, cycle_len=1)')
+get_ipython().magic('time learn.fit(1e-2, 2, cycle_len=1)')
 
 
 # ## Resnet
@@ -285,13 +285,13 @@ learn=ConvLearner.from_model_data(Resnet([10, 20, 40, 80, 160], 10), data)
 wd=1e-5
 
 
-get_ipython().magic(u'time learn.fit(1e-2, 2, wds=wd)')
+get_ipython().magic('time learn.fit(1e-2, 2, wds=wd)')
 
 
-get_ipython().magic(u'time learn.fit(1e-2, 3, cycle_len=1, cycle_mult=2, wds=wd)')
+get_ipython().magic('time learn.fit(1e-2, 3, cycle_len=1, cycle_mult=2, wds=wd)')
 
 
-get_ipython().magic(u'time learn.fit(1e-2, 8, cycle_len=4, wds=wd)')
+get_ipython().magic('time learn.fit(1e-2, 8, cycle_len=4, wds=wd)')
 
 
 # ## Resnet 2
@@ -326,13 +326,13 @@ learn=ConvLearner.from_model_data(
 wd=1e-6
 
 
-get_ipython().magic(u'time learn.fit(1e-2, 2, wds=wd)')
+get_ipython().magic('time learn.fit(1e-2, 2, wds=wd)')
 
 
-get_ipython().magic(u'time learn.fit(1e-2, 3, cycle_len=1, cycle_mult=2, wds=wd)')
+get_ipython().magic('time learn.fit(1e-2, 3, cycle_len=1, cycle_mult=2, wds=wd)')
 
 
-get_ipython().magic(u'time learn.fit(1e-2, 8, cycle_len=4, wds=wd)')
+get_ipython().magic('time learn.fit(1e-2, 8, cycle_len=4, wds=wd)')
 
 
 learn.save('tmp3')

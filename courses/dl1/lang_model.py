@@ -1,9 +1,9 @@
 
 # coding: utf-8
 
-get_ipython().magic(u'reload_ext autoreload')
-get_ipython().magic(u'autoreload 2')
-get_ipython().magic(u'matplotlib inline')
+get_ipython().magic('reload_ext autoreload')
+get_ipython().magic('autoreload 2')
+get_ipython().magic('matplotlib inline')
 
 from fastai.imports import *
 from fastai.torch_imports import *
@@ -26,16 +26,16 @@ from fastai.lm_rnn import *
 # ### Data
 
 PATH = 'data/wikitext-2/'
-get_ipython().magic(u'ls {PATH}')
+get_ipython().magic('ls {PATH}')
 
 
-get_ipython().system(u'head -5 {PATH}wiki.train.tokens')
+get_ipython().system('head -5 {PATH}wiki.train.tokens')
 
 
-get_ipython().system(u'wc -lwc {PATH}wiki.train.tokens')
+get_ipython().system('wc -lwc {PATH}wiki.train.tokens')
 
 
-get_ipython().system(u'wc -lwc {PATH}wiki.valid.tokens')
+get_ipython().system('wc -lwc {PATH}wiki.valid.tokens')
 
 
 TEXT = data.Field(lower=True)

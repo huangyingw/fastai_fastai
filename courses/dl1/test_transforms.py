@@ -3,9 +3,9 @@
 
 # ## Testing transforms.py
 
-get_ipython().magic(u'reload_ext autoreload')
-get_ipython().magic(u'autoreload 2')
-get_ipython().magic(u'matplotlib inline')
+get_ipython().magic('reload_ext autoreload')
+get_ipython().magic('autoreload 2')
+get_ipython().magic('matplotlib inline')
 
 # This file contains all the main external libs we'll use
 from fastai.imports import *
@@ -24,9 +24,7 @@ fnames, corner_labels, _, _ = parse_csv_labels(f'{PATH}trn_bb_corners_labels', s
 
 
 def get_x(f):
-    file_path = f'{PATH}/images/{f}'
-    im = PIL.Image.open(file_path).convert('RGB')
-    return im
+    return open_image(f'{PATH}/images/{f}')
 
 
 f = 'img_02642.jpg'
@@ -35,7 +33,7 @@ y = np.array(corner_labels[f], dtype=np.float32)
 y
 
 
-x.size
+x.shape
 
 
 rows = np.rint([y[0], y[0], y[2], y[2]]).astype(int)
@@ -65,10 +63,6 @@ def show_corner_bb(f='img_04908.jpg'):
 show_corner_bb(f='img_02642.jpg')
 
 
-def get_x(self, i):
-    return PIL.Image.open(file_path)
-
-
 def create_rect(bb, color='red'):
     return plt.Rectangle((bb[1], bb[0]), bb[3] - bb[1],
                          bb[2] - bb[0], color=color, fill=False, lw=3)
@@ -84,68 +78,68 @@ plotXY(x, y)
 
 # ## Scale
 
-xx, yy = ScaleXY(sz=350, tfm_y=TfmType.COORD)(x, y)
+xx, yy = Scale(sz=350, tfm_y=TfmType.COORD)(x, y)
 
 
 plotXY(xx, yy)
 
 
-xx, yy = ScaleXY(sz=350, tfm_y=TfmType.PIXEL)(x, x)
+xx, yy = Scale(sz=350, tfm_y=TfmType.PIXEL)(x, x)
 plots([xx, yy])
 
 
 # ## RandomScale
 
-xx, yy = RandomScaleXY(sz=350, max_zoom=1.1, tfm_y=TfmType.COORD)(x, y)
-
-
+xx, yy = RandomScale(sz=350, max_zoom=1.1, tfm_y=TfmType.COORD)(x, y)
 plotXY(xx, yy)
+print(yy)
+print(y)
 
 
-xx, yy = RandomScaleXY(sz=350, max_zoom=1.1, tfm_y=TfmType.PIXEL)(x, x)
+xx, yy = RandomScale(sz=350, max_zoom=1.1, tfm_y=TfmType.PIXEL)(x, x)
 plots([xx, yy])
 
 
 # ## RandomCrop
 
-xx, yy = RandomCropXY(targ=350, tfm_y=TfmType.COORD)(x, y)
+xx, yy = RandomCrop(targ=350, tfm_y=TfmType.COORD)(x, y)
 
 
 plotXY(xx, yy)
 
 
-xx, yy = RandomCropXY(350, tfm_y=TfmType.PIXEL)(x, x)
+xx, yy = RandomCrop(350, tfm_y=TfmType.PIXEL)(x, x)
 plots([xx, yy])
 
 
 # ## No Cropping
 
-xx, yy = NoCropXY(350, tfm_y=TfmType.COORD)(x, y)
+xx, yy = NoCrop(350, tfm_y=TfmType.COORD)(x, y)
 
 
 print(yy)
 plotXY(xx, yy)
 
 
-xx, yy = NoCropXY(350, tfm_y=TfmType.PIXEL)(x, x)
+xx, yy = NoCrop(350, tfm_y=TfmType.PIXEL)(x, x)
 plots([xx, yy])
 
 
 # ## CenterCrop
 
-xx, yy = CenterCropXY(350, tfm_y=TfmType.COORD)(x, y)
+xx, yy = CenterCrop(350, tfm_y=TfmType.COORD)(x, y)
 
 
 plotXY(xx, yy)
 
 
-xx, yy = CenterCropXY(350, tfm_y=TfmType.PIXEL)(x, x)
+xx, yy = CenterCrop(350, tfm_y=TfmType.PIXEL)(x, x)
 plots([xx, yy])
 
 
 # ## Random Dihedral
 
-xx, yy = RandomDihedralXY(TfmType.COORD)(x, y)
+xx, yy = RandomDihedral(TfmType.COORD)(x, y)
 
 
 print(yy)
@@ -154,7 +148,7 @@ print(yy)
 plotXY(xx, yy)
 
 
-xx, yy = RandomDihedralXY(tfm_y=TfmType.PIXEL)(x, x)
+xx, yy = RandomDihedral(tfm_y=TfmType.PIXEL)(x, x)
 
 
 plots([xx, yy])
@@ -162,38 +156,36 @@ plots([xx, yy])
 
 # ## RandomFlipXY
 
-xx, yy = RandomFlipXY(TfmType.COORD)(x, y)
+xx, yy = RandomFlip(TfmType.COORD)(x, y)
 print(yy)
 plotXY(xx, yy)
 
 
-xx, yy = RandomFlipXY(TfmType.PIXEL)(x, x)
+xx, yy = RandomFlip(TfmType.PIXEL)(x, x)
 plots([xx, yy])
 
 
 # ## RandomLightingXY (talk to Jeremy about this)
 
-xx, yy = RandomLightingXY(0.5, 0.5)(x, y)
+xx, yy = RandomLighting(0.5, 0.5)(x, y)
 plotXY(xx, yy)
 
 
 # talk to Jeremy about this
-xx, yy = RandomLightingXY(0.5, 0.5, TfmType.PIXEL)(x, x)
+xx, yy = RandomLighting(0.5, 0.5, TfmType.PIXEL)(x, x)
 plots([xx, yy])
 
 
 # ## RandomRotate
 
-xx, yy = RandomRotateXY(deg=30, p=1, tfm_y=TfmType.COORD)(x, y)
+xx, yy = RandomRotate(deg=30, p=1, tfm_y=TfmType.COORD)(x, y)
+plotXY(xx, yy)
+print(yy)
+
+
+xx, yy = RandomRotate(130, p=1.0, tfm_y=TfmType.COORD)(x, y)
 plotXY(xx, yy)
 
 
-xx, yy = RandomRotateXY(130, p=1.0, tfm_y=TfmType.COORD)(x, y)
-plotXY(xx, yy)
-
-
-y
-
-
-xx, yy = RandomRotateXY(0.5, 0.5, TfmType.PIXEL)(x, x)
+xx, yy = RandomRotate(0.5, 0.5, TfmType.PIXEL)(x, x)
 plots([xx, yy])

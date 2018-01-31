@@ -5,9 +5,9 @@
 
 # ## Planet Kaggle competition
 
-get_ipython().magic(u'reload_ext autoreload')
-get_ipython().magic(u'autoreload 2')
-get_ipython().magic(u'matplotlib inline')
+get_ipython().magic('reload_ext autoreload')
+get_ipython().magic('autoreload 2')
+get_ipython().magic('matplotlib inline')
 
 
 from fast_gen import *
@@ -122,9 +122,9 @@ def cycle_cv_preds(cv, n_tta=4, is_test=False):
 # - get resize working again with new path structure
 
 get_ipython().run_cell_magic(
-    u'time',
-    u'',
-    u'preds_arr=[]\nfor i in range(5):\n    print(i)\n    preds_arr.append(cycle_cv_preds(i, is_test=True))')
+    'time',
+    '',
+    'preds_arr=[]\nfor i in range(5):\n    print(i)\n    preds_arr.append(cycle_cv_preds(i, is_test=True))')
 
 
 def all_cycle_cv_preds(end_cycle, start_cycle=0, n_tta=4, is_test=False):
@@ -139,7 +139,7 @@ preds_avg = [np.mean(o, 0) for o in preds_arr]
 test = np.mean(preds_avg, 0)
 
 
-get_ipython().magic(u'time preds_arr = all_cycle_cv_preds(5)')
+get_ipython().magic('time preds_arr = all_cycle_cv_preds(5)')
 
 
 [f2(preds_arr[0][o], data.val_y) for o in range(5)]

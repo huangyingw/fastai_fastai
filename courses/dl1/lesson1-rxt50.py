@@ -5,9 +5,9 @@
 
 # Put these at the top of every notebook, to get automatic reloading and
 # inline plotting
-get_ipython().magic(u'reload_ext autoreload')
-get_ipython().magic(u'autoreload 2')
-get_ipython().magic(u'matplotlib inline')
+get_ipython().magic('reload_ext autoreload')
+get_ipython().magic('autoreload 2')
+get_ipython().magic('matplotlib inline')
 
 
 # This file contains all the main external libs we'll use
@@ -52,13 +52,15 @@ learn.load('224_all_50')
 
 
 log_preds, y = learn.TTA()
-accuracy(log_preds, y)
+probs = np.mean(np.exp(log_preds), 0)
+
+accuracy(probs, y)
 
 
 # ## Analyzing results
 
-preds = np.argmax(log_preds, axis=1)
-probs = np.exp(log_preds[:, 1])
+preds = np.argmax(probs, axis=1)
+probs = probs[:, 1]
 
 from sklearn.metrics import confusion_matrix
 cm = confusion_matrix(y, preds)

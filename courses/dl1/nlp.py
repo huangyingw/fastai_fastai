@@ -1,9 +1,9 @@
 
 # coding: utf-8
 
-get_ipython().magic(u'reload_ext autoreload')
-get_ipython().magic(u'autoreload 2')
-get_ipython().magic(u'matplotlib inline')
+get_ipython().magic('reload_ext autoreload')
+get_ipython().magic('autoreload 2')
+get_ipython().magic('matplotlib inline')
 
 from fastai.nlp import *
 from sklearn.linear_model import LogisticRegression
@@ -35,8 +35,8 @@ vocab_size = 200000
 PATH = 'data/aclImdb/'
 
 names = ['neg', 'pos']
-trn, trn_y = texts_from_folders(f'{PATH}train', names)
-val, val_y = texts_from_folders(f'{PATH}test', names)
+trn, trn_y = texts_labels_from_folders(f'{PATH}train', names)
+val, val_y = texts_labels_from_folders(f'{PATH}test', names)
 
 
 # Here is the text of the first review:
