@@ -78,7 +78,7 @@ def experiment(optimizer, PATH, lr=1e-3, find_lr=False, use_wd_sched=False, wds=
             1024, 512], opt_fn=optimizer)
 
     if find_lr:
-        learn.lr_find()
+        lrf = learn.lr_find()
         learn.sched.plot()
         return
 

@@ -238,8 +238,8 @@ def most_by_mask(mask, mult):
 
 def most_by_correct(y, is_correct):
     mult = -1 if (y == 1) == is_correct else 1
-    return most_by_mask((preds == data.val_y) ==
-                        is_correct & (data.val_y == y), mult)
+    return most_by_mask(((preds == data.val_y) == is_correct)
+                        & (data.val_y == y), mult)
 
 
 plot_val_with_title(most_by_correct(0, True), "Most correct cats")
@@ -439,7 +439,7 @@ log_preds, y = learn.TTA()
 probs = np.mean(np.exp(log_preds), 0)
 
 
-accuracy(probs, y)
+accuracy_np(probs, y)
 
 
 # I generally see about a 10-20% reduction in error on this dataset when
@@ -558,7 +558,7 @@ binary_loss(acts, preds)
 #
 # `loss = -log(0.9) = 0.10`
 #
-# Now suppose x has label 0 but our model is predicting 0.9. In this case our loss is should be much larger.
+# Now suppose x has label 0 but our model is predicting 0.9. In this case our loss should be much larger.
 #
 # loss = -log(1-0.9) = 2.30
 #
