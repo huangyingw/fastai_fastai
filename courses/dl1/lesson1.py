@@ -63,7 +63,6 @@ img.shape
 img[:4, :4]
 
 
-
 # Uncomment the below if you need to reset your precomputed activations
 command = "rm -rf %stmp" % (PATH)
 subprocess.getoutput(command)
@@ -206,22 +205,8 @@ plot_val_with_title(most_uncertain, "Most uncertain predictions")
 '''
 
 learn = ConvLearner.pretrained(arch, data, precompute=True)
-lrf = learn.lr_find()
-
-
-# Our `learn` object contains an attribute `sched` that contains our
-# learning rate scheduler, and has some convenient plotting functionality
-# including this one:
-
+learn.lr_find()
 learn.sched.plot_lr()
-
-
-# Note that in the previous plot *iteration* is one iteration (or *minibatch*) of SGD. In one epoch there are
-# (num_train_samples/num_iterations) of SGD.
-#
-# We can see the plot of loss versus learning rate to see where our loss
-# stops decreasing:
-
 learn.sched.plot()
 
 
@@ -302,7 +287,9 @@ else:
 # parameter to `fit()`. So here's what our actual learning rates looked
 # like:
 
+learn.lr_find()
 learn.sched.plot_lr()
+learn.sched.plot()
 
 
 # Our validation loss isn't improving much, so there's probably no point
@@ -312,8 +299,6 @@ learn.sched.plot_lr()
 # it so we can load it again later without training it from scratch.
 
 learn.save('224_lastlayer')
-
-
 learn.load('224_lastlayer')
 
 
