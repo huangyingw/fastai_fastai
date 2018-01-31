@@ -23,21 +23,17 @@
 # during the course.
 
 # This file contains all the main external libs we'll use
-from fastai.imports import *
 
-
-from fastai.transforms import *
 from fastai.conv_learner import *
 from fastai.dataset import *
 from fastai.imports import *
 from fastai.model import *
 from fastai.plots import *
-from fastai.dataset import *
 from fastai.sgdr import *
 from fastai.transforms import *
 import os
 import os.path
-from fastai.plots import *
+import pprint
 
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
@@ -46,59 +42,9 @@ PATH = "data/dogscats/"
 sz = 224
 
 
-# It's important that you have a working NVidia GPU set up. The
-# programming framework used to behind the scenes to work with NVidia GPUs
-# is called CUDA. Therefore, you need to ensure the following line returns
-# `True` before you proceed. If you have problems with this, please check
-# the FAQ and ask for help on [the forums](http://forums.fast.ai).
-
 torch.cuda.is_available()
-
-
-# In addition, NVidia provides special accelerated functions for deep
-# learning in a package called CuDNN. Although not strictly necessary, it
-# will improve training performance significantly, and is included by
-# default in all supported fastai configurations. Therefore, if the
-# following does not return `True`, you may want to look into why.
-
 torch.backends.cudnn.enabled
 
-
-# ### Extra steps if NOT using Crestle or Paperspace or our scripts
-
-# The dataset is available at http://files.fast.ai/data/dogscats.zip. You
-# can download it directly on your server by running the following line in
-# your terminal. `wget http://files.fast.ai/data/dogscats.zip`. You should
-# put the data in a subdirectory of this notebook's directory, called
-# `data/`. Note that this data is already available in Crestle and the
-# Paperspace fast.ai template.
-
-# ### Extra steps if using Crestle
-
-# Crestle has the datasets required for fast.ai in /datasets, so we'll create symlinks to the data we want for this competition. (NB: we can't write to /datasets, but we need a place to store temporary files, so we create our own writable directory to put the symlinks in, and we also take advantage of Crestle's `/cache/` faster temporary storage space.)
-#
-# To run these commands (**which you should only do if using Crestle**)
-# remove the `#` characters from the start of each line.
-
-# os.makedirs('data/dogscats/models', exist_ok=True)
-
-# !ln -s /datasets/fast.ai/dogscats/train {PATH}
-# !ln -s /datasets/fast.ai/dogscats/test {PATH}
-# !ln -s /datasets/fast.ai/dogscats/valid {PATH}
-
-# os.makedirs('/cache/tmp', exist_ok=True)
-# !ln -fs /cache/tmp {PATH}
-
-
-# os.makedirs('/cache/tmp', exist_ok=True)
-# !ln -fs /cache/tmp {PATH}
-
-
-# ## First look at cat pictures
-
-# Our library will assume that you have *train* and *valid* directories.
-# It also assumes that each dir will have subdirs for each class you wish
-# to recognize (in this case, 'cats' and 'dogs').
 
 import subprocess
 command = "ls %svalid/cats | head" % (PATH)
@@ -117,14 +63,6 @@ img.shape
 img[:4, :4]
 
 
-# ## Our first model: quick start
-
-# We're going to use a <b>pre-trained</b> model, that is, a model created by some one else to solve a different problem. Instead of building a model from scratch to solve a similar problem, we'll use a model trained on ImageNet (1.2 million images and 1000 classes) as a starting point. The model is a Convolutional Neural Network (CNN), a type of Neural Network that builds state-of-the-art models for computer vision. We'll be learning all about CNNs during this course.
-#
-# We will be using the <b>resnet34</b> model. resnet34 is a version of the model that won the 2015 ImageNet competition. Here is more info on [resnet models](https://github.com/KaimingHe/deep-residual-networks). We'll be studying them in depth later, but for now we'll focus on using them effectively.
-#
-# Here's how to train and evalulate a *dogs vs cats* model in 3 lines of
-# code, and under 20 seconds:
 
 # Uncomment the below if you need to reset your precomputed activations
 command = "rm -rf %stmp" % (PATH)
@@ -142,7 +80,6 @@ else:
     learn.fit(0.01, 3)
     learn.save(model_name)
 
-import pprint
 pp = pprint.PrettyPrinter(indent=4)
 print('learn --> ')
 pp.pprint(learn)
