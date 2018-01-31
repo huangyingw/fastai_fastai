@@ -23,16 +23,21 @@
 # during the course.
 
 # This file contains all the main external libs we'll use
+from fastai.imports import *
 
+
+from fastai.transforms import *
 from fastai.conv_learner import *
 from fastai.dataset import *
 from fastai.imports import *
 from fastai.model import *
 from fastai.plots import *
+from fastai.dataset import *
 from fastai.sgdr import *
 from fastai.transforms import *
 import os
 import os.path
+from fastai.plots import *
 
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
@@ -41,13 +46,32 @@ PATH = "data/dogscats/"
 sz = 224
 
 
-# ### Extra steps if NOT using Crestle or our scripts
+# It's important that you have a working NVidia GPU set up. The
+# programming framework used to behind the scenes to work with NVidia GPUs
+# is called CUDA. Therefore, you need to ensure the following line returns
+# `True` before you proceed. If you have problems with this, please check
+# the FAQ and ask for help on [the forums](http://forums.fast.ai).
+
+torch.cuda.is_available()
+
+
+# In addition, NVidia provides special accelerated functions for deep
+# learning in a package called CuDNN. Although not strictly necessary, it
+# will improve training performance significantly, and is included by
+# default in all supported fastai configurations. Therefore, if the
+# following does not return `True`, you may want to look into why.
+
+torch.backends.cudnn.enabled
+
+
+# ### Extra steps if NOT using Crestle or Paperspace or our scripts
 
 # The dataset is available at http://files.fast.ai/data/dogscats.zip. You
 # can download it directly on your server by running the following line in
 # your terminal. `wget http://files.fast.ai/data/dogscats.zip`. You should
 # put the data in a subdirectory of this notebook's directory, called
-# `data/`.
+# `data/`. Note that this data is already available in Crestle and the
+# Paperspace fast.ai template.
 
 # ### Extra steps if using Crestle
 
