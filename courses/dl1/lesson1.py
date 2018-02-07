@@ -1,29 +1,3 @@
-# ## Image classification with Convolutional Neural Networks
-
-# Welcome to the first week of the second deep learning certificate! We're
-# going to use convolutional neural networks (CNNs) to allow our computer
-# to see - something that is only possible thanks to deep learning.
-
-# ## Introduction to our first task: 'Dogs vs Cats'
-
-# We're going to try to create a model to enter the Dogs vs Cats
-# competition at Kaggle. There are 25,000 labelled dog and cat photos
-# available for training, and 12,500 in the test set that we have to try
-# to label for this competition. According to the Kaggle web-site, when
-# this competition was launched (end of 2013): "State of the art: The
-# current literature suggests machine classifiers can score above 80%
-# accuracy on this task". So if we can beat 80%, then we will be at the
-# cutting edge as of 2013!
-
-# Put these at the top of every notebook, to get automatic reloading and
-# inline plotting
-
-
-# Here we import the libraries we need. We'll learn about what each does
-# during the course.
-
-# This file contains all the main external libs we'll use
-
 from fastai.conv_learner import *
 from fastai.dataset import *
 from fastai.imports import *
@@ -36,15 +10,10 @@ import os.path
 import pprint
 
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
-
 PATH = "data/dogscats/"
-
 sz = 224
-
-
 torch.cuda.is_available()
 torch.backends.cudnn.enabled
-
 
 import subprocess
 command = "ls %svalid/cats | head" % (PATH)
@@ -322,11 +291,15 @@ learn.unfreeze()
 # there's no standard name for this techique in the literature that we're
 # aware of.
 
-'''
 lr = np.array([1e-4, 1e-3, 1e-2])
 
 
-learn.fit(lr, 3, cycle_len=1, cycle_mult=2)
+model_name = '224_all'
+if os.path.isfile(learn.get_model_path(model_name)):
+    learn.load(model_name)
+else:
+    learn.fit(lr, 3, cycle_len=1, cycle_mult=2)
+    learn.save(model_name)
 
 
 # Another trick we've used here is adding the `cycle_mult` parameter. Take
@@ -342,10 +315,7 @@ learn.sched.plot_lr()
 # first layers have 100x smaller, and middle layers 10x smaller learning
 # rates, since we set `lr=np.array([1e-4,1e-3,1e-2])`.
 
-learn.save('224_all')
-
-
-learn.load('224_all')
+'''
 
 
 # There is something else we can do with data augmentation: use it at *inference* time (also known as *test* time). Not surprisingly, this is known as *test time augmentation*, or just *TTA*.
