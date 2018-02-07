@@ -16,10 +16,11 @@ class Callback:
 
 
 class LossRecorder(Callback):
-    def __init__(self, layer_opt):
+    def __init__(self, layer_opt, save_path=''):
         super().__init__()
         self.layer_opt = layer_opt
         self.init_lrs = np.array(layer_opt.lrs)
+        self.save_path=save_path
 
     def on_train_begin(self):
         self.losses, self.lrs, self.iterations = [], [], []
