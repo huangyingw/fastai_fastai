@@ -1,13 +1,15 @@
-from fastai.conv_learner import *
-from fastai.dataset import *
-from fastai.imports import *
-from fastai.model import *
-from fastai.plots import *
-from fastai.sgdr import *
-from fastai.transforms import *
+from fastai.conv_learner import ConvLearner
+from fastai.dataset import ImageClassifierData
+from fastai.transforms import tfms_from_model, transforms_side_on
+from sklearn.metrics import confusion_matrix
+from torchvision.models import resnet34
+import matplotlib.pyplot as plt
+import numpy as np
 import os
 import os.path
 import pprint
+import subprocess
+import torch
 
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 PATH = "data/dogscats/"
@@ -15,7 +17,6 @@ sz = 224
 torch.cuda.is_available()
 torch.backends.cudnn.enabled
 
-import subprocess
 command = "ls %svalid/cats | head" % (PATH)
 files = subprocess.getoutput(command).split()
 
@@ -35,7 +36,6 @@ img[:4, :4]
 # Uncomment the below if you need to reset your precomputed activations
 command = "rm -rf %stmp" % (PATH)
 subprocess.getoutput(command)
-
 
 arch = resnet34
 data = ImageClassifierData.from_paths(PATH, tfms=tfms_from_model(arch, sz))
@@ -84,7 +84,6 @@ log_preds.shape
 
 
 log_preds[:10]
-
 
 preds = np.argmax(log_preds, axis=1)  # from log probabilities to 0 or 1
 probs = np.exp(log_preds[:, 1])        # pr(dog)
@@ -351,7 +350,6 @@ probs = probs[:, 1]
 # matrix](http://www.dataschool.io/simple-guide-to-confusion-matrix-terminology/).
 # Scikit-learn has a convenient function we can use for this purpose:
 
-from sklearn.metrics import confusion_matrix
 cm = confusion_matrix(y, preds)
 
 
