@@ -1,7 +1,7 @@
 from fastai.conv_learner import ConvLearner
 from fastai.dataset import ImageClassifierData
+from fastai.metrics import accuracy_np
 from fastai.transforms import tfms_from_model, transforms_side_on
-from sklearn.metrics import confusion_matrix
 from torchvision.models import resnet34
 import matplotlib.pyplot as plt
 import numpy as np
@@ -174,8 +174,10 @@ plot_val_with_title(most_uncertain, "Most uncertain predictions")
 
 learn = ConvLearner.pretrained(arch, data, precompute=True)
 learn.lr_find()
+'''
 learn.sched.plot_lr()
 learn.sched.plot()
+'''
 
 
 # The loss is still clearly improving at lr=1e-2 (0.01), so that's what we
@@ -209,7 +211,9 @@ def get_augs():
 ims = np.stack([get_augs() for i in range(6)])
 
 
+'''
 plots(ims, rows=2)
+'''
 
 
 # Let's create a new `data` object that includes this augmentation in the
@@ -256,8 +260,10 @@ else:
 # like:
 
 learn.lr_find()
+'''
 learn.sched.plot_lr()
 learn.sched.plot()
+'''
 
 
 # Our validation loss isn't improving much, so there's probably no point
@@ -305,7 +311,9 @@ else:
 # a look at the following chart, and see if you can figure out what the
 # parameter is doing:
 
+'''
 learn.sched.plot_lr()
+'''
 
 
 # Note that's what being plotted above is the learning rate of the *final
@@ -313,8 +321,6 @@ learn.sched.plot_lr()
 # multiples of the final layer rates as we initially requested (i.e. the
 # first layers have 100x smaller, and middle layers 10x smaller learning
 # rates, since we set `lr=np.array([1e-4,1e-3,1e-2])`.
-
-'''
 
 
 # There is something else we can do with data augmentation: use it at *inference* time (also known as *test* time). Not surprisingly, this is known as *test time augmentation*, or just *TTA*.
@@ -330,9 +336,10 @@ log_preds, y = learn.TTA()
 probs = np.mean(np.exp(log_preds), 0)
 
 
-accuracy_np(probs, y)
+print('accuracy_np(probs, y) --> ', accuracy_np(probs, y))
 
 
+'''
 # I generally see about a 10-20% reduction in error on this dataset when
 # using TTA at this point, which is an amazing result for such a quick and
 # easy technique!
