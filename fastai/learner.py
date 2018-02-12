@@ -238,7 +238,7 @@ class Learner():
 
     def fit(self, lrs, n_cycle, wds=None, saved_model_name=None, **kwargs):
         if saved_model_name and os.path.isfile(
-                os.getcwd() + '/' + self.get_model_path(saved_model_name)):
+                self.get_model_path(saved_model_name)):
             self.load(saved_model_name)
             return
         """Method gets an instance of LayerOptimizer and delegates to self.fit_gen(..)
