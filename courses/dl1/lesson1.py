@@ -201,25 +201,14 @@ def learn3():
     data = ImageClassifierData.from_paths(PATH, tfms=tfms)
     learn = ConvLearner.pretrained(arch, data, precompute=True)
 
-    model_name = 'lesson1_1e-2'
-    if os.path.isfile(learn.get_model_path(model_name)):
-        learn.load(model_name)
-    else:
-        learn.fit(1e-2, 1)
-        learn.save(model_name)
-
+    learn.fit(1e-2, 1, saved_model_name='lesson1_1e-2')
     learn.precompute = False
 
     # By default when we create a learner, it sets all but the last layer to
     # *frozen*. That means that it's still only updating the weights in the
     # last layer when we call `fit`.
 
-    model_name = 'lesson1_1e-2-3'
-    if os.path.isfile(learn.get_model_path(model_name)):
-        learn.load(model_name)
-    else:
-        learn.fit(1e-2, 3, cycle_len=1)
-        learn.save(model_name)
+    learn.fit(1e-2, 3, saved_model_name='lesson1_1e-2-3', cycle_len=1)
 
     # What is that `cycle_len` parameter? What we've done here is used a technique called *stochastic gradient descent with restarts (SGDR)*, a variant of *learning rate annealing*, which gradually decreases the learning rate as training progresses. This is helpful because as we get closer to the optimal weights, we want to take smaller steps.
     #
@@ -268,12 +257,7 @@ def learn3():
 
     lr = np.array([1e-4, 1e-3, 1e-2])
 
-    model_name = '224_all'
-    if os.path.isfile(learn.get_model_path(model_name)):
-        learn.load(model_name)
-    else:
-        learn.fit(lr, 3, cycle_len=1, cycle_mult=2)
-        learn.save(model_name)
+    learn.fit(lr, 3, saved_model_name='224_all', cycle_len=1, cycle_mult=2)
 
     # Another trick we've used here is adding the `cycle_mult` parameter. Take
     # a look at the following chart, and see if you can figure out what the
@@ -381,7 +365,7 @@ def learn4():
     # it's no longer improving, then re-run it with the number of epochs you
     # found works well.)
 
-    learn.fit(1e-2, 1)
+    learn.fit(1e-2, 1, saved_model_name='learn4')
 
     # ## Analyzing results: loss and accuracy
 
@@ -403,7 +387,6 @@ def learn4():
     preds = np.array([0.9, 0.1, 0.2, 0.8])
     binary_loss(acts, preds)
 
-
     # Note that in our toy example above our accuracy is 100% and our loss is 0.16. Compare that to a loss of 0.03 that we are getting while predicting cats and dogs. Exercise: play with `preds` to get a lower loss for this example.
     #
     # **Example:** Here is an example on how to compute the loss for one example of binary classification problem. Suppose for an image x with label 1 and your model gives it a prediction of 0.9. For this case the loss should be small because our model is predicting a label $1$ with high probability.
@@ -419,4 +402,4 @@ def learn4():
     #
     # Why not just maximize accuracy? The binary classification loss is an
     # easier function to optimize.
-learn1()
+learn3()
