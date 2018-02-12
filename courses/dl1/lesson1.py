@@ -402,4 +402,4 @@ def learn4():
     #
     # Why not just maximize accuracy? The binary classification loss is an
     # easier function to optimize.
-learn3()
+learn4()
