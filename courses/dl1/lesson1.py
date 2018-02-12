@@ -12,6 +12,7 @@ import os
 import os.path
 import pprint
 import subprocess
+import time
 import torch
 
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
@@ -52,7 +53,10 @@ def plots(ims, figsize=(12, 6), rows=1, titles=None):
 
 def learn1():
 
+    start = time.time()
     learn = ConvLearner.pretrained(arch, data, precompute=True)
+    end = time.time()
+    print('ConvLearner.pretrained --> ', end - start)
     learn.fit(0.01, 3, saved_model_name='lesson1_1')
 
     pp = pprint.PrettyPrinter(indent=4)
@@ -398,6 +402,7 @@ def learn4():
     acts = np.array([1, 0, 0, 1])
     preds = np.array([0.9, 0.1, 0.2, 0.8])
     binary_loss(acts, preds)
+
 
     # Note that in our toy example above our accuracy is 100% and our loss is 0.16. Compare that to a loss of 0.03 that we are getting while predicting cats and dogs. Exercise: play with `preds` to get a lower loss for this example.
     #
