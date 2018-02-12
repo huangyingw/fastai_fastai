@@ -12,7 +12,6 @@ import os
 import os.path
 import pprint
 import subprocess
-import time
 import torch
 
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
@@ -53,10 +52,7 @@ def plots(ims, figsize=(12, 6), rows=1, titles=None):
 
 def learn1():
 
-    start = time.time()
     learn = ConvLearner.pretrained(arch, data, precompute=True)
-    end = time.time()
-    print('ConvLearner.pretrained --> ', end - start)
     learn.fit(0.01, 3, saved_model_name='lesson1_1')
 
     pp = pprint.PrettyPrinter(indent=4)
@@ -402,4 +398,7 @@ def learn4():
     #
     # Why not just maximize accuracy? The binary classification loss is an
     # easier function to optimize.
+learn1()
+learn2()
+learn3()
 learn4()
