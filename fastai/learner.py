@@ -13,7 +13,15 @@ import time
 
 
 class Learner():
-    def __init__(self, data, models, opt_fn=None, tmp_name='tmp', models_name='models', metrics=None, clip=None):
+    def __init__(
+            self,
+            data,
+            models,
+            opt_fn=None,
+            tmp_name='tmp',
+            models_name='models',
+            metrics=None,
+            clip=None):
         self.data_, self.models, self.metrics = data, models, metrics
         self.sched = None
         self.wd_sched = None
@@ -63,8 +71,8 @@ class Learner():
 
     def unfreeze(self): self.freeze_to(0)
 
-    def get_model_path(self, name): return os.path.join(
-        self.models_path, name) + '.h5'
+    def get_model_path(self, name):
+        return os.path.join(self.models_path, name) + '.h5'
 
     def save(self, name): save_model(self.model, self.get_model_path(name))
 
@@ -81,8 +89,22 @@ class Learner():
 
     def load_cycle(self, name, cycle): self.load(f'{name}_cyc_{cycle}')
 
-    def fit_gen(self, model, data, layer_opt, n_cycle, cycle_len=None, cycle_mult=1, cycle_save_name=None,
-                use_clr=None, metrics=None, callbacks=None, use_wd_sched=False, norm_wds=False, wds_sched_mult=None, **kwargs):
+    def fit_gen(
+            self,
+            model,
+            data,
+            layer_opt,
+            n_cycle,
+            cycle_len=None,
+            cycle_mult=1,
+            cycle_save_name=None,
+            use_clr=None,
+            metrics=None,
+            callbacks=None,
+            use_wd_sched=False,
+            norm_wds=False,
+            wds_sched_mult=None,
+            **kwargs):
         """Method does some preparation before finally delegating to the 'fit' method for
         fitting the model. Namely, if cycle_len is defined, it adds a 'Cosine Annealing'
         scheduler for varying the learning rate across iterations.
@@ -141,32 +163,55 @@ class Learner():
 
         if use_wd_sched:
             # This needs to come before CosAnneal() because we need to read the initial learning rate from
-            # layer_opt.lrs - but CosAnneal() alters the layer_opt.lrs value initially (divides by 100)
+            # layer_opt.lrs - but CosAnneal() alters the layer_opt.lrs value
+            # initially (divides by 100)
             if np.sum(layer_opt.wds) == 0:
-                print('fit() warning: use_wd_sched is set to True, but weight decay(s) passed are 0. Use wds to '
-                      'pass weight decay values.')
+                print(
+                    'fit() warning: use_wd_sched is set to True, but weight decay(s) passed are 0. Use wds to '
+                    'pass weight decay values.')
             batch_per_epoch = len(data.trn_dl)
             cl = cycle_len if cycle_len else 1
-            self.wd_sched = WeightDecaySchedule(layer_opt, batch_per_epoch, cl, cycle_mult, n_cycle,
-                                                norm_wds, wds_sched_mult)
+            self.wd_sched = WeightDecaySchedule(
+                layer_opt,
+                batch_per_epoch,
+                cl,
+                cycle_mult,
+                n_cycle,
+                norm_wds,
+                wds_sched_mult)
             callbacks += [self.wd_sched]
 
         elif use_clr is not None:
             clr_div, cut_div = use_clr
             cycle_end = self.get_cycle_end(cycle_save_name)
-            self.sched = CircularLR(layer_opt, len(
-                data.trn_dl) * cycle_len, on_cycle_end=cycle_end, div=clr_div, cut_div=cut_div)
+            self.sched = CircularLR(layer_opt,
+                                    len(data.trn_dl) * cycle_len,
+                                    on_cycle_end=cycle_end,
+                                    div=clr_div,
+                                    cut_div=cut_div)
         elif cycle_len:
             cycle_end = self.get_cycle_end(cycle_save_name)
             cycle_batches = len(data.trn_dl) * cycle_len
             self.sched = CosAnneal(
-                layer_opt, cycle_batches, on_cycle_end=cycle_end, cycle_mult=cycle_mult)
+                layer_opt,
+                cycle_batches,
+                on_cycle_end=cycle_end,
+                cycle_mult=cycle_mult)
         elif not self.sched:
             self.sched = LossRecorder(layer_opt)
         callbacks += [self.sched]
         n_epoch = sum_geom(cycle_len if cycle_len else 1, cycle_mult, n_cycle)
-        return fit(model, data, n_epoch, layer_opt.opt, self.crit,
-                   metrics=metrics, callbacks=callbacks, reg_fn=self.reg_fn, clip=self.clip, **kwargs)
+        return fit(
+            model,
+            data,
+            n_epoch,
+            layer_opt.opt,
+            self.crit,
+            metrics=metrics,
+            callbacks=callbacks,
+            reg_fn=self.reg_fn,
+            clip=self.clip,
+            **kwargs)
 
     def get_layer_groups(self): return self.models.get_layer_groups()
 
@@ -191,7 +236,11 @@ class Learner():
         """
         return LayerOptimizer(self.opt_fn, self.get_layer_groups(), lrs, wds)
 
-    def fit(self, lrs, n_cycle, wds=None, **kwargs):
+    def fit(self, lrs, n_cycle, wds=None, saved_model_name=None, **kwargs):
+        if saved_model_name and os.path.isfile(
+                os.getcwd() + '/' + self.get_model_path(saved_model_name)):
+            self.load(saved_model_name)
+            return
         """Method gets an instance of LayerOptimizer and delegates to self.fit_gen(..)
 
         Note that one can specify a list of learning rates which, when appropriately
@@ -217,7 +266,10 @@ class Learner():
         """
         self.sched = None
         layer_opt = self.get_layer_opt(lrs, wds)
-        return self.fit_gen(self.model, self.data, layer_opt, n_cycle, **kwargs)
+        result = self.fit_gen(self.model, self.data,
+                              layer_opt, n_cycle, **kwargs)
+        self.save(saved_model_name)
+        return result
 
     def warm_up(self, lr, wds=None):
         layer_opt = self.get_layer_opt(lr / 4, wds)

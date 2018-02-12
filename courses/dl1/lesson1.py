@@ -51,14 +51,9 @@ def plots(ims, figsize=(12, 6), rows=1, titles=None):
 
 
 def learn1():
-    learn = ConvLearner.pretrained(arch, data, precompute=True)
 
-    model_name = 'lesson1_1'
-    if os.path.isfile(learn.get_model_path(model_name)):
-        learn.load(model_name)
-    else:
-        learn.fit(0.01, 3)
-        learn.save(model_name)
+    learn = ConvLearner.pretrained(arch, data, precompute=True)
+    learn.fit(0.01, 3, saved_model_name='lesson1_1')
 
     pp = pprint.PrettyPrinter(indent=4)
     print('learn --> ')
@@ -96,6 +91,7 @@ def learn1():
 
     preds = np.argmax(log_preds, axis=1)  # from log probabilities to 0 or 1
     probs = np.exp(log_preds[:, 1])        # pr(dog)
+
     def drawing():
         def rand_by_mask(mask): return np.random.choice(
             np.where(mask)[0], 4, replace=False)
@@ -179,9 +175,6 @@ def learn2():
     # zooming of images up to specified scale by adding the `max_zoom`
     # parameter.
 
-    tfms = tfms_from_model(
-        resnet34, sz, aug_tfms=transforms_side_on, max_zoom=1.1)
-
     def get_augs():
         data = ImageClassifierData.from_paths(
             PATH, bs=2, tfms=tfms, num_workers=1)
@@ -193,8 +186,12 @@ def learn2():
     plots(ims, rows=2)
 
 
+tfms = tfms_from_model(
+    resnet34, sz, aug_tfms=transforms_side_on, max_zoom=1.1)
+
 # Let's create a new `data` object that includes this augmentation in the
 # transforms.
+
 
 def learn3():
     data = ImageClassifierData.from_paths(PATH, tfms=tfms)
@@ -326,9 +323,11 @@ def learn3():
 
     # ### Looking at pictures again
 
+    '''
     plot_val_with_title(most_by_correct(0, False), "Most incorrect cats")
 
     plot_val_with_title(most_by_correct(1, False), "Most incorrect dogs")
+    '''
 
     # ## Review: easy steps to train a world-class image classifier
 
