@@ -47,7 +47,7 @@ def plots(ims, figsize=(12, 6), rows=1, titles=None):
         if titles is not None:
             sp.set_title(titles[i], fontsize=16)
             plt.imshow(ims[i])
-            plt.show()
+    plt.show()
 
 
 def learn1():
@@ -140,17 +140,16 @@ def learn1():
         most_uncertain = np.argsort(np.abs(probs - 0.5))[:4]
         plot_val_with_title(most_uncertain, "Most uncertain predictions")
 
-
-# ## Choosing a learning rate
-
-# The *learning rate* determines how quickly or how slowly you want to update the *weights* (or *parameters*). Learning rate is one of the most difficult parameters to set, because it significantly affect model performance.
-#
-# The method `learn.lr_find()` helps you find an optimal learning rate. It uses the technique developed in the 2015 paper [Cyclical Learning Rates for Training Neural Networks](http://arxiv.org/abs/1506.01186), where we simply keep increasing the learning rate from a very small value, until the loss starts decreasing. We can plot the learning rate across batches to see what this looks like.
-#
-# We first create a new learner, since we want to know how to set the
-# learning rate for a new (untrained) model.
-
+    drawing()
 def learn2():
+    # ## Choosing a learning rate
+
+    # The *learning rate* determines how quickly or how slowly you want to update the *weights* (or *parameters*). Learning rate is one of the most difficult parameters to set, because it significantly affect model performance.
+    #
+    # The method `learn.lr_find()` helps you find an optimal learning rate. It uses the technique developed in the 2015 paper [Cyclical Learning Rates for Training Neural Networks](http://arxiv.org/abs/1506.01186), where we simply keep increasing the learning rate from a very small value, until the loss starts decreasing. We can plot the learning rate across batches to see what this looks like.
+    #
+    # We first create a new learner, since we want to know how to set the
+    # learning rate for a new (untrained) model.
     learn = ConvLearner.pretrained(arch, data, precompute=True)
     learn.lr_find()
     learn.sched.plot_lr()
@@ -189,11 +188,10 @@ def learn2():
 tfms = tfms_from_model(
     resnet34, sz, aug_tfms=transforms_side_on, max_zoom=1.1)
 
-# Let's create a new `data` object that includes this augmentation in the
-# transforms.
-
 
 def learn3():
+    # Let's create a new `data` object that includes this augmentation in the
+    # transforms.
     data = ImageClassifierData.from_paths(PATH, tfms=tfms)
     learn = ConvLearner.pretrained(arch, data, precompute=True)
 
@@ -399,6 +397,3 @@ def learn4():
     # Why not just maximize accuracy? The binary classification loss is an
     # easier function to optimize.
 learn1()
-learn2()
-learn3()
-learn4()
