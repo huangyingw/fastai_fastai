@@ -47,7 +47,7 @@ def plots(ims, figsize=(12, 6), rows=1, titles=None):
         if titles is not None:
             sp.set_title(titles[i], fontsize=16)
             plt.imshow(ims[i])
-    plt.show()
+    #plt.show()
 
 
 def plot_val_with_title(idxs, title, probs):
