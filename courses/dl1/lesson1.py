@@ -133,7 +133,7 @@ def learn1():
         most_uncertain = np.argsort(np.abs(probs - 0.5))[:4]
         plot_val_with_title(most_uncertain, "Most uncertain predictions", probs)
 
-    drawing()
+    drawing(probs, preds)
 def learn2():
     # ## Choosing a learning rate
     # The *learning rate* determines how quickly or how slowly you want to update the *weights* (or *parameters*). Learning rate is one of the most difficult parameters to set, because it significantly affect model performance.
@@ -381,4 +381,7 @@ def learn4():
     #
     # Why not just maximize accuracy? The binary classification loss is an
     # easier function to optimize.
+learn1()
+learn2()
 learn3()
+learn4()
