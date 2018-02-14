@@ -50,6 +50,21 @@ def plots(ims, figsize=(12, 6), rows=1, titles=None):
     plt.show()
 
 
+def plot_val_with_title(idxs, title, probs):
+    imgs = np.stack([data.val_ds[x][0] for x in idxs])
+    title_probs = [probs[x] for x in idxs]
+    print(title)
+    return plots(data.val_ds.denorm(imgs), rows=1, titles=title_probs)
+
+
+def most_by_mask(mask, mult, probs):
+    idxs = np.where(mask)[0]
+    return idxs[np.argsort(mult * probs[idxs])[:4]]
+
+def most_by_correct(y, is_correct, preds, probs):
+    mult = -1 if (y == 1) == is_correct else 1
+    return most_by_mask(((preds == data.val_y) == is_correct)
+                        & (data.val_y == y), mult, probs)
 def learn1():
 
     learn = ConvLearner.pretrained(arch, data, precompute=True)
@@ -92,58 +107,35 @@ def learn1():
     preds = np.argmax(log_preds, axis=1)  # from log probabilities to 0 or 1
     probs = np.exp(log_preds[:, 1])        # pr(dog)
 
-    def drawing():
+    def drawing(probs, preds):
         def rand_by_mask(mask): return np.random.choice(
             np.where(mask)[0], 4, replace=False)
 
         def rand_by_correct(is_correct): return rand_by_mask(
             (preds == data.val_y) == is_correct)
 
-        def plot_val_with_title(idxs, title):
-            imgs = np.stack([data.val_ds[x][0] for x in idxs])
-            title_probs = [probs[x] for x in idxs]
-            print(title)
-            return plots(data.val_ds.denorm(imgs), rows=1, titles=title_probs)
-
         def load_img_id(ds, idx):
             return np.array(Image.open(PATH + ds.fnames[idx]))
 
-        def plot_val_with_title(idxs, title):
-            imgs = [load_img_id(data.val_ds, x) for x in idxs]
-            title_probs = [probs[x] for x in idxs]
-            print(title)
-            return plots(imgs, rows=1, titles=title_probs, figsize=(16, 8))
-
         # 1. A few correct labels at random
-        plot_val_with_title(rand_by_correct(True), "Correctly classified")
+        plot_val_with_title(rand_by_correct(True), "Correctly classified", probs)
 
         # 2. A few incorrect labels at random
-        plot_val_with_title(rand_by_correct(False), "Incorrectly classified")
+        plot_val_with_title(rand_by_correct(False), "Incorrectly classified", probs)
+        plot_val_with_title(most_by_correct(0, True, preds, probs), "Most correct cats", probs)
 
-        def most_by_mask(mask, mult):
-            idxs = np.where(mask)[0]
-            return idxs[np.argsort(mult * probs[idxs])[:4]]
+        plot_val_with_title(most_by_correct(1, True, preds, probs), "Most correct dogs", probs)
 
-        def most_by_correct(y, is_correct):
-            mult = -1 if (y == 1) == is_correct else 1
-            return most_by_mask(((preds == data.val_y) == is_correct)
-                                & (data.val_y == y), mult)
+        plot_val_with_title(most_by_correct(0, False, preds, probs), "Most incorrect cats", probs)
 
-        plot_val_with_title(most_by_correct(0, True), "Most correct cats")
-
-        plot_val_with_title(most_by_correct(1, True), "Most correct dogs")
-
-        plot_val_with_title(most_by_correct(0, False), "Most incorrect cats")
-
-        plot_val_with_title(most_by_correct(1, False), "Most incorrect dogs")
+        plot_val_with_title(most_by_correct(1, False, preds, probs), "Most incorrect dogs", probs)
 
         most_uncertain = np.argsort(np.abs(probs - 0.5))[:4]
-        plot_val_with_title(most_uncertain, "Most uncertain predictions")
+        plot_val_with_title(most_uncertain, "Most uncertain predictions", probs)
 
     drawing()
 def learn2():
     # ## Choosing a learning rate
-
     # The *learning rate* determines how quickly or how slowly you want to update the *weights* (or *parameters*). Learning rate is one of the most difficult parameters to set, because it significantly affect model performance.
     #
     # The method `learn.lr_find()` helps you find an optimal learning rate. It uses the technique developed in the 2015 paper [Cyclical Learning Rates for Training Neural Networks](http://arxiv.org/abs/1506.01186), where we simply keep increasing the learning rate from a very small value, until the loss starts decreasing. We can plot the learning rate across batches to see what this looks like.
@@ -305,14 +297,10 @@ def learn3():
 
     # ### Looking at pictures again
 
-    '''
-    plot_val_with_title(most_by_correct(0, False), "Most incorrect cats")
+    plot_val_with_title(most_by_correct(0, False, preds, probs), "Most incorrect cats", probs)
+    plot_val_with_title(most_by_correct(1, False, preds, probs), "Most incorrect dogs", probs)
 
-    plot_val_with_title(most_by_correct(1, False), "Most incorrect dogs")
-    '''
-
-    # ## Review: easy steps to train a world-class image classifier
-
+    # Review: easy steps to train a world-class image classifier
     # 1. Enable data augmentation, and precompute=True
     # 1. Use `lr_find()` to find highest learning rate where loss is still clearly improving
     # 1. Train last layer from precomputed activations for 1-2 epochs
@@ -322,8 +310,7 @@ def learn3():
     # 1. Use `lr_find()` again
     # 1. Train full network with cycle_mult=2 until over-fitting
 
-    # ## Understanding the code for our first model
-
+    # Understanding the code for our first model
     # Let's look at the Dogs v Cats code line by line.
     #
     # **tfms** stands for *transformations*. `tfms_from_model` takes care of resizing, image cropping, initial normalization (creating data with (mean,stdev) of (0,1)), and more.
@@ -362,7 +349,6 @@ def learn4():
     learn.fit(1e-2, 1, saved_model_name='learn4')
 
     # ## Analyzing results: loss and accuracy
-
     # When we run `learn.fit` we print 3 performance values (see above.) Here 0.03 is the value of the **loss** in the training set, 0.0226 is the value of the loss in the validation set and 0.9927 is the validation accuracy. What is the loss? What is accuracy? Why not to just show accuracy?
     #
     # **Accuracy** is the ratio of correct prediction to the total number of predictions.
@@ -380,7 +366,6 @@ def learn4():
     acts = np.array([1, 0, 0, 1])
     preds = np.array([0.9, 0.1, 0.2, 0.8])
     binary_loss(acts, preds)
-
     # Note that in our toy example above our accuracy is 100% and our loss is 0.16. Compare that to a loss of 0.03 that we are getting while predicting cats and dogs. Exercise: play with `preds` to get a lower loss for this example.
     #
     # **Example:** Here is an example on how to compute the loss for one example of binary classification problem. Suppose for an image x with label 1 and your model gives it a prediction of 0.9. For this case the loss should be small because our model is predicting a label $1$ with high probability.
@@ -396,4 +381,4 @@ def learn4():
     #
     # Why not just maximize accuracy? The binary classification loss is an
     # easier function to optimize.
-learn1()
+learn3()

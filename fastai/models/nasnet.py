@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.model_zoo as model_zoo
-from torch.autograd import Variable
 
 pretrained_settings = {
     'nasnetalarge': {
@@ -377,7 +376,7 @@ class NormalCell(nn.Module):
 class ReductionCell0(nn.Module):
 
     def __init__(self, in_channels_left, out_channels_left, in_channels_right, out_channels_right):
-        super(ReductionCell0, self).__init__() 
+        super(ReductionCell0, self).__init__()
         self.conv_prev_1x1 = nn.Sequential()
         self.conv_prev_1x1.add_module('relu', nn.ReLU())
         self.conv_prev_1x1.add_module('conv', nn.Conv2d(in_channels_left, out_channels_left, 1, stride=1, bias=False))
@@ -488,7 +487,7 @@ class NASNetALarge(nn.Module):
 
     def __init__(self, use_classifer=False, num_classes=1001):
         super(NASNetALarge, self).__init__()
-        self.use_classifer,self.num_classes = use_classifer,num_classes
+        self.use_classifer, self.num_classes = use_classifer, num_classes
 
         self.conv0 = nn.Sequential()
         self.conv0.add_module('conv', nn.Conv2d(in_channels=3, out_channels=96, kernel_size=3, padding=0, stride=2,
@@ -617,4 +616,4 @@ def nasnetalarge(num_classes=1000, pretrained='imagenet'):
         model.std = settings['std']
     else:
         model = NASNetALarge(num_classes=num_classes)
-return model
+    return model
