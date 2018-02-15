@@ -84,7 +84,6 @@ def learn1():
     # around 10 minutes to compute.
 
     # ## Analyzing results: looking at pictures
-
     # As well as looking at the overall metrics, it's also a good idea to look at examples of each of:
     # 1. A few correct labels at random
     # 2. A few incorrect labels at random
@@ -93,16 +92,17 @@ def learn1():
     # 5. The most uncertain labels (ie those with probability closest to 0.5).
 
     # This is the label for a val data
-    data.val_y
+    print('data.val_y --> ', data.val_y)
 
     # from here we know that 'cats' is label 0 and 'dogs' is label 1.
-    data.classes
+    print('data.classes --> ', data.classes)
 
     # this gives prediction for validation set. Predictions are in log scale
     log_preds = learn.predict()
+    print('log_preds.shape --> ', log_preds.shape)
     log_preds.shape
 
-    log_preds[:10]
+    print('log_preds[:10] --> ', log_preds[:10])
 
     preds = np.argmax(log_preds, axis=1)  # from log probabilities to 0 or 1
     probs = np.exp(log_preds[:, 1])        # pr(dog)
@@ -182,8 +182,7 @@ tfms = tfms_from_model(
 
 
 def learn3():
-    # Let's create a new `data` object that includes this augmentation in the
-    # transforms.
+    # Let's create a new `data` object that includes this augmentation in the transforms.
     data = ImageClassifierData.from_paths(PATH, tfms=tfms)
     learn = ConvLearner.pretrained(arch, data, precompute=True)
 
@@ -318,12 +317,12 @@ def learn3():
     tfms_from_model(resnet34, sz)
 
 
-# We need a <b>path</b> that points to the dataset. In this path we will
-# also store temporary data and final results.
-# `ImageClassifierData.from_paths` reads data from a provided path and
-# creates a dataset ready for training.
 
 def learn4():
+    # We need a <b>path</b> that points to the dataset. In this path we will
+    # also store temporary data and final results.
+    # `ImageClassifierData.from_paths` reads data from a provided path and
+    # creates a dataset ready for training.
     data = ImageClassifierData.from_paths(PATH, tfms=tfms)
 
     # `ConvLearner.pretrained` builds *learner* that contains a pre-trained model. The last layer of the model needs to be replaced with the layer of the right dimensions. The pretained model was trained for 1000 classes therfore the final layer predicts a vector of 1000 probabilities. The model for cats and dogs needs to output a two dimensional vector. The diagram below shows in an example how this was done in one of the earliest successful CNNs. The layer "FC8" here would get replaced with a new layer with 2 outputs.
