@@ -1,9 +1,9 @@
 
 # coding: utf-8
 
-get_ipython().magic('reload_ext autoreload')
-get_ipython().magic('autoreload 2')
-get_ipython().magic('matplotlib inline')
+get_ipython().magic(u'reload_ext autoreload')
+get_ipython().magic(u'autoreload 2')
+get_ipython().magic(u'matplotlib inline')
 
 from fastai.io import *
 from fastai.conv_learner import *
@@ -13,8 +13,7 @@ from fastai.column_data import *
 
 # ## Setup
 
-# We're going to download the collected works of Nietzsche to use as our
-# data for this class.
+# We're going to download the collected works of Nietzsche to use as our data for this class.
 
 PATH = 'data/nietzsche/'
 
@@ -59,8 +58,7 @@ idx[:10]
 
 # ### Create inputs
 
-# Create a list of every 4th character, starting at the 0th, 1st, 2nd,
-# then 3rd characters
+# Create a list of every 4th character, starting at the 0th, 1st, 2nd, then 3rd characters
 
 cs = 3
 c1_dat = [idx[i] for i in range(0, len(idx) - cs, cs)]
@@ -99,8 +97,7 @@ x1.shape, y.shape
 n_hidden = 256
 
 
-# The number of latent factors to create (i.e. the size of the embedding
-# matrix)
+# The number of latent factors to create (i.e. the size of the embedding matrix)
 
 n_fac = 42
 
@@ -110,33 +107,29 @@ class Char3Model(nn.Module):
         super().__init__()
         self.e = nn.Embedding(vocab_size, n_fac)
 
-        # The 'green arrow' from our diagram - the layer operation from input
-        # to hidden
+        # The 'green arrow' from our diagram - the layer operation from input to hidden
         self.l_in = nn.Linear(n_fac, n_hidden)
 
-        # The 'orange arrow' from our diagram - the layer operation from hidden
-        # to hidden
+        # The 'orange arrow' from our diagram - the layer operation from hidden to hidden
         self.l_hidden = nn.Linear(n_hidden, n_hidden)
-
-        # The 'blue arrow' from our diagram - the layer operation from hidden
-        # to output
+        
+        # The 'blue arrow' from our diagram - the layer operation from hidden to output
         self.l_out = nn.Linear(n_hidden, vocab_size)
-
+        
     def forward(self, c1, c2, c3):
         in1 = F.relu(self.l_in(self.e(c1)))
         in2 = F.relu(self.l_in(self.e(c2)))
         in3 = F.relu(self.l_in(self.e(c3)))
-
+        
         h = V(torch.zeros(in1.size()).cuda())
         h = F.tanh(self.l_hidden(h + in1))
         h = F.tanh(self.l_hidden(h + in2))
         h = F.tanh(self.l_hidden(h + in3))
-
+        
         return F.log_softmax(self.l_out(h))
 
 
-md = ColumnarModelData.from_arrays(
-    '.', [-1], np.stack([x1, x2, x3], axis=1), y, bs=512)
+md = ColumnarModelData.from_arrays('.', [-1], np.stack([x1, x2, x3], axis=1), y, bs=512)
 
 
 m = Char3Model(vocab_size, n_fac).cuda()
@@ -189,14 +182,12 @@ get_next('and')
 cs = 8
 
 
-# For each of 0 through 7, create a list of every 8th character with that
-# starting point. These will be the 8 inputs to out model.
+# For each of 0 through 7, create a list of every 8th character with that starting point. These will be the 8 inputs to out model.
 
 c_in_dat = [[idx[i + j] for i in range(cs)] for j in range(len(idx) - cs)]
 
 
-# Then create a list of the next character in each of these series. This
-# will be the labels for our model.
+# Then create a list of the next character in each of these series. This will be the labels for our model.
 
 c_out_dat = [idx[j + cs] for j in range(len(idx) - cs)]
 
@@ -236,14 +227,14 @@ class CharLoopModel(nn.Module):
         self.l_in = nn.Linear(n_fac, n_hidden)
         self.l_hidden = nn.Linear(n_hidden, n_hidden)
         self.l_out = nn.Linear(n_hidden, vocab_size)
-
+        
     def forward(self, *cs):
         bs = cs[0].size(0)
         h = V(torch.zeros(bs, n_hidden).cuda())
         for c in cs:
             inp = F.relu(self.l_in(self.e(c)))
             h = F.tanh(self.l_hidden(h + inp))
-
+        
         return F.log_softmax(self.l_out(h), dim=-1)
 
 
@@ -267,7 +258,7 @@ class CharLoopConcatModel(nn.Module):
         self.l_in = nn.Linear(n_fac + n_hidden, n_hidden)
         self.l_hidden = nn.Linear(n_hidden, n_hidden)
         self.l_out = nn.Linear(n_hidden, vocab_size)
-
+        
     def forward(self, *cs):
         bs = cs[0].size(0)
         h = V(torch.zeros(bs, n_hidden).cuda())
@@ -275,7 +266,7 @@ class CharLoopConcatModel(nn.Module):
             inp = torch.cat((h, self.e(c)), 1)
             inp = F.relu(self.l_in(inp))
             h = F.tanh(self.l_hidden(inp))
-
+        
         return F.log_softmax(self.l_out(h), dim=-1)
 
 
@@ -323,13 +314,13 @@ class CharRnn(nn.Module):
         self.e = nn.Embedding(vocab_size, n_fac)
         self.rnn = nn.RNN(n_fac, n_hidden)
         self.l_out = nn.Linear(n_hidden, vocab_size)
-
+        
     def forward(self, *cs):
         bs = cs[0].size(0)
         h = V(torch.zeros(1, bs, n_hidden))
         inp = self.e(torch.stack(cs))
         outp, h = self.rnn(inp, h)
-
+        
         return F.log_softmax(self.l_out(outp[-1]), dim=-1)
 
 
@@ -350,8 +341,7 @@ outp, hn = m.rnn(t, ht)
 outp.size(), hn.size()
 
 
-t = m(*V(xs))
-t.size()
+t = m(*V(xs)); t.size()
 
 
 fit(m, md, 4, opt, F.nll_loss)
@@ -393,14 +383,12 @@ get_next_n('for thos', 40)
 
 # Let's take non-overlapping sets of characters this time
 
-c_in_dat = [[idx[i + j] for i in range(cs)]
-            for j in range(0, len(idx) - cs - 1, cs)]
+c_in_dat = [[idx[i + j] for i in range(cs)] for j in range(0, len(idx) - cs - 1, cs)]
 
 
 # Then create the exact same thing, offset by 1, as our labels
 
-c_out_dat = [[idx[i + j] for i in range(cs)]
-             for j in range(1, len(idx) - cs, cs)]
+c_out_dat = [[idx[i + j] for i in range(cs)] for j in range(1, len(idx) - cs, cs)]
 
 
 xs = np.stack(c_in_dat)
@@ -431,7 +419,7 @@ class CharSeqRnn(nn.Module):
         self.e = nn.Embedding(vocab_size, n_fac)
         self.rnn = nn.RNN(n_fac, n_hidden)
         self.l_out = nn.Linear(n_hidden, vocab_size)
-
+        
     def forward(self, *cs):
         bs = cs[0].size(0)
         h = V(torch.zeros(1, bs, n_hidden))
@@ -497,17 +485,14 @@ VAL_PATH = 'val/'
 TRN = f'{PATH}{TRN_PATH}'
 VAL = f'{PATH}{VAL_PATH}'
 
-get_ipython().magic('ls {PATH}')
+get_ipython().magic(u'ls {PATH}')
 
 
-get_ipython().magic('ls {PATH}trn')
+get_ipython().magic(u'ls {PATH}trn')
 
 
 TEXT = data.Field(lower=True, tokenize=list)
-bs = 64
-bptt = 8
-n_fac = 42
-n_hidden = 256
+bs = 64; bptt = 8; n_fac = 42; n_hidden = 256
 
 FILES = dict(train=TRN_PATH, validation=VAL_PATH, test=VAL_PATH)
 md = LanguageModelData.from_text_files(PATH, TEXT, **FILES, bs=bs, bptt=bptt, min_freq=3)
@@ -525,16 +510,14 @@ class CharSeqStatefulRnn(nn.Module):
         self.rnn = nn.RNN(n_fac, n_hidden)
         self.l_out = nn.Linear(n_hidden, vocab_size)
         self.init_hidden(bs)
-
+        
     def forward(self, cs):
         bs = cs[0].size(0)
-        if self.h.size(1) != bs:
-            self.init_hidden(bs)
+        if self.h.size(1) != bs: self.init_hidden(bs)
         outp, h = self.rnn(self.e(cs), self.h)
         self.h = repackage_var(h)
-        return F.log_softmax(self.l_out(outp), dim=-
-                             1).view(-1, self.vocab_size)
-
+        return F.log_softmax(self.l_out(outp), dim=-1).view(-1, self.vocab_size)
+    
     def init_hidden(self, bs): self.h = V(torch.zeros(1, bs, n_hidden))
 
 
@@ -566,11 +549,10 @@ class CharSeqStatefulRnn2(nn.Module):
         self.rnn = nn.RNNCell(n_fac, n_hidden)
         self.l_out = nn.Linear(n_hidden, vocab_size)
         self.init_hidden(bs)
-
+        
     def forward(self, cs):
         bs = cs[0].size(0)
-        if self.h.size(1) != bs:
-            self.init_hidden(bs)
+        if self.h.size(1) != bs: self.init_hidden(bs)
         outp = []
         o = self.h
         for c in cs:
@@ -579,7 +561,7 @@ class CharSeqStatefulRnn2(nn.Module):
         outp = self.l_out(torch.stack(outp))
         self.h = repackage_var(o)
         return F.log_softmax(outp, dim=-1).view(-1, self.vocab_size)
-
+    
     def init_hidden(self, bs): self.h = V(torch.zeros(1, bs, n_hidden))
 
 
@@ -600,16 +582,14 @@ class CharSeqStatefulGRU(nn.Module):
         self.rnn = nn.GRU(n_fac, n_hidden)
         self.l_out = nn.Linear(n_hidden, vocab_size)
         self.init_hidden(bs)
-
+        
     def forward(self, cs):
         bs = cs[0].size(0)
-        if self.h.size(1) != bs:
-            self.init_hidden(bs)
+        if self.h.size(1) != bs: self.init_hidden(bs)
         outp, h = self.rnn(self.e(cs), self.h)
         self.h = repackage_var(h)
-        return F.log_softmax(self.l_out(outp), dim=-
-                             1).view(-1, self.vocab_size)
-
+        return F.log_softmax(self.l_out(outp), dim=-1).view(-1, self.vocab_size)
+    
     def init_hidden(self, bs): self.h = V(torch.zeros(1, bs, n_hidden))
 
 
@@ -656,16 +636,14 @@ class CharSeqStatefulLSTM(nn.Module):
         self.rnn = nn.LSTM(n_fac, n_hidden, nl, dropout=0.5)
         self.l_out = nn.Linear(n_hidden, vocab_size)
         self.init_hidden(bs)
-
+        
     def forward(self, cs):
         bs = cs[0].size(0)
-        if self.h[0].size(1) != bs:
-            self.init_hidden(bs)
+        if self.h[0].size(1) != bs: self.init_hidden(bs)
         outp, h = self.rnn(self.e(cs), self.h)
         self.h = repackage_var(h)
-        return F.log_softmax(self.l_out(outp), dim=-
-                             1).view(-1, self.vocab_size)
-
+        return F.log_softmax(self.l_out(outp), dim=-1).view(-1, self.vocab_size)
+    
     def init_hidden(self, bs):
         self.h = (V(torch.zeros(self.nl, bs, n_hidden)),
                   V(torch.zeros(self.nl, bs, n_hidden)))
@@ -681,16 +659,12 @@ os.makedirs(f'{PATH}models', exist_ok=True)
 fit(m, md, 2, lo.opt, F.nll_loss)
 
 
-def on_end(sched, cycle): return save_model(m, f'{PATH}models/cyc_{cycle}')
-
-
+on_end = lambda sched, cycle: save_model(m, f'{PATH}models/cyc_{cycle}')
 cb = [CosAnneal(lo, len(md.trn_dl), cycle_mult=2, on_cycle_end=on_end)]
 fit(m, md, 2**4 - 1, lo.opt, F.nll_loss, callbacks=cb)
 
 
-def on_end(sched, cycle): return save_model(m, f'{PATH}models/cyc_{cycle}')
-
-
+on_end = lambda sched, cycle: save_model(m, f'{PATH}models/cyc_{cycle}')
 cb = [CosAnneal(lo, len(md.trn_dl), cycle_mult=2, on_cycle_end=on_end)]
 fit(m, md, 2**6 - 1, lo.opt, F.nll_loss, callbacks=cb)
 

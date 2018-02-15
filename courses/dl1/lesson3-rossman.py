@@ -5,15 +5,11 @@
 
 # This notebook contains an implementation of the third place result in the Rossman Kaggle competition as detailed in Guo/Berkhahn's [Entity Embeddings of Categorical Variables](https://arxiv.org/abs/1604.06737).
 #
-# The motivation behind exploring this architecture is it's relevance to
-# real-world application. Most data used for decision making day-to-day in
-# industry is structured and/or time-series data. Here we explore the
-# end-to-end process of using neural networks with practical structured
-# data problems.
+# The motivation behind exploring this architecture is it's relevance to real-world application. Most data used for decision making day-to-day in industry is structured and/or time-series data. Here we explore the end-to-end process of using neural networks with practical structured data problems.
 
-get_ipython().magic('matplotlib inline')
-get_ipython().magic('reload_ext autoreload')
-get_ipython().magic('autoreload 2')
+get_ipython().magic(u'matplotlib inline')
+get_ipython().magic(u'reload_ext autoreload')
+get_ipython().magic(u'autoreload 2')
 
 
 from fastai.structured import *
@@ -27,12 +23,11 @@ PATH = 'data/rossmann/'
 
 # In addition to the provided data, we will be using external datasets put together by participants in the Kaggle competition. You can download all of them [here](http://files.fast.ai/part2/lesson14/rossmann.tgz).
 #
-# For completeness, the implementation used to put them together is
-# included below.
+# For completeness, the implementation used to put them together is included below.
 
 def concat_csvs(dirname):
     path = f'{PATH}{dirname}'
-    filenames = glob.glob(f"{path}/*.csv")
+    filenames = glob(f"{PATH}/*.csv")
 
     wrote_header = False
     with open(f"{path}.csv", "w") as outputfile:
@@ -44,7 +39,7 @@ def concat_csvs(dirname):
                     wrote_header = True
                     outputfile.write("file," + line)
                 for line in f:
-                    outputfile.write(name + "," + line)
+                     outputfile.write(name + "," + line)
                 outputfile.write("\n")
 
 
@@ -67,8 +62,7 @@ table_names = ['train', 'store', 'store_states', 'state_names',
 
 # We'll be using the popular data manipulation framework `pandas`. Among other things, pandas allows you to manipulate tables/data frames in python as one would in a database.
 #
-# We're going to go ahead and load all of our csv's as dataframes into the
-# list `tables`.
+# We're going to go ahead and load all of our csv's as dataframes into the list `tables`.
 
 tables = [pd.read_csv(f'{PATH}{fname}.csv', low_memory=False) for fname in table_names]
 
@@ -86,24 +80,19 @@ from IPython.display import HTML
 # * test: Same as training table, w/o sales and customers
 #
 
-for t in tables:
-    display(t.head())
+for t in tables: display(t.head())
 
 
 # This is very representative of a typical industry dataset.
 #
-# The following returns summarized aggregate information to each table
-# accross each field.
+# The following returns summarized aggregate information to each table accross each field.
 
-for t in tables:
-    display(DataFrameSummary(t).summary())
+for t in tables: display(DataFrameSummary(t).summary())
 
 
 # ## Data Cleaning / Feature Engineering
 
-# As a structured data problem, we necessarily have to go through all the
-# cleaning and feature engineering, even though we're using a neural
-# network.
+# As a structured data problem, we necessarily have to go through all the cleaning and feature engineering, even though we're using a neural network.
 
 train, store, store_states, state_names, googletrend, weather, test = tables
 
@@ -111,9 +100,7 @@ train, store, store_states, state_names, googletrend, weather, test = tables
 len(train), len(test)
 
 
-# We turn state Holidays to booleans, to make them more convenient for
-# modeling. We can do calculations on pandas fields using notation very
-# similar (often identical) to numpy.
+# We turn state Holidays to booleans, to make them more convenient for modeling. We can do calculations on pandas fields using notation very similar (often identical) to numpy.
 
 train.StateHoliday = train.StateHoliday != '0'
 test.StateHoliday = test.StateHoliday != '0'
@@ -121,14 +108,10 @@ test.StateHoliday = test.StateHoliday != '0'
 
 # `join_df` is a function for joining tables on specific fields. By default, we'll be doing a left outer join of `right` on the `left` argument using the given fields for each table.
 #
-# Pandas does joins using the `merge` method. The `suffixes` argument
-# describes the naming convention for duplicate fields. We've elected to
-# leave the duplicate field names on the left untouched, and append a
-# "\_y" to those on the right.
+# Pandas does joins using the `merge` method. The `suffixes` argument describes the naming convention for duplicate fields. We've elected to leave the duplicate field names on the left untouched, and append a "\_y" to those on the right.
 
 def join_df(left, right, left_on, right_on=None, suffix='_y'):
-    if right_on is None:
-        right_on = left_on
+    if right_on is None: right_on = left_on
     return left.merge(right, how='left', left_on=left_on, right_on=right_on,
                       suffixes=("", suffix))
 
@@ -140,12 +123,7 @@ weather = join_df(weather, state_names, "file", "StateName")
 
 # In pandas you can add new columns to a dataframe by simply defining it. We'll do this for googletrends by extracting dates and state names from the given data and adding those columns.
 #
-# We're also going to replace all instances of state name 'NI' to match
-# the usage in the rest of the data: 'HB,NI'. This is a good opportunity
-# to highlight pandas indexing. We can use `.loc[rows, cols]` to select a
-# list of rows and a list of columns from the dataframe. In this case,
-# we're selecting rows w/ statename 'NI' by using a boolean list
-# `googletrend.State=='NI'` and selecting "State".
+# We're also going to replace all instances of state name 'NI' to match the usage in the rest of the data: 'HB,NI'. This is a good opportunity to highlight pandas indexing. We can use `.loc[rows, cols]` to select a list of rows and a list of columns from the dataframe. In this case, we're selecting rows w/ statename 'NI' by using a boolean list `googletrend.State=='NI'` and selecting "State".
 
 googletrend['Date'] = googletrend.week.str.split(' - ', expand=True)[0]
 googletrend['State'] = googletrend.file.str.split('_', expand=True)[2]
@@ -154,11 +132,7 @@ googletrend.loc[googletrend.State == 'NI', "State"] = 'HB,NI'
 
 # The following extracts particular date fields from a complete datetime for the purpose of constructing categoricals.
 #
-# You should *always* consider this feature extraction step when working
-# with date-time. Without expanding your date-time into these additional
-# fields, you can't capture any trend/cyclical behavior as a function of
-# time at any of these granularities. We'll add to every table with a date
-# field.
+# You should *always* consider this feature extraction step when working with date-time. Without expanding your date-time into these additional fields, you can't capture any trend/cyclical behavior as a function of time at any of these granularities. We'll add to every table with a date field.
 
 add_datepart(weather, "Date", drop=False)
 add_datepart(googletrend, "Date", drop=False)
@@ -166,8 +140,7 @@ add_datepart(train, "Date", drop=False)
 add_datepart(test, "Date", drop=False)
 
 
-# The Google trends data has a special category for the whole of the
-# Germany - we'll pull that out so we can use it explicitly.
+# The Google trends data has a special category for the whole of the Germany - we'll pull that out so we can use it explicitly.
 
 trend_de = googletrend[googletrend.file == 'Rossmann_DE']
 
@@ -175,12 +148,7 @@ trend_de = googletrend[googletrend.file == 'Rossmann_DE']
 # Now we can outer join all of our data into a single dataframe. Recall that in outer joins everytime a value in the joining field on the left table does not have a corresponding value on the right table, the corresponding row in the new table has Null values for all right table fields. One way to check that all records are consistent and complete is to check for Null values post-join, as we do here.
 #
 # *Aside*: Why note just do an inner join?
-# If you are assuming that all records are complete and match on the field
-# you desire, an inner join will do the same thing as an outer join.
-# However, in the event you are wrong or a mistake is made, an outer join
-# followed by a null-check will catch it. (Comparing before/after # of
-# rows for inner join is equivalent, but requires keeping track of
-# before/after row #'s. Outer join is easier.)
+# If you are assuming that all records are complete and match on the field you desire, an inner join will do the same thing as an outer join. However, in the event you are wrong or a mistake is made, an outer join followed by a null-check will catch it. (Comparing before/after # of rows for inner join is equivalent, but requires keeping track of before/after row #'s. Outer join is easier.)
 
 store = join_df(store, store_states, "Store")
 len(store[store.State.isnull()])
@@ -188,62 +156,45 @@ len(store[store.State.isnull()])
 
 joined = join_df(train, store, "Store")
 joined_test = join_df(test, store, "Store")
-len(joined[joined.StoreType.isnull()]), len(
-    joined_test[joined_test.StoreType.isnull()])
+len(joined[joined.StoreType.isnull()]), len(joined_test[joined_test.StoreType.isnull()])
 
 
 joined = join_df(joined, googletrend, ["State", "Year", "Week"])
 joined_test = join_df(joined_test, googletrend, ["State", "Year", "Week"])
-len(joined[joined.trend.isnull()]), len(
-    joined_test[joined_test.trend.isnull()])
+len(joined[joined.trend.isnull()]), len(joined_test[joined_test.trend.isnull()])
 
 
 joined = joined.merge(trend_de, 'left', ["Year", "Week"], suffixes=('', '_DE'))
-joined_test = joined_test.merge(
-    trend_de, 'left', [
-        "Year", "Week"], suffixes=(
-            '', '_DE'))
-len(joined[joined.trend_DE.isnull()]), len(
-    joined_test[joined_test.trend_DE.isnull()])
+joined_test = joined_test.merge(trend_de, 'left', ["Year", "Week"], suffixes=('', '_DE'))
+len(joined[joined.trend_DE.isnull()]), len(joined_test[joined_test.trend_DE.isnull()])
 
 
 joined = join_df(joined, weather, ["State", "Date"])
 joined_test = join_df(joined_test, weather, ["State", "Date"])
-len(joined[joined.Mean_TemperatureC.isnull()]), len(
-    joined_test[joined_test.Mean_TemperatureC.isnull()])
+len(joined[joined.Mean_TemperatureC.isnull()]), len(joined_test[joined_test.Mean_TemperatureC.isnull()])
 
 
 for df in (joined, joined_test):
     for c in df.columns:
         if c.endswith('_y'):
-            if c in df.columns:
-                df.drop(c, inplace=True, axis=1)
+            if c in df.columns: df.drop(c, inplace=True, axis=1)
 
 
-# Next we'll fill in missing values to avoid complications with `NA`'s.
-# `NA` (not available) is how Pandas indicates missing values; many models
-# have problems when missing values are present, so it's always important
-# to think about how to deal with them. In these cases, we are picking an
-# arbitrary *signal value* that doesn't otherwise appear in the data.
+# Next we'll fill in missing values to avoid complications with `NA`'s. `NA` (not available) is how Pandas indicates missing values; many models have problems when missing values are present, so it's always important to think about how to deal with them. In these cases, we are picking an arbitrary *signal value* that doesn't otherwise appear in the data.
 
 for df in (joined, joined_test):
-    df['CompetitionOpenSinceYear'] = df.CompetitionOpenSinceYear.fillna(
-        1900).astype(np.int32)
-    df['CompetitionOpenSinceMonth'] = df.CompetitionOpenSinceMonth.fillna(
-        1).astype(np.int32)
+    df['CompetitionOpenSinceYear'] = df.CompetitionOpenSinceYear.fillna(1900).astype(np.int32)
+    df['CompetitionOpenSinceMonth'] = df.CompetitionOpenSinceMonth.fillna(1).astype(np.int32)
     df['Promo2SinceYear'] = df.Promo2SinceYear.fillna(1900).astype(np.int32)
     df['Promo2SinceWeek'] = df.Promo2SinceWeek.fillna(1).astype(np.int32)
 
 
-# Next we'll extract features "CompetitionOpenSince" and
-# "CompetitionDaysOpen". Note the use of `apply()` in mapping a function
-# across dataframe values.
+# Next we'll extract features "CompetitionOpenSince" and "CompetitionDaysOpen". Note the use of `apply()` in mapping a function across dataframe values.
 
 for df in (joined, joined_test):
     df["CompetitionOpenSince"] = pd.to_datetime(dict(year=df.CompetitionOpenSinceYear,
                                                      month=df.CompetitionOpenSinceMonth, day=15))
-    df["CompetitionDaysOpen"] = df.Date.subtract(
-        df.CompetitionOpenSince).dt.days
+    df["CompetitionDaysOpen"] = df.Date.subtract(df.CompetitionOpenSince).dt.days
 
 
 # We'll replace some erroneous / outlying data.
@@ -253,8 +204,7 @@ for df in (joined, joined_test):
     df.loc[df.CompetitionOpenSinceYear < 1990, "CompetitionDaysOpen"] = 0
 
 
-# We add "CompetitionMonthsOpen" field, limiting the maximum to 2 years to
-# limit number of unique categories.
+# We add "CompetitionMonthsOpen" field, limiting the maximum to 2 years to limit number of unique categories.
 
 for df in (joined, joined_test):
     df["CompetitionMonthsOpen"] = df["CompetitionDaysOpen"] // 30
@@ -294,9 +244,7 @@ joined_test.to_feather(f'{PATH}joined_test')
 #
 # We'll define a function `get_elapsed` for cumulative counting across a sorted dataframe. Given a particular field `fld` to monitor, this function will start tracking time since the last occurrence of that field. When the field is seen again, the counter is set to zero.
 #
-# Upon initialization, this will result in datetime na's until the field
-# is encountered. This is reset every time a new store is seen. We'll see
-# how to use this shortly.
+# Upon initialization, this will result in datetime na's until the field is encountered. This is reset every time a new store is seen. We'll see how to use this shortly.
 
 def get_elapsed(fld, pre):
     day1 = np.timedelta64(1, 'D')
@@ -308,10 +256,8 @@ def get_elapsed(fld, pre):
         if s != last_store:
             last_date = np.datetime64()
             last_store = s
-        if v:
-            last_date = d
-        res.append(
-            ((d - last_date).astype('timedelta64[D]') / day1).astype(int))
+        if v: last_date = d
+        res.append(((d - last_date).astype('timedelta64[D]') / day1).astype(int))
     df[pre + fld] = res
 
 
@@ -375,23 +321,18 @@ for o in ['Before', 'After']:
 
 # Next we'll demonstrate window functions in pandas to calculate rolling quantities.
 #
-# Here we're sorting by date (`sort_index()`) and counting the number of
-# events of interest (`sum()`) defined in `columns` in the following week
-# (`rolling()`), grouped by Store (`groupby()`). We do the same in the
-# opposite direction.
+# Here we're sorting by date (`sort_index()`) and counting the number of events of interest (`sum()`) defined in `columns` in the following week (`rolling()`), grouped by Store (`groupby()`). We do the same in the opposite direction.
 
-bwd = df[['Store'] + columns].sort_index().groupby("Store").rolling(7,
-                                                                    min_periods=1).sum()
+bwd = df[['Store'] + columns].sort_index().groupby("Store").rolling(7, min_periods=1).sum()
 
 
 fwd = df[['Store'] + columns].sort_index(ascending=False
-                                         ).groupby("Store").rolling(7, min_periods=1).sum()
+                                      ).groupby("Store").rolling(7, min_periods=1).sum()
 
 
 # Next we want to drop the Store indices grouped together in the window function.
 #
-# Often in pandas, there is an option to do this in place. This is time
-# and memory efficient when working with large datasets.
+# Often in pandas, there is an option to do this in place. This is time and memory efficient when working with large datasets.
 
 bwd.drop('Store', 1, inplace=True)
 bwd.reset_index(inplace=True)
@@ -416,9 +357,7 @@ df.drop(columns, 1, inplace=True)
 df.head()
 
 
-# It's usually a good idea to back up large tables of extracted / wrangled
-# features before you join them onto another one, that way you can go back
-# to it easily if you need to make changes to it.
+# It's usually a good idea to back up large tables of extracted / wrangled features before you join them onto another one, that way you can go back to it easily if you need to make changes to it.
 
 df.to_feather(f'{PATH}df')
 
@@ -438,15 +377,7 @@ joined = join_df(joined, df, ['Store', 'Date'])
 joined_test = join_df(joined_test, df, ['Store', 'Date'])
 
 
-# The authors also removed all instances where the store had zero sale /
-# was closed. We speculate that this may have cost them a higher standing
-# in the competition. One reason this may be the case is that a little
-# exploratory data analysis reveals that there are often periods where
-# stores are closed, typically for refurbishment. Before and after these
-# periods, there are naturally spikes in sales that one might expect. By
-# ommitting this data from their training, the authors gave up the ability
-# to leverage information about these periods to predict this otherwise
-# volatile behavior.
+# The authors also removed all instances where the store had zero sale / was closed. We speculate that this may have cost them a higher standing in the competition. One reason this may be the case is that a little exploratory data analysis reveals that there are often periods where stores are closed, typically for refurbishment. Before and after these periods, there are naturally spikes in sales that one might expect. By ommitting this data from their training, the authors gave up the ability to leverage information about these periods to predict this otherwise volatile behavior.
 
 joined = joined[joined.Sales != 0]
 
@@ -463,9 +394,7 @@ joined_test.to_feather(f'{PATH}joined_test')
 
 # We now have our final set of engineered features.
 #
-# While these steps were explicitly outlined in the paper, these are all
-# fairly typical feature engineering steps for dealing with time series
-# data and are practical in any similar setting.
+# While these steps were explicitly outlined in the paper, these are all fairly typical feature engineering steps for dealing with time series data and are practical in any similar setting.
 
 # ## Create features
 
@@ -478,22 +407,19 @@ joined.head().T.head(40)
 
 # Now that we've engineered all our features, we need to convert to input compatible with a neural network.
 #
-# This includes converting categorical variables into contiguous integers
-# or one-hot encodings, normalizing continuous features to standard
-# normal, etc...
+# This includes converting categorical variables into contiguous integers or one-hot encodings, normalizing continuous features to standard normal, etc...
 
 cat_vars = ['Store', 'DayOfWeek', 'Year', 'Month', 'Day', 'StateHoliday', 'CompetitionMonthsOpen',
-            'Promo2Weeks', 'StoreType', 'Assortment', 'PromoInterval', 'CompetitionOpenSinceYear', 'Promo2SinceYear',
-            'State', 'Week', 'Events', 'Promo_fw', 'Promo_bw', 'StateHoliday_fw', 'StateHoliday_bw',
-            'SchoolHoliday_fw', 'SchoolHoliday_bw']
+    'Promo2Weeks', 'StoreType', 'Assortment', 'PromoInterval', 'CompetitionOpenSinceYear', 'Promo2SinceYear',
+    'State', 'Week', 'Events', 'Promo_fw', 'Promo_bw', 'StateHoliday_fw', 'StateHoliday_bw',
+    'SchoolHoliday_fw', 'SchoolHoliday_bw']
 
 contin_vars = ['CompetitionDistance', 'Max_TemperatureC', 'Mean_TemperatureC', 'Min_TemperatureC',
-               'Max_Humidity', 'Mean_Humidity', 'Min_Humidity', 'Max_Wind_SpeedKm_h',
-               'Mean_Wind_SpeedKm_h', 'CloudCover', 'trend', 'trend_DE',
-               'AfterStateHoliday', 'BeforeStateHoliday', 'Promo', 'SchoolHoliday']
+   'Max_Humidity', 'Mean_Humidity', 'Min_Humidity', 'Max_Wind_SpeedKm_h',
+   'Mean_Wind_SpeedKm_h', 'CloudCover', 'trend', 'trend_DE',
+   'AfterStateHoliday', 'BeforeStateHoliday', 'Promo', 'SchoolHoliday']
 
-n = len(joined)
-n
+n = len(joined); n
 
 
 dep = 'Sales'
@@ -504,8 +430,7 @@ joined_test[dep] = 0
 joined_test = joined_test[cat_vars + contin_vars + [dep, 'Date', 'Id']].copy()
 
 
-for v in cat_vars:
-    joined[v] = joined[v].astype('category').cat.as_ordered()
+for v in cat_vars: joined[v] = joined[v].astype('category').cat.as_ordered()
 
 
 apply_cats(joined_test, joined)
@@ -520,8 +445,7 @@ for v in contin_vars:
 
 idxs = get_cv_idxs(n, val_pct=150000 / n)
 joined_samp = joined.iloc[idxs].set_index("Date")
-samp_size = len(joined_samp)
-samp_size
+samp_size = len(joined_samp); samp_size
 
 
 # To run on the full dataset, use this instead:
@@ -551,19 +475,15 @@ df.head(2)
 
 # In time series data, cross-validation is not random. Instead, our holdout data is generally the most recent data, as it would be in real application. This issue is discussed in detail in [this post](http://www.fast.ai/2017/11/13/validation-sets/) on our web site.
 #
-# One approach is to take the last 25% of rows (sorted by date) as our
-# validation set.
+# One approach is to take the last 25% of rows (sorted by date) as our validation set.
 
 train_ratio = 0.75
 # train_ratio = 0.9
-train_size = int(samp_size * train_ratio)
-train_size
+train_size = int(samp_size * train_ratio); train_size
 val_idx = list(range(train_size, len(df)))
 
 
-# An even better option for picking a validation set is using the exact
-# same length of time period as the test set uses - this is implemented
-# here:
+# An even better option for picking a validation set is using the exact same length of time period as the test set uses - this is implemented here:
 
 val_idx = np.flatnonzero(
     (df.index <= datetime.datetime(2014, 9, 17)) & (df.index >= datetime.datetime(2014, 8, 1)))
@@ -576,17 +496,14 @@ val_idx = [0]
 
 # We're ready to put together our models.
 #
-# Root-mean-squared percent error is the metric Kaggle used for this
-# competition.
+# Root-mean-squared percent error is the metric Kaggle used for this competition.
 
 def inv_y(a): return np.exp(a)
-
 
 def exp_rmspe(y_pred, targ):
     targ = inv_y(targ)
     pct_var = (targ - inv_y(y_pred)) / targ
     return math.sqrt((pct_var**2).mean())
-
 
 max_log_y = np.max(yl)
 y_range = (0, max_log_y * 1.2)
@@ -598,8 +515,7 @@ md = ColumnarModelData.from_data_frame(PATH, val_idx, df, yl.astype(np.float32),
                                        test_df=df_test)
 
 
-# Some categorical variables have a lot more levels than others. Store, in
-# particular, has over a thousand!
+# Some categorical variables have a lot more levels than others. Store, in particular, has over a thousand!
 
 cat_sz = [(c, len(joined_samp[c].cat.categories) + 1) for c in cat_vars]
 
@@ -607,9 +523,7 @@ cat_sz = [(c, len(joined_samp[c].cat.categories) + 1) for c in cat_vars]
 cat_sz
 
 
-# We use the *cardinality* of each variable (that is, its number of unique
-# values) to decide how large to make its *embeddings*. Each level will be
-# associated with a vector with length defined as below.
+# We use the *cardinality* of each variable (that is, its number of unique values) to decide how large to make its *embeddings*. Each level will be associated with a vector with length defined as below.
 
 emb_szs = [(c, min(50, (c + 1) // 2)) for _, c in cat_sz]
 
@@ -713,7 +627,7 @@ from sklearn.ensemble import RandomForestRegressor
 
 m = RandomForestRegressor(n_estimators=40, max_features=0.99, min_samples_leaf=2,
                           n_jobs=-1, oob_score=True)
-m.fit(trn, y_trn)
+m.fit(trn, y_trn);
 
 
 preds = m.predict(val)

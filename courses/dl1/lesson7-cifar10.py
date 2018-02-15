@@ -3,9 +3,9 @@
 
 # ## CIFAR 10
 
-get_ipython().magic('matplotlib inline')
-get_ipython().magic('reload_ext autoreload')
-get_ipython().magic('autoreload 2')
+get_ipython().magic(u'matplotlib inline')
+get_ipython().magic(u'reload_ext autoreload')
+get_ipython().magic(u'autoreload 2')
 
 
 # You can get the data via:
@@ -17,25 +17,13 @@ PATH = "data/cifar10/"
 os.makedirs(PATH, exist_ok=True)
 
 
-classes = (
-    'plane',
-    'car',
-    'bird',
-    'cat',
-    'deer',
-    'dog',
-    'frog',
-    'horse',
-    'ship',
-     'truck')
-stats = (np.array([0.4914, 0.48216, 0.44653]),
-         np.array([0.24703, 0.24349, 0.26159]))
+classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
+stats = (np.array([0.4914, 0.48216, 0.44653]), np.array([0.24703, 0.24349, 0.26159]))
 
 
 def get_data(sz, bs):
     tfms = tfms_from_stats(stats, sz, aug_tfms=[RandomFlipXY()], pad=sz // 8)
-    return ImageClassifierData.from_paths(
-        PATH, val_name='test', tfms=tfms, bs=bs)
+    return ImageClassifierData.from_paths(PATH, val_name='test', tfms=tfms, bs=bs)
 
 
 bs = 256
@@ -63,16 +51,14 @@ data = get_data(32, bs)
 lr = 1e-2
 
 
-# From [this
-# notebook](https://github.com/KeremTurgutlu/deeplearning/blob/master/Exploring%20Optimizers.ipynb)
-# by our student Kerem Turgutlu:
+# From [this notebook](https://github.com/KeremTurgutlu/deeplearning/blob/master/Exploring%20Optimizers.ipynb) by our student Kerem Turgutlu:
 
 class SimpleNet(nn.Module):
     def __init__(self, layers):
         super().__init__()
         self.layers = nn.ModuleList([
             nn.Linear(layers[i], layers[i + 1]) for i in range(len(layers) - 1)])
-
+        
     def forward(self, x):
         x = x.view(x.size(0), -1)
         for l in self.layers:
@@ -96,10 +82,10 @@ learn.lr_find()
 learn.sched.plot()
 
 
-get_ipython().magic('time learn.fit(lr, 2)')
+get_ipython().magic(u'time learn.fit(lr, 2)')
 
 
-get_ipython().magic('time learn.fit(lr, 2, cycle_len=1)')
+get_ipython().magic(u'time learn.fit(lr, 2, cycle_len=1)')
 
 
 # ## CNN
@@ -112,7 +98,7 @@ class ConvNet(nn.Module):
             for i in range(len(layers) - 1)])
         self.pool = nn.AdaptiveMaxPool2d(1)
         self.out = nn.Linear(layers[-1], c)
-
+        
     def forward(self, x):
         for l in self.layers: x = F.relu(l(x))
         x = self.pool(x)
@@ -132,10 +118,10 @@ learn.lr_find(end_lr=100)
 learn.sched.plot()
 
 
-get_ipython().magic('time learn.fit(1e-1, 2)')
+get_ipython().magic(u'time learn.fit(1e-1, 2)')
 
 
-get_ipython().magic('time learn.fit(1e-1, 4, cycle_len=1)')
+get_ipython().magic(u'time learn.fit(1e-1, 4, cycle_len=1)')
 
 
 # ## Refactored
@@ -144,7 +130,7 @@ class ConvLayer(nn.Module):
     def __init__(self, ni, nf):
         super().__init__()
         self.conv = nn.Conv2d(ni, nf, kernel_size=3, stride=2, padding=1)
-
+        
     def forward(self, x): return F.relu(self.conv(x))
 
 
@@ -154,7 +140,7 @@ class ConvNet2(nn.Module):
         self.layers = nn.ModuleList([ConvLayer(layers[i], layers[i + 1])
             for i in range(len(layers) - 1)])
         self.out = nn.Linear(layers[-1], c)
-
+        
     def forward(self, x):
         for l in self.layers: x = l(x)
         x = F.adaptive_max_pool2d(x, 1)
@@ -168,10 +154,10 @@ learn = ConvLearner.from_model_data(ConvNet2([3, 20, 40, 80], 10), data)
 learn.summary()
 
 
-get_ipython().magic('time learn.fit(1e-1, 2)')
+get_ipython().magic(u'time learn.fit(1e-1, 2)')
 
 
-get_ipython().magic('time learn.fit(1e-1, 2, cycle_len=1)')
+get_ipython().magic(u'time learn.fit(1e-1, 2, cycle_len=1)')
 
 
 # ## BatchNorm
@@ -183,13 +169,13 @@ class BnLayer(nn.Module):
                               bias=False, padding=1)
         self.a = nn.Parameter(torch.zeros(nf, 1, 1))
         self.m = nn.Parameter(torch.ones(nf, 1, 1))
-
+        
     def forward(self, x):
         x = F.relu(self.conv(x))
         x_chan = x.transpose(0, 1).contiguous().view(x.size(1), -1)
         if self.training:
             self.means = x_chan.mean(1)[:, None, None]
-            self.stds = x_chan.std(1)[:, None, None]
+            self.stds = x_chan.std (1)[:, None, None]
         return (x - self.means) / self.stds * self.m + self.a
 
 
@@ -200,7 +186,7 @@ class ConvBnNet(nn.Module):
         self.layers = nn.ModuleList([BnLayer(layers[i], layers[i + 1])
             for i in range(len(layers) - 1)])
         self.out = nn.Linear(layers[-1], c)
-
+        
     def forward(self, x):
         x = self.conv1(x)
         for l in self.layers: x = l(x)
@@ -215,10 +201,10 @@ learn = ConvLearner.from_model_data(ConvBnNet([10, 20, 40, 80, 160], 10), data)
 learn.summary()
 
 
-get_ipython().magic('time learn.fit(3e-2, 2)')
+get_ipython().magic(u'time learn.fit(3e-2, 2)')
 
 
-get_ipython().magic('time learn.fit(1e-1, 4, cycle_len=1)')
+get_ipython().magic(u'time learn.fit(1e-1, 4, cycle_len=1)')
 
 
 # ## Deep BatchNorm
@@ -232,7 +218,7 @@ class ConvBnNet2(nn.Module):
         self.layers2 = nn.ModuleList([BnLayer(layers[i + 1], layers[i + 1], 1)
             for i in range(len(layers) - 1)])
         self.out = nn.Linear(layers[-1], c)
-
+        
     def forward(self, x):
         x = self.conv1(x)
         for l, l2 in zip(self.layers, self.layers2):
@@ -246,10 +232,10 @@ class ConvBnNet2(nn.Module):
 learn = ConvLearner.from_model_data((ConvBnNet2([10, 20, 40, 80, 160], 10), data)
 
 
-get_ipython().magic('time learn.fit(1e-2, 2)')
+get_ipython().magic(u'time learn.fit(1e-2, 2)')
 
 
-get_ipython().magic('time learn.fit(1e-2, 2, cycle_len=1)')
+get_ipython().magic(u'time learn.fit(1e-2, 2, cycle_len=1)')
 
 
 # ## Resnet
@@ -269,7 +255,7 @@ class Resnet(nn.Module):
         self.layers3=nn.ModuleList([ResnetLayer(layers[i + 1], layers[i + 1], 1)
             for i in range(len(layers) - 1)])
         self.out=nn.Linear(layers[-1], c)
-
+        
     def forward(self, x):
         x=self.conv1(x)
         for l, l2, l3 in zip(self.layers, self.layers2, self.layers3):
@@ -285,13 +271,13 @@ learn=ConvLearner.from_model_data(Resnet([10, 20, 40, 80, 160], 10), data)
 wd=1e-5
 
 
-get_ipython().magic('time learn.fit(1e-2, 2, wds=wd)')
+get_ipython().magic(u'time learn.fit(1e-2, 2, wds=wd)')
 
 
-get_ipython().magic('time learn.fit(1e-2, 3, cycle_len=1, cycle_mult=2, wds=wd)')
+get_ipython().magic(u'time learn.fit(1e-2, 3, cycle_len=1, cycle_mult=2, wds=wd)')
 
 
-get_ipython().magic('time learn.fit(1e-2, 8, cycle_len=4, wds=wd)')
+get_ipython().magic(u'time learn.fit(1e-2, 8, cycle_len=4, wds=wd)')
 
 
 # ## Resnet 2
@@ -308,7 +294,7 @@ class Resnet2(nn.Module):
             for i in range(len(layers) - 1)])
         self.out=nn.Linear(layers[-1], c)
         self.drop=nn.Dropout(p)
-
+        
     def forward(self, x):
         x=self.conv1(x)
         for l, l2, l3 in zip(self.layers, self.layers2, self.layers3):
@@ -319,20 +305,19 @@ class Resnet2(nn.Module):
         return F.log_softmax(self.out(x), dim=-1)
 
 
-learn=ConvLearner.from_model_data(
-    Resnet2([16, 32, 64, 128, 256], 10, 0.2), data)
+learn=ConvLearner.from_model_data(Resnet2([16, 32, 64, 128, 256], 10, 0.2), data)
 
 
 wd=1e-6
 
 
-get_ipython().magic('time learn.fit(1e-2, 2, wds=wd)')
+get_ipython().magic(u'time learn.fit(1e-2, 2, wds=wd)')
 
 
-get_ipython().magic('time learn.fit(1e-2, 3, cycle_len=1, cycle_mult=2, wds=wd)')
+get_ipython().magic(u'time learn.fit(1e-2, 3, cycle_len=1, cycle_mult=2, wds=wd)')
 
 
-get_ipython().magic('time learn.fit(1e-2, 8, cycle_len=4, wds=wd)')
+get_ipython().magic(u'time learn.fit(1e-2, 8, cycle_len=4, wds=wd)')
 
 
 learn.save('tmp3')

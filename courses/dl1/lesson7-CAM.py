@@ -3,9 +3,9 @@
 
 # ## Dogs v Cats
 
-get_ipython().magic('reload_ext autoreload')
-get_ipython().magic('autoreload 2')
-get_ipython().magic('matplotlib inline')
+get_ipython().magic(u'reload_ext autoreload')
+get_ipython().magic(u'autoreload 2')
+get_ipython().magic(u'matplotlib inline')
 
 from fastai.imports import *
 
@@ -75,15 +75,14 @@ vx = Variable(x.cuda(), requires_grad=True)
 
 
 dx = data.val_ds.denorm(x)[0]
-plt.imshow(dx)
+plt.imshow(dx);
 
 
 sf = SaveFeatures(m[-4])
 py = m(Variable(x.cuda()))
 sf.remove()
 
-py = np.exp(to_np(py)[0])
-py
+py = np.exp(to_np(py)[0]); py
 
 
 feat = np.maximum(0, sf.features[0])
@@ -97,7 +96,7 @@ f2
 
 
 plt.imshow(dx)
-plt.imshow(scipy.misc.imresize(f2, dx.shape), alpha=0.5, cmap='hot')
+plt.imshow(scipy.misc.imresize(f2, dx.shape), alpha=0.5, cmap='hot');
 
 
 # ## Model

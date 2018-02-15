@@ -45,32 +45,23 @@ def embedded_dropout(embed, words, dropout=0.1, scale=None):
     """
 
     if dropout:
-        mask = Variable(
-            dropout_mask(
-                embed.weight.data,
-                (embed.weight.size(0),
-                 1),
-                dropout))
+        mask = Variable(dropout_mask(embed.weight.data, (embed.weight.size(0), 1), dropout))
         masked_embed_weight = mask * embed.weight
-    else:
-        masked_embed_weight = embed.weight
-    if scale:
-        masked_embed_weight = scale * masked_embed_weight
+    else: masked_embed_weight = embed.weight
+    if scale: masked_embed_weight = scale * masked_embed_weight
 
     padding_idx = embed.padding_idx
-    if padding_idx is None:
-        padding_idx = -1
+    if padding_idx is None: padding_idx = -1
     X = embed._backend.Embedding.apply(words, masked_embed_weight,
-                                       padding_idx, embed.max_norm, embed.norm_type,
-                                       embed.scale_grad_by_freq, embed.sparse
-                                       )
+        padding_idx, embed.max_norm, embed.norm_type,
+        embed.scale_grad_by_freq, embed.sparse
+    )
     return X
 
 
 # ## Test 1
 
 # #### Initialize embedding matrix and input
-
 
 embed = torch.nn.Embedding(10, 3)
 words = torch.autograd.Variable(torch.LongTensor([[1, 2, 4, 5], [4, 3, 2, 9]]))
@@ -91,10 +82,7 @@ dropout_out_new = embed_dropout_layer(words, dropout=0.4)
 dropout_out_new
 
 
-print(
-    np.testing.assert_array_equal(
-        to_np(dropout_out_old),
-        to_np(dropout_out_new)))
+print(np.testing.assert_array_equal(to_np(dropout_out_old), to_np(dropout_out_new)))
 
 
 # ## Test 2
@@ -102,8 +90,7 @@ print(
 # #### Initialize embedding and matrix
 
 embed = torch.nn.Embedding(10, 7)
-words = torch.autograd.Variable(torch.LongTensor(
-    [[1, 2, 4, 5, 2, 8], [4, 3, 2, 9, 7, 6]]))
+words = torch.autograd.Variable(torch.LongTensor([[1, 2, 4, 5, 2, 8], [4, 3, 2, 9, 7, 6]]))
 
 
 # #### get the input by propagating via the old method
@@ -121,7 +108,4 @@ dropout_out_new = embed_dropout_layer(words, dropout=0.64)
 dropout_out_new
 
 
-print(
-    np.testing.assert_array_equal(
-        to_np(dropout_out_old),
-        to_np(dropout_out_new)))
+print(np.testing.assert_array_equal(to_np(dropout_out_old), to_np(dropout_out_new)))

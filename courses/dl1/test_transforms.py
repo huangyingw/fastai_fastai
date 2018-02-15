@@ -3,9 +3,9 @@
 
 # ## Testing transforms.py
 
-get_ipython().magic('reload_ext autoreload')
-get_ipython().magic('autoreload 2')
-get_ipython().magic('matplotlib inline')
+get_ipython().magic(u'reload_ext autoreload')
+get_ipython().magic(u'autoreload 2')
+get_ipython().magic(u'matplotlib inline')
 
 # This file contains all the main external libs we'll use
 from fastai.imports import *
@@ -49,9 +49,7 @@ corner_labels["img_02642.jpg"]
 
 def create_corner_rect(bb, color='red'):
     bb = np.array(bb, dtype=np.float32)
-    return plt.Rectangle((bb[1], bb[0]), bb[3] - bb[1],
-                         bb[2] - bb[0], color=color, fill=False, lw=3)
-
+    return plt.Rectangle((bb[1], bb[0]), bb[3] - bb[1], bb[2] - bb[0], color=color, fill=False, lw=3)
 
 def show_corner_bb(f='img_04908.jpg'):
     file_path = f'{PATH}images/{f}'
@@ -64,9 +62,7 @@ show_corner_bb(f='img_02642.jpg')
 
 
 def create_rect(bb, color='red'):
-    return plt.Rectangle((bb[1], bb[0]), bb[3] - bb[1],
-                         bb[2] - bb[0], color=color, fill=False, lw=3)
-
+    return plt.Rectangle((bb[1], bb[0]), bb[3] - bb[1], bb[2] - bb[0], color=color, fill=False, lw=3)
 
 def plotXY(x, y):
     plots([x])

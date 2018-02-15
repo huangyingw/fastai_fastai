@@ -3,11 +3,11 @@
 
 # # Deep learning for Bulldozers
 
-get_ipython().magic('load_ext autoreload')
-get_ipython().magic('autoreload 2')
+get_ipython().magic(u'load_ext autoreload')
+get_ipython().magic(u'autoreload 2')
 
 
-get_ipython().magic('matplotlib inline')
+get_ipython().magic(u'matplotlib inline')
 
 from fastai.imports import *
 from fastai.torch_imports import *
@@ -38,14 +38,11 @@ cat_flds = [n for n in df_indep.columns if df_raw[n].nunique() < n_trn / 50]
 ' '.join(cat_flds)
 
 
-for o in ['saleElapsed', 'saleDayofyear', 'saleDay', 'age', 'YearMade']:
-    cat_flds.remove(o)
-[n for n in df_indep.drop(
-    cat_flds, axis=1).columns if not is_numeric_dtype(df_raw[n])]
+for o in ['saleElapsed', 'saleDayofyear', 'saleDay', 'age', 'YearMade']: cat_flds.remove(o)
+[n for n in df_indep.drop(cat_flds, axis=1).columns if not is_numeric_dtype(df_raw[n])]
 
 
-for n in cat_flds:
-    df_raw[n] = df_raw[n].astype('category').cat.as_ordered()
+for n in cat_flds: df_raw[n] = df_raw[n].astype('category').cat.as_ordered()
 
 cont_flds = [n for n in df_indep.columns if n not in cat_flds]
 ' '.join(cont_flds)
@@ -57,8 +54,7 @@ df, y, mapper = proc_df(df_raw, 'SalePrice', do_scale=True)
 val_idx = list(range(n_trn, len(df)))
 
 
-md = ColumnarModelData.from_data_frame(
-    PATH, val_idx, df, y, cat_flds=cat_flds, bs=64)
+md = ColumnarModelData.from_data_frame(PATH, val_idx, df, y, cat_flds=cat_flds, bs=64)
 
 
 df.head()
@@ -90,8 +86,7 @@ m.lr_find()
 m.sched.plot(1300)
 
 
-lr = 1e-3
-wd = 1e-7
+lr = 1e-3; wd = 1e-7
 
 
 m.fit(lr, 2, wd, cycle_len=1, cycle_mult=2)

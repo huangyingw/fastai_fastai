@@ -15,8 +15,7 @@
 
 # **What data should be collected?** (Privacy, de-anonymization, risks of leaks.) -
 
-# Unintended consequences: **Impact can be very different from intent.**
-# E.g. impact of online (semi-automated) censorship of violent videos.
+# Unintended consequences: **Impact can be very different from intent.** E.g. impact of online (semi-automated) censorship of violent videos.
 
 # **Don't blindly optimize for a metric (or group of metrics) without thinking about bigger picture.**  As [Abe Gong points out](https://www.youtube.com/watch?list=PLB2SCq-tZtVmadnKpO8WwKiFKteY5rHPT&time_continue=1624&v=WjKdKvDS10g), including information about whether someone's father left when they were a child could increase accuracy of a model for criminial recidivism, but is it moral to do so?
 #
@@ -30,6 +29,4 @@
 #
 # Eg. if you don't show women tech meetups, then you'll get even less women coming to tech meetups, which will cause the algorithm to suggest even less tech meetups to women, etc... See Evan Estola: [When Recommendation Systems Go Bad](https://www.youtube.com/watch?v=MqoRzNhrTnQ)
 #
-# Sending more cops to predominantly Black neighborhoods will increase
-# reported black crime, increasing bias against blacks in policing
-# algorithms.
+# Sending more cops to predominantly Black neighborhoods will increase reported black crime, increasing bias against blacks in policing algorithms.

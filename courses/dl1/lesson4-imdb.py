@@ -1,9 +1,9 @@
 
 # coding: utf-8
 
-get_ipython().magic('reload_ext autoreload')
-get_ipython().magic('autoreload 2')
-get_ipython().magic('matplotlib inline')
+get_ipython().magic(u'reload_ext autoreload')
+get_ipython().magic(u'autoreload 2')
+get_ipython().magic(u'matplotlib inline')
 
 from fastai.learner import *
 
@@ -31,10 +31,7 @@ import dill as pickle
 #
 # So our plan of attack is the same as we used for Dogs v Cats: pretrain a model to do one thing (predict the next word), and fine tune it to do something else (classify sentiment).
 #
-# Unfortunately, there are no good pretrained language models available to
-# download, so we need to create our own. To follow along with this
-# notebook, we suggest downloading the dataset from [this
-# location](http://files.fast.ai/data/aclImdb.tgz) on files.fast.ai.
+# Unfortunately, there are no good pretrained language models available to download, so we need to create our own. To follow along with this notebook, we suggest downloading the dataset from [this location](http://files.fast.ai/data/aclImdb.tgz) on files.fast.ai.
 
 PATH = 'data/aclImdb/'
 
@@ -43,18 +40,18 @@ VAL_PATH = 'test/all/'
 TRN = f'{PATH}{TRN_PATH}'
 VAL = f'{PATH}{VAL_PATH}'
 
-get_ipython().magic('ls {PATH}')
+get_ipython().magic(u'ls {PATH}')
 
 
 # Let's look inside the training folder...
 
-trn_files = get_ipython().getoutput('ls {TRN}')
+trn_files = get_ipython().getoutput(u'ls {TRN}')
 trn_files[:10]
 
 
 # ...and at an example review.
 
-review = get_ipython().getoutput('cat {TRN}{trn_files[6]}')
+review = get_ipython().getoutput(u'cat {TRN}{trn_files[6]}')
 review[0]
 
 
@@ -62,39 +59,29 @@ review[0]
 #
 # Now we'll check how many words are in the dataset.
 
-get_ipython().system("find {TRN} -name '*.txt' | xargs cat | wc -w")
+get_ipython().system(u"find {TRN} -name '*.txt' | xargs cat | wc -w")
 
 
-get_ipython().system("find {VAL} -name '*.txt' | xargs cat | wc -w")
+get_ipython().system(u"find {VAL} -name '*.txt' | xargs cat | wc -w")
 
 
-# Before we can analyze text, we must first *tokenize* it. This refers to
-# the process of splitting a sentence into an array of words (or more
-# generally, into an array of *tokens*).
+# Before we can analyze text, we must first *tokenize* it. This refers to the process of splitting a sentence into an array of words (or more generally, into an array of *tokens*).
 
 ' '.join(spacy_tok(review[0]))
 
 
 # We use Pytorch's [torchtext](https://github.com/pytorch/text) library to preprocess our data, telling it to use the wonderful [spacy](https://spacy.io/) library to handle tokenization.
 #
-# First, we create a torchtext *field*, which describes how to preprocess
-# a piece of text - in this case, we tell torchtext to make everything
-# lowercase, and tokenize it with spacy.
+# First, we create a torchtext *field*, which describes how to preprocess a piece of text - in this case, we tell torchtext to make everything lowercase, and tokenize it with spacy.
 
 TEXT = data.Field(lower=True, tokenize=spacy_tok)
 
 
 # fastai works closely with torchtext. We create a ModelData object for language modeling by taking advantage of `LanguageModelData`, passing it our torchtext field object, and the paths to our training, test, and validation sets. In this case, we don't have a separate test set, so we'll just use `VAL_PATH` for that too.
 #
-# As well as the usual `bs` (batch size) parameter, we also not have
-# `bptt`; this define how many words are processing at a time in each row
-# of the mini-batch. More importantly, it defines how many 'layers' we
-# will backprop through. Making this number higher will increase time and
-# memory requirements, but will improve the model's ability to handle long
-# sentences.
+# As well as the usual `bs` (batch size) parameter, we also not have `bptt`; this define how many words are processing at a time in each row of the mini-batch. More importantly, it defines how many 'layers' we will backprop through. Making this number higher will increase time and memory requirements, but will improve the model's ability to handle long sentences.
 
-bs = 64
-bptt = 70
+bs = 64; bptt = 70
 
 
 FILES = dict(train=TRN_PATH, validation=VAL_PATH, test=VAL_PATH)
@@ -108,8 +95,7 @@ md = LanguageModelData.from_text_files(PATH, TEXT, **FILES, bs=bs, bptt=bptt, mi
 pickle.dump(TEXT, open(f'{PATH}models/TEXT.pkl', 'wb'))
 
 
-# Here are the: # batches; # unique tokens in the vocab; # tokens in the
-# training set; # sentences
+# Here are the: # batches; # unique tokens in the vocab; # tokens in the training set; # sentences
 
 len(md.trn_dl), md.nt, len(md.trn_ds), len(md.trn_ds[0].text)
 
@@ -124,62 +110,48 @@ TEXT.vocab.itos[:12]
 TEXT.vocab.stoi['the']
 
 
-# Note that in a `LanguageModelData` object there is only one item in each
-# dataset: all the words of the text joined together.
+# Note that in a `LanguageModelData` object there is only one item in each dataset: all the words of the text joined together.
 
 md.trn_ds[0].text[:12]
 
 
-# torchtext will handle turning this words into integer IDs for us
-# automatically.
+# torchtext will handle turning this words into integer IDs for us automatically.
 
 TEXT.numericalize([md.trn_ds[0].text[:12]])
 
 
 # Our `LanguageModelData` object will create batches with 64 columns (that's our batch size), and varying sequence lengths of around 80 tokens (that's our `bptt` parameter - *backprop through time*).
 #
-# Each batch also contains the exact same data as labels, but one word
-# later in the text - since we're trying to always predict the next word.
-# The labels are flattened into a 1d array.
+# Each batch also contains the exact same data as labels, but one word later in the text - since we're trying to always predict the next word. The labels are flattened into a 1d array.
 
 next(iter(md.trn_dl))
 
 
 # ### Train
 
-# We have a number of parameters to set - we'll learn more about these
-# later, but you should find these values suitable for many problems.
+# We have a number of parameters to set - we'll learn more about these later, but you should find these values suitable for many problems.
 
 em_sz = 200  # size of each embedding vector
 nh = 500     # number of hidden activations per layer
 nl = 3       # number of layers
 
 
-# Researchers have found that large amounts of *momentum* (which we'll
-# learn about later) don't work well with these kinds of *RNN* models, so
-# we create a version of the *Adam* optimizer with less momentum than it's
-# default of `0.9`.
+# Researchers have found that large amounts of *momentum* (which we'll learn about later) don't work well with these kinds of *RNN* models, so we create a version of the *Adam* optimizer with less momentum than it's default of `0.9`.
 
 opt_fn = partial(optim.Adam, betas=(0.7, 0.99))
 
 
 # fastai uses a variant of the state of the art [AWD LSTM Language Model](https://arxiv.org/abs/1708.02182) developed by Stephen Merity. A key feature of this model is that it provides excellent regularization through [Dropout](https://en.wikipedia.org/wiki/Convolutional_neural_network#Dropout). There is no simple way known (yet!) to find the best values of the dropout parameters below - you just have to experiment...
 #
-# However, the other parameters (`alpha`, `beta`, and `clip`) shouldn't
-# generally need tuning.
+# However, the other parameters (`alpha`, `beta`, and `clip`) shouldn't generally need tuning.
 
 learner = md.get_model(opt_fn, em_sz, nh, nl,
-                       dropouti=0.05, dropout=0.05, wdrop=0.1, dropoute=0.02, dropouth=0.05)
+               dropouti=0.05, dropout=0.05, wdrop=0.1, dropoute=0.02, dropouth=0.05)
 learner.reg_fn = partial(seq2seq_reg, alpha=2, beta=1)
 learner.clip = 0.3
 
 
-# As you can see below, I gradually tuned the language model in a few
-# stages. I possibly could have trained it further (it wasn't yet
-# overfitting), but I didn't have time to experiment more. Maybe you can
-# see if you can train it to a better accuracy! (I used `lr_find` to find
-# a good learning rate, but didn't save the output in this notebook. Feel
-# free to try running it yourself now.)
+# As you can see below, I gradually tuned the language model in a few stages. I possibly could have trained it further (it wasn't yet overfitting), but I didn't have time to experiment more. Maybe you can see if you can train it to a better accuracy! (I used `lr_find` to find a good learning rate, but didn't save the output in this notebook. Feel free to try running it yourself now.)
 
 learner.fit(3e-3, 4, wds=1e-6, cycle_len=1, cycle_mult=2)
 
@@ -199,8 +171,7 @@ learner.fit(3e-3, 1, wds=1e-6, cycle_len=10)
 learner.save_encoder('adam3_10_enc')
 
 
-# In the sentiment analysis section, we'll just need half of the language
-# model - the *encoder*, so we save that part.
+# In the sentiment analysis section, we'll just need half of the language model - the *encoder*, so we save that part.
 
 learner.save_encoder('adam3_20_enc')
 
@@ -208,8 +179,7 @@ learner.save_encoder('adam3_20_enc')
 learner.load_encoder('adam3_20_enc')
 
 
-# Language modeling accuracy is generally measured using the metric
-# *perplexity*, which is simply `exp()` of the loss function we used.
+# Language modeling accuracy is generally measured using the metric *perplexity*, which is simply `exp()` of the loss function we used.
 
 math.exp(4.165)
 
@@ -219,10 +189,7 @@ pickle.dump(TEXT, open(f'{PATH}models/TEXT.pkl', 'wb'))
 
 # ### Test
 
-# We can play around with our language model a bit to check it seems to be
-# working OK. First, let's create a short bit of text to 'prime' a set of
-# predictions. We'll use our torchtext field to numericalize it so we can
-# feed it to our language model.
+# We can play around with our language model a bit to check it seems to be working OK. First, let's create a short bit of text to 'prime' a set of predictions. We'll use our torchtext field to numericalize it so we can feed it to our language model.
 
 m = learner.model
 ss = """. So, it wasn't quite was I was expecting, but I really liked it anyway! The best"""
@@ -231,8 +198,7 @@ t = TEXT.numericalize(s)
 ' '.join(s[0])
 
 
-# We haven't yet added methods to make it easy to test a language model,
-# so we'll need to manually go through the steps.
+# We haven't yet added methods to make it easy to test a language model, so we'll need to manually go through the steps.
 
 # Set batch size to 1
 m[0].bs = 1
@@ -246,8 +212,7 @@ res, *_ = m(t)
 m[0].bs = bs
 
 
-# Let's see what the top 10 predictions were for the next word after our
-# short text:
+# Let's see what the top 10 predictions were for the next word after our short text:
 
 nexts = torch.topk(res[-1], 10)[1]
 [TEXT.vocab.itos[o] for o in to_np(nexts)]
@@ -266,8 +231,7 @@ print('...')
 
 # ### Sentiment
 
-# We'll need to the saved vocab from the language model, since we need to
-# ensure the same words map to the same IDs.
+# We'll need to the saved vocab from the language model, since we need to ensure the same words map to the same IDs.
 
 TEXT = pickle.load(open(f'{PATH}models/TEXT.pkl', 'rb'))
 
@@ -292,14 +256,12 @@ md2 = TextData.from_splits(PATH, splits, bs)
 
 
 m3 = md2.get_model(opt_fn, 1500, bptt, emb_sz=em_sz, n_hid=nh, n_layers=nl,
-                   dropout=0.1, dropouti=0.4, wdrop=0.5, dropoute=0.05, dropouth=0.3)
+           dropout=0.1, dropouti=0.4, wdrop=0.5, dropoute=0.05, dropouth=0.3)
 m3.reg_fn = partial(seq2seq_reg, alpha=2, beta=1)
 m3.load_encoder(f'adam3_20_enc')
 
 
-# Because we're fine-tuning a pretrained model, we'll use differential
-# learning rates, and also increase the max gradient for clipping, to
-# allow the SGDR to work better.
+# Because we're fine-tuning a pretrained model, we'll use differential learning rates, and also increase the max gradient for clipping, to allow the SGDR to work better.
 
 m3.clip = 25.
 lrs = np.array([1e-4, 1e-3, 1e-2])
@@ -326,7 +288,6 @@ accuracy_np(*m3.predict_with_targs())
 #
 # As you see, we just got a new state of the art result in sentiment analysis, decreasing the error from 5.9% to 5.5%! You should be able to get similarly world-class results on other NLP classification problems using the same basic steps.
 #
-# There are many opportunities to further improve this, although we won't
-# be able to get to them until part 2 of this course...
+# There are many opportunities to further improve this, although we won't be able to get to them until part 2 of this course...
 
 # ### End

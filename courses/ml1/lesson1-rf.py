@@ -35,9 +35,7 @@
 # 1. Entering competitions (*doing*)
 # 2. Creating Kaggle kernels (*explaining*)
 #
-# It's OK if you don't get good competition ranks or any kernel votes at
-# first - that's totally normal! Just try to keep improving every day, and
-# you'll see the results over time.
+# It's OK if you don't get good competition ranks or any kernel votes at first - that's totally normal! Just try to keep improving every day, and you'll see the results over time.
 
 # To get better at technical writing, study the top ranked Kaggle kernels from past competitions, and read posts from well-regarded technical bloggers. Some good role models include:
 #
@@ -97,10 +95,10 @@
 
 # ## Imports
 
-get_ipython().magic('load_ext autoreload')
-get_ipython().magic('autoreload 2')
+get_ipython().magic(u'load_ext autoreload')
+get_ipython().magic(u'autoreload 2')
 
-get_ipython().magic('matplotlib inline')
+get_ipython().magic(u'matplotlib inline')
 
 
 from fastai.imports import *
@@ -116,7 +114,7 @@ from sklearn import metrics
 PATH = "data/bulldozers/"
 
 
-get_ipython().system('ls {PATH}')
+get_ipython().system(u'ls {PATH}')
 
 
 # # Introduction to *Blue Book for Bulldozers*
@@ -125,19 +123,7 @@ get_ipython().system('ls {PATH}')
 
 # ### ...our teaching
 
-# At fast.ai we have a distinctive [teaching
-# philosophy](http://www.fast.ai/2016/10/08/teaching-philosophy/) of ["the
-# whole
-# game"](https://www.amazon.com/Making-Learning-Whole-Principles-Transform/dp/0470633719/ref=sr_1_1?ie=UTF8&qid=1505094653).
-# This is different from how most traditional math & technical courses are
-# taught, where you have to learn all the individual elements before you
-# can combine them (Harvard professor David Perkins call this
-# *elementitis*), but it is similar to how topics like *driving* and
-# *baseball* are taught.  That is, you can start driving without [knowing
-# how an internal combustion engine
-# works](https://medium.com/towards-data-science/thoughts-after-taking-the-deeplearning-ai-courses-8568f132153),
-# and children begin playing baseball before they learn all the formal
-# rules.
+# At fast.ai we have a distinctive [teaching philosophy](http://www.fast.ai/2016/10/08/teaching-philosophy/) of ["the whole game"](https://www.amazon.com/Making-Learning-Whole-Principles-Transform/dp/0470633719/ref=sr_1_1?ie=UTF8&qid=1505094653).  This is different from how most traditional math & technical courses are taught, where you have to learn all the individual elements before you can combine them (Harvard professor David Perkins call this *elementitis*), but it is similar to how topics like *driving* and *baseball* are taught.  That is, you can start driving without [knowing how an internal combustion engine works](https://medium.com/towards-data-science/thoughts-after-taking-the-deeplearning-ai-courses-8568f132153), and children begin playing baseball before they learn all the formal rules.
 
 # ### ...our approach to machine learning
 
@@ -148,16 +134,13 @@ get_ipython().system('ls {PATH}')
 # - *Ensembles of decision trees* (i.e. Random Forests and Gradient Boosting Machines), mainly for structured data (such as you might find in a database table at most companies)
 # - *Multi-layered neural networks learnt with SGD* (i.e. shallow and/or deep learning), mainly for unstructured data (such as audio, vision, and natural language)
 #
-# In this course we'll be doing a deep dive into random forests, and
-# simple models learnt with SGD. You'll be learning about gradient
-# boosting and deep learning in part 2.
+# In this course we'll be doing a deep dive into random forests, and simple models learnt with SGD. You'll be learning about gradient boosting and deep learning in part 2.
 
 # ### ...this dataset
 
 # We will be looking at the Blue Book for Bulldozers Kaggle Competition: "The goal of the contest is to predict the sale price of a particular piece of heavy equiment at auction based on it's usage, equipment type, and configuaration.  The data is sourced from auction result postings and includes information on usage and equipment configurations."
 #
-# This is a very common type of dataset and prediciton problem, and
-# similar to what you may see in your project or workplace.
+# This is a very common type of dataset and prediciton problem, and similar to what you may see in your project or workplace.
 
 # ### ...Kaggle Competitions
 
@@ -191,17 +174,13 @@ get_ipython().system('ls {PATH}')
 
 # *Question*
 #
-# What stands out to you from the above description?  What needs to be
-# true of our training and validation sets?
+# What stands out to you from the above description?  What needs to be true of our training and validation sets?
 
 df_raw = pd.read_csv(f'{PATH}Train.csv', low_memory=False,
                      parse_dates=["saledate"])
 
 
-# In any sort of data science work, it's **important to look at your
-# data**, to make sure you understand the format, how it's stored, what
-# type of values it holds, etc. Even if you've read descriptions about
-# your data, the actual data may not be what you expect.
+# In any sort of data science work, it's **important to look at your data**, to make sure you understand the format, how it's stored, what type of values it holds, etc. Even if you've read descriptions about your data, the actual data may not be what you expect.
 
 def display_all(df):
     with pd.option_context("display.max_rows", 1000):
@@ -215,12 +194,7 @@ display_all(df_raw.tail().transpose())
 display_all(df_raw.describe(include='all').transpose())
 
 
-# It's important to note what metric is being used for a project.
-# Generally, selecting the metric(s) is an important part of the project
-# setup. However, in this case Kaggle tells us what metric to use: RMSLE
-# (root mean squared log error) between the actual and predicted auction
-# prices. Therefore we take the log of the prices, so that RMSE will give
-# us what we need.
+# It's important to note what metric is being used for a project. Generally, selecting the metric(s) is an important part of the project setup. However, in this case Kaggle tells us what metric to use: RMSLE (root mean squared log error) between the actual and predicted auction prices. Therefore we take the log of the prices, so that RMSE will give us what we need.
 
 df_raw.SalePrice = np.log(df_raw.SalePrice)
 
@@ -233,21 +207,13 @@ m.fit(df_raw.drop('SalePrice', axis=1), df_raw.SalePrice)
 
 # This dataset contains a mix of **continuous** and **categorical** variables.
 #
-# The following method extracts particular date fields from a complete
-# datetime for the purpose of constructing categoricals.  You should
-# always consider this feature extraction step when working with
-# date-time. Without expanding your date-time into these additional
-# fields, you can't capture any trend/cyclical behavior as a function of
-# time at any of these granularities.
+# The following method extracts particular date fields from a complete datetime for the purpose of constructing categoricals.  You should always consider this feature extraction step when working with date-time. Without expanding your date-time into these additional fields, you can't capture any trend/cyclical behavior as a function of time at any of these granularities.
 
 add_datepart(df_raw, 'saledate')
 df_raw.saleYear.head()
 
 
-# The categorical variables are currently stored as strings, which is
-# inefficient, and doesn't provide the numeric coding required for a
-# random forest. Therefore we call `train_cats` to convert strings to
-# pandas categories.
+# The categorical variables are currently stored as strings, which is inefficient, and doesn't provide the numeric coding required for a random forest. Therefore we call `train_cats` to convert strings to pandas categories.
 
 train_cats(df_raw)
 
@@ -257,21 +223,18 @@ train_cats(df_raw)
 df_raw.UsageBand.cat.categories
 
 
-df_raw.UsageBand.cat.set_categories(
-    ['High', 'Medium', 'Low'], ordered=True, inplace=True)
+df_raw.UsageBand.cat.set_categories(['High', 'Medium', 'Low'], ordered=True, inplace=True)
 
 
 df_raw.UsageBand = df_raw.UsageBand.cat.codes
 
 
-# We're still not quite done - for instance we have lots of missing
-# values, wish we can't pass directly to a random forest.
+# We're still not quite done - for instance we have lots of missing values, wish we can't pass directly to a random forest.
 
 display_all(df_raw.isnull().sum().sort_index() / len(df_raw))
 
 
-# But let's save this file for now, since it's already in format can we be
-# stored and accessed efficiently.
+# But let's save this file for now, since it's already in format can we be stored and accessed efficiently.
 
 os.makedirs('tmp', exist_ok=True)
 df_raw.to_feather('tmp/bulldozers-raw')
@@ -284,9 +247,7 @@ df_raw.to_feather('tmp/bulldozers-raw')
 df_raw = pd.read_feather('tmp/bulldozers-raw')
 
 
-# We'll replace categories with their numeric codes, handle missing
-# continuous values, and split the dependent variable into a separate
-# variable.
+# We'll replace categories with their numeric codes, handle missing continuous values, and split the dependent variable into a separate variable.
 
 df, y, nas = proc_df(df_raw, 'SalePrice')
 
@@ -311,11 +272,9 @@ m.score(df, y)
 #
 # The error for the pictured data points is lowest for the model on the far right (the blue curve passes through the red points almost perfectly), yet it's not the best choice.  Why is that?  If you were to gather some new data points, they most likely would not be on that curve in the graph on the right, but would be closer to the curve in the middle graph.
 #
-# This illustrates how using all our data can lead to **overfitting**. A
-# validation set helps diagnose this problem.
+# This illustrates how using all our data can lead to **overfitting**. A validation set helps diagnose this problem.
 
 def split_vals(a, n): return a[:n].copy(), a[n:].copy()
-
 
 n_valid = 12000  # same as Kaggle's test set size
 n_trn = len(df) - n_valid
@@ -330,29 +289,23 @@ X_train.shape, y_train.shape, X_valid.shape
 
 # ## Base model
 
-# Let's try our model again, this time with separate training and
-# validation sets.
+# Let's try our model again, this time with separate training and validation sets.
 
 def rmse(x, y): return math.sqrt(((x - y)**2).mean())
 
-
 def print_score(m):
     res = [rmse(m.predict(X_train), y_train), rmse(m.predict(X_valid), y_valid),
-           m.score(X_train, y_train), m.score(X_valid, y_valid)]
-    if hasattr(m, 'oob_score_'):
-        res.append(m.oob_score_)
+                m.score(X_train, y_train), m.score(X_valid, y_valid)]
+    if hasattr(m, 'oob_score_'): res.append(m.oob_score_)
     print(res)
 
 
 m = RandomForestRegressor(n_jobs=-1)
-get_ipython().magic('time m.fit(X_train, y_train)')
+get_ipython().magic(u'time m.fit(X_train, y_train)')
 print_score(m)
 
 
-# An r^2 in the high-80's isn't bad at all (and the RMSLE puts us around
-# rank 100 of 470 on the Kaggle leaderboard), but we can see from the
-# validation set score that we're over-fitting badly. To understand this
-# issue, let's simplify things down to a single small tree.
+# An r^2 in the high-80's isn't bad at all (and the RMSLE puts us around rank 100 of 470 on the Kaggle leaderboard), but we can see from the validation set score that we're over-fitting badly. To understand this issue, let's simplify things down to a single small tree.
 
 # ## Speeding things up
 
@@ -362,17 +315,13 @@ y_train, _ = split_vals(y_trn, 20000)
 
 
 m = RandomForestRegressor(n_jobs=-1)
-get_ipython().magic('time m.fit(X_train, y_train)')
+get_ipython().magic(u'time m.fit(X_train, y_train)')
 print_score(m)
 
 
 # ## Single tree
 
-m = RandomForestRegressor(
-    n_estimators=1,
-    max_depth=3,
-    bootstrap=False,
-    n_jobs=-1)
+m = RandomForestRegressor(n_estimators=1, max_depth=3, bootstrap=False, n_jobs=-1)
 m.fit(X_train, y_train)
 print_score(m)
 
@@ -387,16 +336,13 @@ m.fit(X_train, y_train)
 print_score(m)
 
 
-# The training set result looks great! But the validation set is worse
-# than our original model. This is why we need to use *bagging* of
-# multiple trees to get more generalizable results.
+# The training set result looks great! But the validation set is worse than our original model. This is why we need to use *bagging* of multiple trees to get more generalizable results.
 
 # ## Bagging
 
 # ### Intro to bagging
 
-# To learn about bagging in random forests, let's start with our basic
-# model again.
+# To learn about bagging in random forests, let's start with our basic model again.
 
 m = RandomForestRegressor(n_jobs=-1)
 m.fit(X_train, y_train)
@@ -412,13 +358,10 @@ preds[:, 0], np.mean(preds[:, 0]), y_valid[0]
 preds.shape
 
 
-plt.plot([metrics.r2_score(y_valid, np.mean(preds[:i + 1], axis=0))
-          for i in range(10)]);
+plt.plot([metrics.r2_score(y_valid, np.mean(preds[:i + 1], axis=0)) for i in range(10)]);
 
 
-# The shape of this curve suggests that adding more trees isn't going to
-# help us much. Let's check. (Compare this to our original model on a
-# sample)
+# The shape of this curve suggests that adding more trees isn't going to help us much. Let's check. (Compare this to our original model on a sample)
 
 m = RandomForestRegressor(n_estimators=20, n_jobs=-1)
 m.fit(X_train, y_train)
@@ -443,47 +386,37 @@ print_score(m)
 #
 # This also has the benefit of allowing us to see whether our model generalizes, even if we only have a small amount of data so want to avoid separating some out to create a validation set.
 #
-# This is as simple as adding one more parameter to our model constructor.
-# We print the OOB error last in our `print_score` function below.
+# This is as simple as adding one more parameter to our model constructor. We print the OOB error last in our `print_score` function below.
 
 m = RandomForestRegressor(n_estimators=40, n_jobs=-1, oob_score=True)
 m.fit(X_train, y_train)
 print_score(m)
 
 
-# This shows that our validation set time difference is making an impact,
-# as is model over-fitting.
+# This shows that our validation set time difference is making an impact, as is model over-fitting.
 
 # ## Reducing over-fitting
 
 # ### Subsampling
 
-# It turns out that one of the easiest ways to avoid over-fitting is also
-# one of the best ways to speed up analysis: *subsampling*. Let's return
-# to using our full dataset, so that we can demonstrate the impact of this
-# technique.
+# It turns out that one of the easiest ways to avoid over-fitting is also one of the best ways to speed up analysis: *subsampling*. Let's return to using our full dataset, so that we can demonstrate the impact of this technique.
 
 df_trn, y_trn = proc_df(df_raw, 'SalePrice')
 X_train, X_valid = split_vals(df_trn, n_trn)
 y_train, y_valid = split_vals(y_trn, n_trn)
 
 
-# The basic idea is this: rather than limit the total amount of data that
-# our model can access, let's instead limit it to a *different* random
-# subset per tree. That way, given enough trees, the model can still see
-# *all* the data, but for each individual tree it'll be just as fast as if
-# we had cut down our dataset as before.
+# The basic idea is this: rather than limit the total amount of data that our model can access, let's instead limit it to a *different* random subset per tree. That way, given enough trees, the model can still see *all* the data, but for each individual tree it'll be just as fast as if we had cut down our dataset as before.
 
 set_rf_samples(20000)
 
 
 m = RandomForestRegressor(n_jobs=-1, oob_score=True)
-get_ipython().magic('time m.fit(X_train, y_train)')
+get_ipython().magic(u'time m.fit(X_train, y_train)')
 print_score(m)
 
 
-# Since each additional tree allows the model to see more data, this
-# approach can make additional trees more useful.
+# Since each additional tree allows the model to see more data, this approach can make additional trees more useful.
 
 m = RandomForestRegressor(n_estimators=40, n_jobs=-1, oob_score=True)
 m.fit(X_train, y_train)
@@ -492,8 +425,7 @@ print_score(m)
 
 # ### Tree building parameters
 
-# We revert to using a full bootstrap sample in order to show the impact
-# of other over-fitting avoidance methods.
+# We revert to using a full bootstrap sample in order to show the impact of other over-fitting avoidance methods.
 
 reset_rf_samples()
 
@@ -510,20 +442,12 @@ print_score(m)
 # - There are less decision rules for each leaf node; simpler models should generalize better
 # - The predictions are made by averaging more rows in the leaf node, resulting in less volatility
 
-m = RandomForestRegressor(
-    n_estimators=40,
-    min_samples_leaf=3,
-    n_jobs=-1,
-    oob_score=True)
+m = RandomForestRegressor(n_estimators=40, min_samples_leaf=3, n_jobs=-1, oob_score=True)
 m.fit(X_train, y_train)
 print_score(m)
 
 
-# We can also increase the amount of variation amongst the trees by not
-# only use a sample of rows for each tree, but to also using a sample of
-# *columns* for each *split*. We do this by specifying `max_features`,
-# which is the proportion of features to randomly select from at each
-# split.
+# We can also increase the amount of variation amongst the trees by not only use a sample of rows for each tree, but to also using a sample of *columns* for each *split*. We do this by specifying `max_features`, which is the proportion of features to randomly select from at each split.
 
 # - None
 # - 0.5
@@ -531,12 +455,7 @@ print_score(m)
 
 # - 1, 3, 5, 10, 25, 100
 
-m = RandomForestRegressor(
-    n_estimators=40,
-    min_samples_leaf=3,
-    max_features=0.5,
-    n_jobs=-1,
-    oob_score=True)
+m = RandomForestRegressor(n_estimators=40, min_samples_leaf=3, max_features=0.5, n_jobs=-1, oob_score=True)
 m.fit(X_train, y_train)
 print_score(m)
 

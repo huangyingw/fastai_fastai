@@ -3,9 +3,7 @@
 
 # # All the Linear Algebra You Need for AI
 
-# The purpose of this notebook is to serve as an explanation of two
-# crucial linear algebra operations used when coding neural networks:
-# matrix multiplication and broadcasting.
+# The purpose of this notebook is to serve as an explanation of two crucial linear algebra operations used when coding neural networks: matrix multiplication and broadcasting.
 
 # ## Introduction
 
@@ -36,18 +34,12 @@
 
 # ## Our Tools
 
-# We will be using the open source [deep learning library,
-# fastai](https://github.com/fastai/fastai), which provides high level
-# abstractions and best practices on top of PyTorch.  This is the highest
-# level, simplest way to get started with deep learning. Please note that
-# fastai requires Python 3 to function. It is currently in pre-alpha, so
-# items may move around and more documentation will be added in the
-# future.
+# We will be using the open source [deep learning library, fastai](https://github.com/fastai/fastai), which provides high level abstractions and best practices on top of PyTorch.  This is the highest level, simplest way to get started with deep learning. Please note that fastai requires Python 3 to function. It is currently in pre-alpha, so items may move around and more documentation will be added in the future.
 
 # ### Imports
 
-get_ipython().magic('load_ext autoreload')
-get_ipython().magic('autoreload 2')
+get_ipython().magic(u'load_ext autoreload')
+get_ipython().magic(u'autoreload 2')
 
 from fastai.imports import *
 from fastai.torch_imports import *
@@ -66,10 +58,7 @@ from fastai.io import *
 #
 # **Further learning**: If you are curious to learn what *dynamic* neural networks are, you may want to watch [this talk](https://www.youtube.com/watch?v=Z15cBAuY7Sc) by Soumith Chintala, Facebook AI researcher and core PyTorch contributor.
 #
-# If you want to learn more PyTorch, you can try this [introductory
-# tutorial](http://pytorch.org/tutorials/beginner/deep_learning_60min_blitz.html)
-# or this [tutorial to learn by
-# examples](http://pytorch.org/tutorials/beginner/pytorch_with_examples.html).
+# If you want to learn more PyTorch, you can try this [introductory tutorial](http://pytorch.org/tutorials/beginner/deep_learning_60min_blitz.html) or this [tutorial to learn by examples](http://pytorch.org/tutorials/beginner/pytorch_with_examples.html).
 
 # ### About GPUs
 
@@ -85,10 +74,7 @@ from fastai.io import *
 
 # ### About The Data
 
-# Today we will be working with MNIST, a classic data set of hand-written
-# digits.  Solutions to this problem are used by banks to automatically
-# recognize the amounts on checks, and by the postal service to
-# automatically recognize zip codes on mail.
+# Today we will be working with MNIST, a classic data set of hand-written digits.  Solutions to this problem are used by banks to automatically recognize the amounts on checks, and by the postal service to automatically recognize zip codes on mail.
 
 # <img src="images/mnist.png" alt="" style="width: 60%"/>
 
@@ -113,7 +99,6 @@ os.makedirs(path, exist_ok=True)
 URL = 'http://deeplearning.net/data/mnist/'
 FILENAME = 'mnist.pkl.gz'
 
-
 def load_mnist(filename):
     return pickle.load(gzip.open(filename, 'rb'), encoding='latin-1')
 
@@ -124,10 +109,7 @@ get_data(URL + FILENAME, path + FILENAME)
 
 # ### Normalize
 
-# Many machine learning algorithms behave better when the data is
-# *normalized*, that is when the mean is 0 and the standard deviation is
-# 1. We will subtract off the mean and standard deviation from our
-# training set in order to normalize the data:
+# Many machine learning algorithms behave better when the data is *normalized*, that is when the mean is 0 and the standard deviation is 1. We will subtract off the mean and standard deviation from our training set in order to normalize the data:
 
 mean = x.mean()
 std = x.std()
@@ -137,9 +119,7 @@ x = (x - mean) / std
 x.mean(), x.std()
 
 
-# Note that for consistency (with the parameters we learn when training),
-# we subtract the mean and standard deviation of our training set from our
-# validation set.
+# Note that for consistency (with the parameters we learn when training), we subtract the mean and standard deviation of our training set from our validation set.
 
 x_valid = (x_valid - mean) / std
 x_valid.mean(), x_valid.std()
@@ -147,22 +127,17 @@ x_valid.mean(), x_valid.std()
 
 # ### Look at the data
 
-# In any sort of data science work, it's important to look at your data,
-# to make sure you understand the format, how it's stored, what type of
-# values it holds, etc. To make it easier to work with, let's reshape it
-# into 2d images from the flattened 1d format.
+# In any sort of data science work, it's important to look at your data, to make sure you understand the format, how it's stored, what type of values it holds, etc. To make it easier to work with, let's reshape it into 2d images from the flattened 1d format.
 
 # #### Helper methods
 
-get_ipython().magic('matplotlib inline')
+get_ipython().magic(u'matplotlib inline')
 import numpy as np
 import matplotlib.pyplot as plt
 
-
 def show(img, title=None):
     plt.imshow(img, interpolation='none', cmap="gray")
-    if title is not None:
-        plt.title(title)
+    if title is not None: plt.title(title)
 
 
 def plots(ims, figsize=(12, 6), rows=2, titles=None):
@@ -171,8 +146,7 @@ def plots(ims, figsize=(12, 6), rows=2, titles=None):
     for i in range(len(ims)):
         sp = f.add_subplot(rows, cols, i + 1)
         sp.axis('Off')
-        if titles is not None:
-            sp.set_title(titles[i], fontsize=16)
+        if titles is not None: sp.set_title(titles[i], fontsize=16)
         plt.imshow(ims[i], interpolation='none', cmap='gray')
 
 
@@ -181,8 +155,7 @@ def plots(ims, figsize=(12, 6), rows=2, titles=None):
 x_valid.shape
 
 
-x_imgs = np.reshape(x_valid, (-1, 28, 28))
-x_imgs.shape
+x_imgs = np.reshape(x_valid, (-1, 28, 28)); x_imgs.shape
 
 
 show(x_imgs[0], y_valid[0])
@@ -215,9 +188,7 @@ plots(x_imgs[:8], titles=y_valid[:8])
 #
 # Functions have **parameters**. The above function $f$ is $ax + b$, with parameters a and b set to $a=3$ and $b=5$.
 #
-# Machine learning is often about learning the best values for those
-# parameters.  For instance, suppose we have the data points on the chart
-# below.  What values should we choose for $a$ and $b$?
+# Machine learning is often about learning the best values for those parameters.  For instance, suppose we have the data points on the chart below.  What values should we choose for $a$ and $b$?
 
 # <img src="images/sgd2.gif" alt="" style="width: 70%"/>
 
@@ -225,17 +196,13 @@ plots(x_imgs[:8], titles=y_valid[:8])
 #
 # Most datasets will not be well-represented by a line.  We could use a more complicated function, such as $g(x) = ax^2 + bx + c + \sin d$.  Now we have 4 parameters to learn: $a$, $b$, $c$, and $d$.  This function is more flexible than $f(x) = ax + b$ and will be able to accurately model more datasets.
 #
-# Neural networks take this to an extreme, and are infinitely flexible.
-# They often have thousands, or even hundreds of thousands of parameters.
-# However the core idea is the same as above.  The neural network is a
-# function, and we will learn the best parameters for modeling our data.
+# Neural networks take this to an extreme, and are infinitely flexible.  They often have thousands, or even hundreds of thousands of parameters.  However the core idea is the same as above.  The neural network is a function, and we will learn the best parameters for modeling our data.
 
 # ### Training & Validation data sets
 
 # Possibly **the most important idea** in machine learning is that of having separate training & validation data sets.
 #
-# As motivation, suppose you don't divide up your data, but instead use
-# all of it.  And suppose you have lots of parameters:
+# As motivation, suppose you don't divide up your data, but instead use all of it.  And suppose you have lots of parameters:
 
 # This is called over-fitting.  A validation set helps prevent this problem.
 
@@ -262,15 +229,12 @@ import torch.nn as nn
 
 # ###  Neural networks
 
-# We will use fastai's ImageClassifierData, which holds our training and
-# validation sets and will provide batches of that data in a form ready
-# for use by a PyTorch model.
+# We will use fastai's ImageClassifierData, which holds our training and validation sets and will provide batches of that data in a form ready for use by a PyTorch model.
 
 md = ImageClassifierData.from_arrays(path, (x, y), (x_valid, y_valid))
 
 
-# We will begin with the highest level abstraction: using a neural net
-# defined by PyTorch's Sequential class.
+# We will begin with the highest level abstraction: using a neural net defined by PyTorch's Sequential class.
 
 net = nn.Sequential(
     nn.Linear(28 * 28, 256),
@@ -281,22 +245,11 @@ net = nn.Sequential(
 
 # Each input is a vector of size $28\times 28$ pixels and our output is of size $10$ (since there are 10 digits: 0, 1, ..., 9).
 #
-# We use the output of the final layer to generate our predictions.  Often
-# for classification problems (like MNIST digit classification), the final
-# layer has the same number of outputs as there are classes.  In that
-# case, this is 10: one for each digit from 0 to 9.  These can be
-# converted to comparative probabilities.  For instance, it may be
-# determined that a particular hand-written image is 80% likely to be a 4,
-# 18% likely to be a 9, and 2% likely to be a 3.  In our case, we are not
-# interested in viewing the probabilites, and just want to see what the
-# most likely guess is.
+# We use the output of the final layer to generate our predictions.  Often for classification problems (like MNIST digit classification), the final layer has the same number of outputs as there are classes.  In that case, this is 10: one for each digit from 0 to 9.  These can be converted to comparative probabilities.  For instance, it may be determined that a particular hand-written image is 80% likely to be a 4, 18% likely to be a 9, and 2% likely to be a 3.  In our case, we are not interested in viewing the probabilites, and just want to see what the most likely guess is.
 
 # ### Layers
 
-# Sequential defines layers of our network, so let's talk about layers.
-# Neural networks consist of **linear layers alternating with non-linear
-# layers**.  This creates functions which are incredibly flexible.  Deeper
-# layers are able to capture more complex patterns.
+# Sequential defines layers of our network, so let's talk about layers. Neural networks consist of **linear layers alternating with non-linear layers**.  This creates functions which are incredibly flexible.  Deeper layers are able to capture more complex patterns.
 
 # Layer 1 of a convolutional neural network:
 # <img src="images/zeiler1.png" alt="pytorch" style="width: 40%"/>
@@ -335,11 +288,9 @@ fit(net, md, epochs=1, crit=loss, opt=opt, metrics=metrics)
 
 # GPUs are great at handling lots of data at once (otherwise don't get performance benefit).  We break the data up into **batches**, and that specifies how many samples from our dataset we want to send to the GPU at a time.  The fastai library defaults to a batch size of 64.  On each iteration of the training loop, the error on 1 batch of data will be calculated, and the optimizer will update the parameters based on that.
 #
-# An **epoch** is completed once each data sample has been used once in
-# the training loop.
+# An **epoch** is completed once each data sample has been used once in the training loop.
 
-# Now that we have the parameters for our model, we can make predictions
-# on our validation set.
+# Now that we have the parameters for our model, we can make predictions on our validation set.
 
 preds = predict(net, md.val_dl)
 
@@ -356,9 +307,7 @@ plots(x_imgs[:8], titles=preds[:8])
 
 # ## Coding the Neural Net ourselves
 
-# Recall that above we used PyTorch's `Sequential` to define a neural
-# network with a linear layer, a non-linear layer (`ReLU`), and then
-# another linear layer.
+# Recall that above we used PyTorch's `Sequential` to define a neural network with a linear layer, a non-linear layer (`ReLU`), and then another linear layer.
 
 # Our code from above
 net = nn.Sequential(
@@ -372,13 +321,9 @@ net = nn.Sequential(
 #
 # Just as Numpy has `np.matmul` for matrix multiplication (in Python 3, this is equivalent to the `@` operator), PyTorch has `torch.matmul`.
 #
-# PyTorch class has two things: constructor (says parameters) and a
-# forward method (how to calculate prediction using those parameters)  The
-# method `forward` describes how the neural net converts inputs to
-# outputs.
+# PyTorch class has two things: constructor (says parameters) and a forward method (how to calculate prediction using those parameters)  The method `forward` describes how the neural net converts inputs to outputs.
 
-# In PyTorch, the optimizer knows to try to optimize any attribute of type
-# **Parameter**.
+# In PyTorch, the optimizer knows to try to optimize any attribute of type **Parameter**.
 
 def get_weights(*dims): return nn.Parameter(torch.randn(*dims) / dims[0])
 
@@ -399,8 +344,7 @@ class SimpleMnist(nn.Module):
         return x
 
 
-# We create our neural net and the optimizer.  (We will use the same loss
-# and metrics from above).
+# We create our neural net and the optimizer.  (We will use the same loss and metrics from above).
 
 net2 = SimpleMnist().cuda()
 opt = optim.Adam(net2.parameters())
@@ -417,9 +361,7 @@ plots(x_imgs[:8], titles=preds[:8])
 
 # ## what torch.matmul (matrix multiplication) is doing
 
-# Now let's dig in to what we were doing with `torch.matmul`: matrix
-# multiplication.  First, let's start with a simpler building block:
-# **broadcasting**.
+# Now let's dig in to what we were doing with `torch.matmul`: matrix multiplication.  First, let's start with a simpler building block: **broadcasting**.
 
 # ### Element-wise operations
 
@@ -453,8 +395,7 @@ a < b
 #     instead of Python. It does this without making needless copies of
 #     data and usually leads to efficient algorithm implementations.
 #
-# In addition to the efficiency of broadcasting, it allows developers to
-# write less code, which typically leads to fewer errors.
+# In addition to the efficiency of broadcasting, it allows developers to write less code, which typically leads to fewer errors.
 
 # *This section was adapted from [Chapter 4](http://nbviewer.jupyter.org/github/fastai/numerical-linear-algebra/blob/master/nbs/4.%20Compressed%20Sensing%20of%20CT%20Scans%20with%20Robust%20Regression.ipynb#4.-Compressed-Sensing-of-CT-Scans-with-Robust-Regression) of the fast.ai [Computational Linear Algebra](https://github.com/fastai/numerical-linear-algebra) course.*
 
@@ -475,8 +416,7 @@ a > 0
 a + 1
 
 
-m = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
-m
+m = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]]); m
 
 
 m * 2
@@ -486,15 +426,13 @@ m * 2
 
 # We can also broadcast a vector to a matrix:
 
-c = np.array([10, 20, 30])
-c
+c = np.array([10, 20, 30]); c
 
 
 m + c
 
 
-# Although numpy does this automatically, you can also use the
-# `broadcast_to` method:
+# Although numpy does this automatically, you can also use the `broadcast_to` method:
 
 np.broadcast_to(c, (3, 3))
 
@@ -502,9 +440,7 @@ np.broadcast_to(c, (3, 3))
 c.shape
 
 
-# The numpy `expand_dims` method lets us convert the 1-dimensional array
-# `c` into a 2-dimensional array (although one of those dimensions has
-# value 1).
+# The numpy `expand_dims` method lets us convert the 1-dimensional array `c` into a 2-dimensional array (although one of those dimensions has value 1).
 
 np.expand_dims(c, 0).shape
 
@@ -534,10 +470,7 @@ np.broadcast_to(np.expand_dims(c, 1), (3, 3))
 #     Scale  (1d array):             3
 #     Result (3d array): 256 x 256 x 3
 
-# The [numpy
-# documentation](https://docs.scipy.org/doc/numpy-1.13.0/user/basics.broadcasting.html#general-broadcasting-rules)
-# includes several examples of what dimensions can and can not be
-# broadcast together.
+# The [numpy documentation](https://docs.scipy.org/doc/numpy-1.13.0/user/basics.broadcasting.html#general-broadcasting-rules) includes several examples of what dimensions can and can not be broadcast together.
 
 # ### Matrix Multiplication
 
@@ -570,18 +503,13 @@ c
 np.broadcast_to(c, (3, 3))
 
 
-# From a machine learning perspective, matrix multiplication is a way of
-# creating features by saying how much we want to weight each input
-# column.  **Different features are different weighted averages of the
-# input columns**.
+# From a machine learning perspective, matrix multiplication is a way of creating features by saying how much we want to weight each input column.  **Different features are different weighted averages of the input columns**.
 
-# The website [matrixmultiplication.xyz](http://matrixmultiplication.xyz/)
-# provides a nice visualization of matrix multiplcation
+# The website [matrixmultiplication.xyz](http://matrixmultiplication.xyz/) provides a nice visualization of matrix multiplcation
 
 # Draw a picture
 
-n = np.array([[10, 40], [20, 0], [30, -5]])
-n
+n = np.array([[10, 40], [20, 0], [30, -5]]); n
 
 
 m @ n
@@ -602,17 +530,11 @@ m @ n
 # (source: [Cifar 10](https://www.cs.toronto.edu/~kriz/cifar.html))
 # </center>
 #
-# Fortunately, broadcasting will make it relatively easy to add this extra
-# dimension (for color RGB), but you will have to make some changes to the
-# code.
+# Fortunately, broadcasting will make it relatively easy to add this extra dimension (for color RGB), but you will have to make some changes to the code.
 
 # ## Other applications of Matrix and Tensor Products
 
-# Here are some other examples of where matrix multiplication arises.
-# This material is taken from [Chapter
-# 1](http://nbviewer.jupyter.org/github/fastai/numerical-linear-algebra/blob/master/nbs/1.%20Why%20are%20we%20here.ipynb)
-# of my [Computational Linear
-# Algebra](https://github.com/fastai/numerical-linear-algebra) course.
+# Here are some other examples of where matrix multiplication arises.  This material is taken from [Chapter 1](http://nbviewer.jupyter.org/github/fastai/numerical-linear-algebra/blob/master/nbs/1.%20Why%20are%20we%20here.ipynb) of my [Computational Linear Algebra](https://github.com/fastai/numerical-linear-algebra) course.
 
 # #### Matrix-Vector Products:
 
@@ -631,7 +553,7 @@ m @ n
 import numpy as np
 
 
-# Exercise: Use Numpy to compute the answer to the above
+#Exercise: Use Numpy to compute the answer to the above
 
 
 # #### Matrix-Matrix Products
@@ -640,11 +562,9 @@ import numpy as np
 
 # #### Answer
 
-# Exercise: Use Numpy to compute the answer to the above
+#Exercise: Use Numpy to compute the answer to the above
 
 
 # ## End
 
-# A Tensor is a *multi-dimensional matrix containing elements of a single
-# data type*: a group of data, all with the same type (e.g. A Tensor could
-# store a 4 x 4 x 6 matrix of 32-bit signed integers).
+# A Tensor is a *multi-dimensional matrix containing elements of a single data type*: a group of data, all with the same type (e.g. A Tensor could store a 4 x 4 x 6 matrix of 32-bit signed integers).

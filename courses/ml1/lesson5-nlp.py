@@ -1,9 +1,9 @@
 
 # coding: utf-8
 
-get_ipython().magic('reload_ext autoreload')
-get_ipython().magic('autoreload 2')
-get_ipython().magic('matplotlib inline')
+get_ipython().magic(u'reload_ext autoreload')
+get_ipython().magic(u'autoreload 2')
+get_ipython().magic(u'matplotlib inline')
 
 from fastai.nlp import *
 from sklearn.linear_model import LogisticRegression
@@ -29,13 +29,13 @@ PATH = 'data/aclImdb/'
 names = ['neg', 'pos']
 
 
-get_ipython().magic('ls {PATH}')
+get_ipython().magic(u'ls {PATH}')
 
 
-get_ipython().magic('ls {PATH}train')
+get_ipython().magic(u'ls {PATH}train')
 
 
-get_ipython().magic('ls {PATH}train/pos | head')
+get_ipython().magic(u'ls {PATH}train/pos | head')
 
 
 trn, trn_y = texts_labels_from_folders(f'{PATH}train', names)
@@ -70,8 +70,7 @@ trn_term_doc[0]
 vocab = veczr.get_feature_names(); vocab[5000:5005]
 
 
-w0 = set([o.lower() for o in trn[0].split(' ')])
-w0
+w0 = set([o.lower() for o in trn[0].split(' ')]); w0
 
 
 len(w0)
@@ -92,9 +91,7 @@ trn_term_doc[0, 5000]
 #
 # $r = \log \frac{\text{ratio of feature $f$ in positive documents}}{\text{ratio of feature $f$ in negative documents}}$
 #
-# where ratio of feature $f$ in positive documents is the number of times
-# a positive document has a feature divided by the number of positive
-# documents.
+# where ratio of feature $f$ in positive documents is the number of times a positive document has a feature divided by the number of positive documents.
 
 def pr(y_i):
     p = x[y == y_i].sum(0)
@@ -127,8 +124,7 @@ preds = pre_preds.T > 0
 
 # ### Logistic regression
 
-# Here is how we can fit logistic regression where the features are the
-# unigrams.
+# Here is how we can fit logistic regression where the features are the unigrams.
 
 m = LogisticRegression(C=1e8, dual=True)
 m.fit(x, y)
@@ -158,18 +154,9 @@ preds = m.predict(val_term_doc.sign())
 
 # ### Trigram with NB features
 
-# Our next model is a version of logistic regression with Naive Bayes
-# features described [here](https://www.aclweb.org/anthology/P12-2018).
-# For every document we compute binarized features as described above, but
-# this time we use bigrams and trigrams too. Each feature is a log-count
-# ratio. A logistic regression model is then trained to predict sentiment.
+# Our next model is a version of logistic regression with Naive Bayes features described [here](https://www.aclweb.org/anthology/P12-2018). For every document we compute binarized features as described above, but this time we use bigrams and trigrams too. Each feature is a log-count ratio. A logistic regression model is then trained to predict sentiment.
 
-veczr = CountVectorizer(
-    ngram_range=(
-        1,
-        3),
-    tokenizer=tokenize,
-    max_features=800000)
+veczr = CountVectorizer(ngram_range=(1, 3), tokenizer=tokenize, max_features=800000)
 trn_term_doc = veczr.fit_transform(trn)
 val_term_doc = veczr.transform(val)
 
@@ -192,11 +179,10 @@ r = np.log(pr(1) / pr(0))
 b = np.log((y == 1).mean() / (y == 0).mean())
 
 
-# Here we fit regularized logistic regression where the features are the
-# trigrams.
+# Here we fit regularized logistic regression where the features are the trigrams.
 
 m = LogisticRegression(C=0.1, dual=True)
-m.fit(x, y)
+m.fit(x, y);
 
 preds = m.predict(val_x)
 (preds.T == val_y).mean()
@@ -210,12 +196,11 @@ r.shape, r
 np.exp(r)
 
 
-# Here we fit regularized logistic regression where the features are the
-# trigrams' log-count ratios.
+# Here we fit regularized logistic regression where the features are the trigrams' log-count ratios.
 
 x_nb = x.multiply(r)
 m = LogisticRegression(dual=True, C=0.1)
-m.fit(x_nb, y)
+m.fit(x_nb, y);
 
 val_x_nb = val_x.multiply(r)
 preds = m.predict(val_x_nb)

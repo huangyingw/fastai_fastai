@@ -1,9 +1,9 @@
 
 # coding: utf-8
 
-get_ipython().magic('reload_ext autoreload')
-get_ipython().magic('autoreload 2')
-get_ipython().magic('matplotlib inline')
+get_ipython().magic(u'reload_ext autoreload')
+get_ipython().magic(u'autoreload 2')
+get_ipython().magic(u'matplotlib inline')
 
 from fastai.model import fit
 from fastai.dataset import *
@@ -34,15 +34,10 @@ df_all = pd.read_pickle(f'{PATH}all_arxiv.pickle')
 
 
 def get_txt(df):
-    return '<CAT> ' + \
-        df.category.str.replace(
-            r'[\.\-]', '') + ' <SUMM> ' + df.summary + ' <TITLE> ' + df.title
-
-
+    return '<CAT> ' + df.category.str.replace(r'[\.\-]', '') + ' <SUMM> ' + df.summary + ' <TITLE> ' + df.title
 df_mb['txt'] = get_txt(df_mb)
 df_all['txt'] = get_txt(df_all)
-n = len(df_all)
-n
+n = len(df_all); n
 
 
 os.makedirs(f'{PATH}trn/yes', exist_ok=True)
@@ -75,7 +70,6 @@ my_tok.tokenizer.add_special_case('<TITLE>', [{ORTH: '<TITLE>'}])
 my_tok.tokenizer.add_special_case('<BR />', [{ORTH: '<BR />'}])
 my_tok.tokenizer.add_special_case('<BR>', [{ORTH: '<BR>'}])
 
-
 def my_spacy_tok(x): return [tok.text for tok in my_tok.tokenizer(x)]
 
 
@@ -103,9 +97,9 @@ opt_fn = partial(optim.Adam, betas=(0.7, 0.99))
 
 
 learner = md.get_model(opt_fn, em_sz, nh, nl,
-                       dropout=0.05, dropouth=0.1, dropouti=0.05, dropoute=0.02, wdrop=0.2)
+    dropout=0.05, dropouth=0.1, dropouti=0.05, dropoute=0.02, wdrop=0.2)
 # dropout=0.4, dropouth=0.3, dropouti=0.65, dropoute=0.1, wdrop=0.5
-# dropouti=0.05, dropout=0.05, wdrop=0.1, dropoute=0.02, dropouth=0.05)
+#                dropouti=0.05, dropout=0.05, wdrop=0.1, dropoute=0.02, dropouth=0.05)
 learner.reg_fn = partial(seq2seq_reg, alpha=2, beta=1)
 learner.clip = 0.3
 
@@ -140,8 +134,6 @@ learner.save('adam3_20')
 # ### Test
 
 def proc_str(s): return TEXT.preprocess(TEXT.tokenize(s))
-
-
 def num_str(s): return TEXT.numericalize([proc_str(s)])
 
 
@@ -164,8 +156,7 @@ def sample_model(m, s, l=50):
         n = n[1] if n.data[0] == 0 else n[0]
         word = TEXT.vocab.itos[n.data[0]]
         print(word, end=' ')
-        if word == '<eos>':
-            break
+        if word == '<eos>': break
         res, *_ = m(n[0].unsqueeze(0))
 
     m[0].bs = bs
@@ -200,14 +191,13 @@ class ArxivDataset(torchtext.data.Dataset):
         examples = []
         for label in ['yes', 'no']:
             for fname in glob(os.path.join(path, label, '*.txt')):
-                with open(fname, 'r') as f:
-                    text = f.readline()
+                with open(fname, 'r') as f: text = f.readline()
                 examples.append(data.Example.fromlist([text, label], fields))
         super().__init__(examples, fields, **kwargs)
 
     @staticmethod
     def sort_key(ex): return len(ex.text)
-
+    
     @classmethod
     def splits(cls, text_field, label_field, root='.data',
                train='train', test='test', **kwargs):
@@ -229,7 +219,6 @@ md2 = TextData.from_splits(PATH, splits, bs)
 from sklearn.metrics import precision_recall_curve
 import matplotlib.pyplot as plt
 
-
 def prec_at_6(preds, targs):
     precision, recall, _ = precision_recall_curve(targs == 2, preds[:, 2])
     print(recall[precision >= 0.6][0])
@@ -238,7 +227,7 @@ def prec_at_6(preds, targs):
 
 # dropout=0.4, dropouth=0.3, dropouti=0.65, dropoute=0.1, wdrop=0.5
 m3 = md2.get_model(opt_fn, 1500, bptt, emb_sz=em_sz, n_hid=nh, n_layers=nl,
-                   dropout=0.1, dropouti=0.65, wdrop=0.5, dropoute=0.1, dropouth=0.3)
+           dropout=0.1, dropouti=0.65, wdrop=0.5, dropoute=0.1, dropouth=0.3)
 m3.reg_fn = partial(seq2seq_reg, alpha=2, beta=1)
 m3.clip = 25.
 

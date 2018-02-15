@@ -3,11 +3,11 @@
 
 # # A Linear Model for Bulldozers
 
-get_ipython().magic('load_ext autoreload')
-get_ipython().magic('autoreload 2')
+get_ipython().magic(u'load_ext autoreload')
+get_ipython().magic(u'autoreload 2')
 
 
-get_ipython().magic('matplotlib inline')
+get_ipython().magic(u'matplotlib inline')
 
 from fastai.imports import *
 from fastai.structured import *
@@ -35,8 +35,6 @@ df, y, nas, mapper = proc_df(df_raw, 'SalePrice', max_n_cat=10, do_scale=True)
 
 
 def split_vals(a, n): return a[:n], a[n:]
-
-
 n_valid = 12000
 n_trn = len(df) - n_valid
 y_train, y_valid = split_vals(y, n_trn)
@@ -69,7 +67,7 @@ preds = m.predict(X_valid)
 rmse(preds, y_valid)
 
 
-plt.scatter(preds, y_valid, alpha=0.1, s=2)
+plt.scatter(preds, y_valid, alpha=0.1, s=2);
 
 
 # ## Feature selection from RF

@@ -3,9 +3,9 @@
 
 # ## CIFAR 10
 
-get_ipython().magic('matplotlib inline')
-get_ipython().magic('reload_ext autoreload')
-get_ipython().magic('autoreload 2')
+get_ipython().magic(u'matplotlib inline')
+get_ipython().magic(u'reload_ext autoreload')
+get_ipython().magic(u'autoreload 2')
 
 
 from fastai.conv_learner import *
@@ -13,25 +13,13 @@ PATH = "data/cifar10/"
 os.makedirs(PATH, exist_ok=True)
 
 
-classes = (
-    'plane',
-    'car',
-    'bird',
-    'cat',
-    'deer',
-    'dog',
-    'frog',
-    'horse',
-    'ship',
-    'truck')
-stats = (np.array([0.4914, 0.48216, 0.44653]),
-         np.array([0.24703, 0.24349, 0.26159]))
+classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
+stats = (np.array([0.4914, 0.48216, 0.44653]), np.array([0.24703, 0.24349, 0.26159]))
 
 
 def get_data(sz, bs):
     tfms = tfms_from_stats(stats, sz, aug_tfms=[RandomFlip()], pad=sz // 8)
-    return ImageClassifierData.from_paths(
-        PATH, val_name='test', tfms=tfms, bs=bs)
+    return ImageClassifierData.from_paths(PATH, val_name='test', tfms=tfms, bs=bs)
 
 
 bs = 128
@@ -45,10 +33,10 @@ data = get_data(32, 4)
 x, y = next(iter(data.trn_dl))
 
 
-plt.imshow(data.trn_ds.denorm(x)[0])
+plt.imshow(data.trn_ds.denorm(x)[0]);
 
 
-plt.imshow(data.trn_ds.denorm(x)[1])
+plt.imshow(data.trn_ds.denorm(x)[1]);
 
 
 # ## Initial model
@@ -66,8 +54,7 @@ learn = ConvLearner(data, bm)
 learn.unfreeze()
 
 
-lr = 1e-2
-wd = 5e-4
+lr = 1e-2; wd = 5e-4
 
 
 learn.lr_find()
@@ -76,7 +63,7 @@ learn.lr_find()
 learn.sched.plot()
 
 
-get_ipython().magic('time learn.fit(lr, 1)')
+get_ipython().magic(u'time learn.fit(lr, 1)')
 
 
 learn.fit(lr, 2, cycle_len=1)
@@ -96,7 +83,7 @@ learn.load('8x8_8')
 learn.set_data(get_data(16, bs * 2))
 
 
-get_ipython().magic('time learn.fit(1e-3, 1, wds=wd)')
+get_ipython().magic(u'time learn.fit(1e-3, 1, wds=wd)')
 
 
 learn.unfreeze()

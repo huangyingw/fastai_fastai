@@ -5,9 +5,9 @@
 
 # ## Planet Kaggle competition
 
-get_ipython().magic('reload_ext autoreload')
-get_ipython().magic('autoreload 2')
-get_ipython().magic('matplotlib inline')
+get_ipython().magic(u'reload_ext autoreload')
+get_ipython().magic(u'autoreload 2')
+get_ipython().magic(u'matplotlib inline')
 
 
 from fast_gen import *
@@ -18,8 +18,7 @@ from sgdr_pt import *
 
 from planet import *
 
-bs = 64
-f_model = resnet34
+bs = 64; f_model = resnet34
 path = "/data/jhoward/fast/planet/"
 torch.cuda.set_device(1)
 
@@ -82,7 +81,6 @@ f2(learn.TTA(), data.val_y)
 
 def get_labels(a): return [data.classes[o] for o in a.nonzero()[0]]
 
-
 lbls = test > 0.2
 idx = 9
 print(get_labels(lbls[idx]))
@@ -94,7 +92,7 @@ data.test_dl.dataset.fnames[:5]
 
 
 outp = pd.DataFrame({'image_name': [f[9:-4] for f in data.test_dl.dataset.fnames],
-                     'tags': [' '.join(l) for l in res]})
+        'tags': [' '.join(l) for l in res]})
 outp.head()
 
 
@@ -111,7 +109,6 @@ def cycle_preds(name, cycle, n_tta=4, is_test=False):
     learn.load_cycle(name, cycle)
     return learn.TTA(n_tta, is_test=is_test)
 
-
 def cycle_cv_preds(cv, n_tta=4, is_test=False):
     data = get_data_pad(f_model, path, 256, 64, n, cv)
     learn.set_data(data)
@@ -121,15 +118,11 @@ def cycle_cv_preds(cv, n_tta=4, is_test=False):
 # - check dogs and cats
 # - get resize working again with new path structure
 
-get_ipython().run_cell_magic(
-    'time',
-    '',
-    'preds_arr=[]\nfor i in range(5):\n    print(i)\n    preds_arr.append(cycle_cv_preds(i, is_test=True))')
+get_ipython().run_cell_magic(u'time', u'', u'preds_arr=[]\nfor i in range(5):\n    print(i)\n    preds_arr.append(cycle_cv_preds(i, is_test=True))')
 
 
 def all_cycle_cv_preds(end_cycle, start_cycle=0, n_tta=4, is_test=False):
-    return [cycle_cv_preds(i, is_test=is_test)
-            for i in range(start_cycle, end_cycle)]
+    return [cycle_cv_preds(i, is_test=is_test) for i in range(start_cycle, end_cycle)]
 
 
 np.savez_compressed(f'{path}tmp/test_preds', preds_arr)
@@ -139,7 +132,7 @@ preds_avg = [np.mean(o, 0) for o in preds_arr]
 test = np.mean(preds_avg, 0)
 
 
-get_ipython().magic('time preds_arr = all_cycle_cv_preds(5)')
+get_ipython().magic(u'time preds_arr = all_cycle_cv_preds(5)')
 
 
 [f2(preds_arr[0][o], data.val_y) for o in range(5)]
@@ -151,12 +144,10 @@ preds_avg = [np.mean(o, 0) for o in preds_arr]
 ys = [get_data_zoom(f_model, path, 256, 64, n, cv).val_y for cv in range(5)]
 
 
-f2s = [f2(o, y) for o, y in zip(preds_avg, ys)]
-f2s
+f2s = [f2(o, y) for o, y in zip(preds_avg, ys)]; f2s
 
 
-ots = [opt_th(o, y) for o, y in zip(preds_avg, ys)]
-ots
+ots = [opt_th(o, y) for o, y in zip(preds_avg, ys)]; ots
 
 
 np.mean(ots)

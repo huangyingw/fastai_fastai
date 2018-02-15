@@ -1,9 +1,9 @@
 
 # coding: utf-8
 
-get_ipython().magic('reload_ext autoreload')
-get_ipython().magic('autoreload 2')
-get_ipython().magic('matplotlib inline')
+get_ipython().magic(u'reload_ext autoreload')
+get_ipython().magic(u'autoreload 2')
+get_ipython().magic(u'matplotlib inline')
 
 from fastai.nlp import *
 from sklearn.linear_model import LogisticRegression
@@ -28,13 +28,11 @@ df['txt'] = df.category + ' ' + df.title + '\n' + df.summary
 print(df.iloc[0].txt)
 
 
-n = len(df)
-n
+n = len(df); n
 
 
 val_idx = get_cv_idxs(n, val_pct=0.1)
-((val, trn), (val_y, trn_y)) = split_by_idx(
-    val_idx, df.txt.values, df.tweeted.values)
+((val, trn), (val_y, trn_y)) = split_by_idx(val_idx, df.txt.values, df.tweeted.values)
 
 
 # ## Ngram logistic regression
@@ -62,7 +60,7 @@ preds = pre_preds.T > 0
 
 
 m = LogisticRegression(C=0.1, fit_intercept=False)
-m.fit(x, y)
+m.fit(x, y);
 
 preds = m.predict(val_x)
 (preds.T == val_y).mean()
@@ -119,7 +117,7 @@ txts = df_val.iloc[to_review[to_review_idx]]
 
 
 txt_html = ('<li><a href="http://' + txts.link + '">' + txts.title.str.replace('\n', ' ') + '</a>: '
-            + txts.summary.str.replace('\n', ' ') + '</li>').values
+    + txts.summary.str.replace('\n', ' ') + '</li>').values
 
 
 full_html = (f"""<!DOCTYPE html>
@@ -135,12 +133,7 @@ full_html = (f"""<!DOCTYPE html>
 
 # ## Learner
 
-veczr = CountVectorizer(
-    ngram_range=(
-        1,
-        3),
-    tokenizer=tokenize,
-    max_features=vocab_size)
+veczr = CountVectorizer(ngram_range=(1, 3), tokenizer=tokenize, max_features=vocab_size)
 
 trn_term_doc = veczr.fit_transform(trn)
 val_term_doc = veczr.transform(val)
@@ -160,7 +153,6 @@ learner.fit(0.02, 4, wds=1e-6, cycle_len=1)
 
 from sklearn.metrics import precision_recall_curve
 import matplotlib.pyplot as plt
-
 
 def prec_at_6(preds, targs):
     precision, recall, _ = precision_recall_curve(targs[:, 1], preds[:, 1])

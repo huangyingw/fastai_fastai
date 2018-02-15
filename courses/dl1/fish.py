@@ -5,14 +5,12 @@
 
 # In this notebook we're going to investigate a range of different techniques for the [Kaggle fisheries competition](https://www.kaggle.com/c/the-nature-conservancy-fisheries-monitoring). In this competition, The Nature Conservancy asks you to help them detect which species of fish appears on a fishing boat, based on images captured from boat cameras of various angles. Your goal is to predict the likelihood of fish species in each picture. Eight target categories are available in this dataset: Albacore tuna, Bigeye tuna, Yellowfin tuna, Mahi Mahi, Opah, Sharks, Other
 #
-# You can use [this](https://github.com/floydwch/kaggle-cli) api to
-# download the data from Kaggle.
+# You can use [this](https://github.com/floydwch/kaggle-cli) api to download the data from Kaggle.
 
-# Put these at the top of every notebook, to get automatic reloading and
-# inline plotting
-get_ipython().magic('reload_ext autoreload')
-get_ipython().magic('autoreload 2')
-get_ipython().magic('matplotlib inline')
+# Put these at the top of every notebook, to get automatic reloading and inline plotting
+get_ipython().magic(u'reload_ext autoreload')
+get_ipython().magic(u'autoreload 2')
+get_ipython().magic(u'matplotlib inline')
 
 # This file contains all the main external libs we'll use
 from fastai.imports import *
@@ -24,25 +22,23 @@ PATH = "data/fish/"
 
 # ## First look at fish pictures
 
-get_ipython().system('ls {PATH}')
+get_ipython().system(u'ls {PATH}')
 
 
-get_ipython().system('ls {PATH}train')
+get_ipython().system(u'ls {PATH}train')
 
 
-files = get_ipython().getoutput('ls {PATH}train/ALB | head')
+files = get_ipython().getoutput(u'ls {PATH}train/ALB | head')
 files
 
 
 img = plt.imread(f'{PATH}train/ALB/{files[0]}')
-plt.imshow(img)
+plt.imshow(img);
 
 
 # ## Data pre-processing
 
-# Here we are changing the structure of the training data to make it more
-# convinient. We will have all images in a common directory `images` and
-# will have a file `train.csv` with all labels.
+# Here we are changing the structure of the training data to make it more convinient. We will have all images in a common directory `images` and will have a file `train.csv` with all labels.
 
 from os import listdir
 from os.path import join
@@ -65,21 +61,19 @@ sum(len(v) for v in train_dict.values())
 with open(f"{PATH}train.csv", "w") as csv:
     csv.write("img,label\n")
     for d in dirs:
-        for f in train_dict[d]:
-            csv.write(f'{f},{d}\n')
+        for f in train_dict[d]: csv.write(f'{f},{d}\n')
 
 
 img_path = f'{PATH}images'
 os.makedirs(img_path, exist_ok=True)
 
 
-get_ipython().system('cp {PATH}train/*/*.jpg {PATH}images/')
+get_ipython().system(u'cp {PATH}train/*/*.jpg {PATH}images/')
 
 
 # ## Our first model with Center  Cropping
 
-# Here we import the libraries we need. We'll learn about what each does
-# during the course.
+# Here we import the libraries we need. We'll learn about what each does during the course.
 
 from fastai.transforms import *
 from fastai.conv_learner import *
@@ -97,16 +91,10 @@ val_idxs = get_cv_idxs(n)
 
 
 tfms = tfms_from_model(resnet34, sz)
-data = ImageClassifierData.from_csv(
-    PATH, "images", csv_fname, bs, tfms, val_idxs)
+data = ImageClassifierData.from_csv(PATH, "images", csv_fname, bs, tfms, val_idxs)
 
 
-learn = ConvLearner.pretrained(
-    resnet34,
-    data,
-    precompute=True,
-    opt_fn=optim.Adam,
-    ps=0.5)
+learn = ConvLearner.pretrained(resnet34, data, precompute=True, opt_fn=optim.Adam, ps=0.5)
 
 
 lrf = learn.lr_find()
@@ -130,16 +118,10 @@ learn.sched.plot()
 
 sz = 350
 tfms = tfms_from_model(resnet34, sz, crop_type=CropType.NO)
-data = ImageClassifierData.from_csv(
-    PATH, "images", csv_fname, bs, tfms, val_idxs)
+data = ImageClassifierData.from_csv(PATH, "images", csv_fname, bs, tfms, val_idxs)
 
 
-learn = ConvLearner.pretrained(
-    resnet34,
-    data,
-    precompute=True,
-    opt_fn=optim.Adam,
-    ps=0.5)
+learn = ConvLearner.pretrained(resnet34, data, precompute=True, opt_fn=optim.Adam, ps=0.5)
 
 
 lrf = learn.lr_find()
@@ -179,7 +161,7 @@ def get_annotations():
     cache_subdir = os.path.abspath(os.path.join(PATH, 'annos'))
     url_prefix = 'https://kaggle2.blob.core.windows.net/forum-message-attachments/147157/'
     os.makedirs(cache_subdir, exist_ok=True)
-
+    
     for url_suffix in annot_urls:
         fname = url_suffix.rsplit('/', 1)[-1]
         get_data(url_prefix + url_suffix, f'{cache_subdir}/{fname}')
@@ -192,8 +174,7 @@ get_annotations()
 # creates a dictionary of all annotations per file
 bb_json = {}
 for c in anno_classes:
-    if c == 'other':
-        continue  # no annotation file for "other" class
+    if c == 'other': continue # no annotation file for "other" class
     j = json.load(open(f'{PATH}annos/{c}_labels.json', 'r'))
     for l in j:
         if 'annotations' in l.keys() and len(l['annotations']) > 0:
@@ -209,12 +190,9 @@ file2idx = {o: i for i, o in enumerate(raw_filenames)}
 
 empty_bbox = {'height': 0., 'width': 0., 'x': 0., 'y': 0.}
 for f in raw_filenames:
-    if not f in bb_json.keys():
-        bb_json[f] = empty_bbox
+    if not f in bb_json.keys(): bb_json[f] = empty_bbox
 
 bb_params = ['height', 'width', 'x', 'y']
-
-
 def convert_bb(bb):
     bb = [bb[p] for p in bb_params]
     bb[2] = max(bb[2], 0)
@@ -222,12 +200,8 @@ def convert_bb(bb):
     return bb
 
 
-trn_bbox = np.stack([convert_bb(bb_json[f])
-                     for f in raw_filenames]).astype(np.float32)
-trn_bb_labels = [f +
-                 ',' +
-                 ' '.join(map(str, o)) +
-                 '\n' for f, o in zip(raw_filenames, trn_bbox)]
+trn_bbox = np.stack([convert_bb(bb_json[f]) for f in raw_filenames]).astype(np.float32)
+trn_bb_labels = [f + ',' + ' '.join(map(str, o)) + '\n' for f, o in zip(raw_filenames, trn_bbox)]
 
 
 open(f'{PATH}trn_bb_labels', 'w').writelines(trn_bb_labels)
@@ -251,10 +225,7 @@ print(bb)
 bb_corners(bb)
 
 
-new_labels = [f +
-              "," +
-              " ".join(map(str, bb_corners(csv_labels[f]))) +
-              "\n" for f in raw_filenames]
+new_labels = [f + "," + " ".join(map(str, bb_corners(csv_labels[f]))) + "\n" for f in raw_filenames]
 
 
 open(f'{PATH}trn_bb_corners_labels', 'w').writelines(new_labels)
@@ -278,9 +249,7 @@ csv_labels["img_06297.jpg"]
 
 
 def create_rect(bb, color='red'):
-    return plt.Rectangle((bb[2], bb[3]), bb[1], bb[0],
-                         color=color, fill=False, lw=3)
-
+    return plt.Rectangle((bb[2], bb[3]), bb[1], bb[0], color=color, fill=False, lw=3)
 
 def show_bb(path, f='img_04908.jpg'):
     file_path = f'{path}images/{f}'
@@ -291,9 +260,7 @@ def show_bb(path, f='img_04908.jpg'):
 
 def create_corner_rect(bb, color='red'):
     bb = np.array(bb, dtype=np.float32)
-    return plt.Rectangle((bb[1], bb[0]), bb[3] - bb[1],
-                         bb[2] - bb[0], color=color, fill=False, lw=3)
-
+    return plt.Rectangle((bb[1], bb[0]), bb[3] - bb[1], bb[2] - bb[0], color=color, fill=False, lw=3)
 
 def show_corner_bb(path, f='img_04908.jpg'):
     file_path = f'{path}images/{f}'
@@ -315,11 +282,7 @@ n = len(list(open(label_csv))) - 1
 val_idxs = get_cv_idxs(n)
 
 
-tfms = tfms_from_model(
-    resnet34,
-    sz,
-    crop_type=CropType.NO,
-    tfm_y=TfmType.COORD)
+tfms = tfms_from_model(resnet34, sz, crop_type=CropType.NO, tfm_y=TfmType.COORD)
 data = ImageClassifierData.from_csv(PATH, 'images', label_csv, tfms=tfms, val_idxs=val_idxs,
                                     continuous=True, skip_header=False)
 
@@ -333,12 +296,7 @@ x, y = trn_ds[0]
 print(x.shape, y)
 
 
-learn = ConvLearner.pretrained(
-    resnet34,
-    data,
-    precompute=True,
-    opt_fn=optim.Adam,
-    ps=0.5)
+learn = ConvLearner.pretrained(resnet34, data, precompute=True, opt_fn=optim.Adam, ps=0.5)
 
 
 lrf = learn.lr_find()

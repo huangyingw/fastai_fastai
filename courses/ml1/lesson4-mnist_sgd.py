@@ -13,16 +13,11 @@
 #
 # 2. Multi-layered neural networks learnt with SGD (i.e. shallow and/or deep learning), mainly for unstructured data (such as audio, vision, and natural language)
 #
-# In this lesson, we will start on the 2nd approach (a neural network with
-# SGD) by analyzing the MNIST dataset.  You may be surprised to learn that
-# **logistic regression is actually an example of a simple neural net**!
+# In this lesson, we will start on the 2nd approach (a neural network with SGD) by analyzing the MNIST dataset.  You may be surprised to learn that **logistic regression is actually an example of a simple neural net**!
 
 # ### About The Data
 
-# In this lesson, we will be working with MNIST, a classic data set of
-# hand-written digits.  Solutions to this problem are used by banks to
-# automatically recognize the amounts on checks, and by the postal service
-# to automatically recognize zip codes on mail.
+# In this lesson, we will be working with MNIST, a classic data set of hand-written digits.  Solutions to this problem are used by banks to automatically recognize the amounts on checks, and by the postal service to automatically recognize zip codes on mail.
 
 # <img src="images/mnist.png" alt="" style="width: 60%"/>
 
@@ -41,12 +36,11 @@
 #
 #     ln -s ../../fastai
 #
-# in the terminal, within the directory I'm working in,
-# `home/fastai/courses/ml1`.
+# in the terminal, within the directory I'm working in, `home/fastai/courses/ml1`.
 
-get_ipython().magic('load_ext autoreload')
-get_ipython().magic('autoreload 2')
-get_ipython().magic('matplotlib inline')
+get_ipython().magic(u'load_ext autoreload')
+get_ipython().magic(u'autoreload 2')
+get_ipython().magic(u'matplotlib inline')
 
 
 from fastai.imports import *
@@ -66,7 +60,6 @@ os.makedirs(path, exist_ok=True)
 URL = 'http://deeplearning.net/data/mnist/'
 FILENAME = 'mnist.pkl.gz'
 
-
 def load_mnist(filename):
     return pickle.load(gzip.open(filename, 'rb'), encoding='latin-1')
 
@@ -80,10 +73,7 @@ type(x), x.shape, type(y), y.shape
 
 # ### Normalize
 
-# Many machine learning algorithms behave better when the data is
-# *normalized*, that is when the mean is 0 and the standard deviation is
-# 1. We will subtract off the mean and standard deviation from our
-# training set in order to normalize the data:
+# Many machine learning algorithms behave better when the data is *normalized*, that is when the mean is 0 and the standard deviation is 1. We will subtract off the mean and standard deviation from our training set in order to normalize the data:
 
 mean = x.mean()
 std = x.std()
@@ -93,9 +83,7 @@ x = (x - mean) / std
 mean, std, x.mean(), x.std()
 
 
-# Note that for consistency (with the parameters we learn when training),
-# we subtract the mean and standard deviation of our training set from our
-# validation set.
+# Note that for consistency (with the parameters we learn when training), we subtract the mean and standard deviation of our training set from our validation set.
 
 x_valid = (x_valid - mean) / std
 x_valid.mean(), x_valid.std()
@@ -103,17 +91,13 @@ x_valid.mean(), x_valid.std()
 
 # ### Look at the data
 
-# In any sort of data science work, it's important to look at your data,
-# to make sure you understand the format, how it's stored, what type of
-# values it holds, etc. To make it easier to work with, let's reshape it
-# into 2d images from the flattened 1d format.
+# In any sort of data science work, it's important to look at your data, to make sure you understand the format, how it's stored, what type of values it holds, etc. To make it easier to work with, let's reshape it into 2d images from the flattened 1d format.
 
 # #### Helper methods
 
 def show(img, title=None):
     plt.imshow(img, cmap="gray")
-    if title is not None:
-        plt.title(title)
+    if title is not None: plt.title(title)
 
 
 def plots(ims, figsize=(12, 6), rows=2, titles=None):
@@ -122,8 +106,7 @@ def plots(ims, figsize=(12, 6), rows=2, titles=None):
     for i in range(len(ims)):
         sp = f.add_subplot(rows, cols, i + 1)
         sp.axis('Off')
-        if titles is not None:
-            sp.set_title(titles[i], fontsize=16)
+        if titles is not None: sp.set_title(titles[i], fontsize=16)
         plt.imshow(ims[i], cmap='gray')
 
 
@@ -132,8 +115,7 @@ def plots(ims, figsize=(12, 6), rows=2, titles=None):
 x_valid.shape
 
 
-x_imgs = np.reshape(x_valid, (-1, 28, 28))
-x_imgs.shape
+x_imgs = np.reshape(x_valid, (-1, 28, 28)); x_imgs.shape
 
 
 show(x_imgs[0], y_valid[0])
@@ -160,16 +142,13 @@ plots(x_imgs[:8], titles=y_valid[:8])
 
 # ## Neural Networks
 
-# We will take a deep look *logistic regression* and how we can program it
-# ourselves. We are going to treat it as a specific example of a shallow
-# neural net.
+# We will take a deep look *logistic regression* and how we can program it ourselves. We are going to treat it as a specific example of a shallow neural net.
 
 # **What is a neural network?**
 #
 # A *neural network* is an *infinitely flexible function*, consisting of *layers*.  A *layer* is a linear function such as matrix multiplication followed by a non-linear function (the *activation*).
 #
-# One of the tricky parts of neural networks is just keeping track of all
-# the vocabulary!
+# One of the tricky parts of neural networks is just keeping track of all the vocabulary!
 
 # ### Functions, parameters, and training
 
@@ -177,9 +156,7 @@ plots(x_imgs[:8], titles=y_valid[:8])
 #
 # Functions have **parameters**. The above function $f$ is $ax + b$, with parameters a and b set to $a=3$ and $b=5$.
 #
-# Machine learning is often about learning the best values for those
-# parameters.  For instance, suppose we have the data points on the chart
-# below.  What values should we choose for $a$ and $b$?
+# Machine learning is often about learning the best values for those parameters.  For instance, suppose we have the data points on the chart below.  What values should we choose for $a$ and $b$?
 
 # <img src="images/sgd2.gif" alt="" style="width: 70%"/>
 
@@ -187,10 +164,7 @@ plots(x_imgs[:8], titles=y_valid[:8])
 #
 # Most datasets will not be well-represented by a line.  We could use a more complicated function, such as $g(x) = ax^2 + bx + c + \sin d$.  Now we have 4 parameters to learn: $a$, $b$, $c$, and $d$.  This function is more flexible than $f(x) = ax + b$ and will be able to accurately model more datasets.
 #
-# Neural networks take this to an extreme, and are infinitely flexible.
-# They often have thousands, or even hundreds of thousands of parameters.
-# However the core idea is the same as above.  The neural network is a
-# function, and we will learn the best parameters for modeling our data.
+# Neural networks take this to an extreme, and are infinitely flexible.  They often have thousands, or even hundreds of thousands of parameters.  However the core idea is the same as above.  The neural network is a function, and we will learn the best parameters for modeling our data.
 
 # ### PyTorch
 
@@ -206,10 +180,7 @@ plots(x_imgs[:8], titles=y_valid[:8])
 #
 # **Further learning**: If you are curious to learn what *dynamic* neural networks are, you may want to watch [this talk](https://www.youtube.com/watch?v=Z15cBAuY7Sc) by Soumith Chintala, Facebook AI researcher and core PyTorch contributor.
 #
-# If you want to learn more PyTorch, you can try this [introductory
-# tutorial](http://pytorch.org/tutorials/beginner/deep_learning_60min_blitz.html)
-# or this [tutorial to learn by
-# examples](http://pytorch.org/tutorials/beginner/pytorch_with_examples.html).
+# If you want to learn more PyTorch, you can try this [introductory tutorial](http://pytorch.org/tutorials/beginner/deep_learning_60min_blitz.html) or this [tutorial to learn by examples](http://pytorch.org/tutorials/beginner/pytorch_with_examples.html).
 
 # ### About GPUs
 
@@ -230,8 +201,7 @@ from fastai.dataset import *
 import torch.nn as nn
 
 
-# We will begin with the highest level abstraction: using a neural net
-# defined by PyTorch's Sequential class.
+# We will begin with the highest level abstraction: using a neural net defined by PyTorch's Sequential class.
 
 net = nn.Sequential(
     nn.Linear(28 * 28, 100),
@@ -245,13 +215,7 @@ net = nn.Sequential(
 
 # Each input is a vector of size `28*28` pixels and our output is of size `10` (since there are 10 digits: 0, 1, ..., 9).
 #
-# We use the output of the final layer to generate our predictions.  Often
-# for classification problems (like MNIST digit classification), the final
-# layer has the same number of outputs as there are classes.  In that
-# case, this is 10: one for each digit from 0 to 9.  These can be
-# converted to comparative probabilities.  For instance, it may be
-# determined that a particular hand-written image is 80% likely to be a 4,
-# 18% likely to be a 9, and 2% likely to be a 3.
+# We use the output of the final layer to generate our predictions.  Often for classification problems (like MNIST digit classification), the final layer has the same number of outputs as there are classes.  In that case, this is 10: one for each digit from 0 to 9.  These can be converted to comparative probabilities.  For instance, it may be determined that a particular hand-written image is 80% likely to be a 4, 18% likely to be a 9, and 2% likely to be a 3.
 
 md = ImageClassifierData.from_arrays(path, (x, y), (x_valid, y_valid))
 
@@ -268,8 +232,7 @@ opt = optim.SGD(net.parameters(), 1e-1, momentum=0.9, weight_decay=1e-3)
 #
 # The loss associated with one example in binary classification is given by:
 # `-(y * log(p) + (1-y) * log (1-p))`
-# where `y` is the true label of `x` and `p` is the probability predicted
-# by our model that the label is 1.
+# where `y` is the true label of `x` and `p` is the probability predicted by our model that the label is 1.
 
 def binary_loss(y, p):
     return np.mean(-(y * np.log(p) + (1 - y) * np.log(1 - p)))
@@ -295,9 +258,7 @@ binary_loss(acts, preds)
 #
 # Why not just maximize accuracy? The binary classification loss is an easier function to optimize.
 #
-# For multi-class classification, we use *negative log liklihood* (also
-# known as *categorical cross entropy*) which is exactly the same thing,
-# but summed up over all classes.
+# For multi-class classification, we use *negative log liklihood* (also known as *categorical cross entropy*) which is exactly the same thing, but summed up over all classes.
 
 # ### Fitting the model
 
@@ -329,8 +290,7 @@ t, sum(t)
 #
 # An **epoch** is completed once each data sample has been used once in the training loop.
 #
-# Now that we have the parameters for our model, we can make predictions
-# on our validation set.
+# Now that we have the parameters for our model, we can make predictions on our validation set.
 
 preds = predict(net, md.val_dl)
 
@@ -346,10 +306,7 @@ preds.argmax(axis=1)[:5]
 preds = preds.argmax(1)
 
 
-# Let's check how accurate this approach is on our validation set. You may
-# want to compare this against other implementations of logistic
-# regression, such as the one in sklearn. In our testing, this simple
-# pytorch version is faster and more accurate for this problem!
+# Let's check how accurate this approach is on our validation set. You may want to compare this against other implementations of logistic regression, such as the one in sklearn. In our testing, this simple pytorch version is faster and more accurate for this problem!
 
 np.mean(preds == y_valid)
 
@@ -367,14 +324,10 @@ plots(x_imgs[:8], titles=preds[:8])
 #
 # Our PyTorch class needs two things: constructor (says what the parameters are) and a forward method (how to calculate a prediction using those parameters)  The method `forward` describes how the neural net converts inputs to outputs.
 #
-# In PyTorch, the optimizer knows to try to optimize any attribute of type
-# **Parameter**.
+# In PyTorch, the optimizer knows to try to optimize any attribute of type **Parameter**.
 
 def get_weights(*dims): return nn.Parameter(torch.randn(dims) / dims[0])
-
-
 def softmax(x): return torch.exp(x) / (torch.exp(x).sum(dim=1)[:, None])
-
 
 class LogReg(nn.Module):
     def __init__(self):
@@ -385,12 +338,11 @@ class LogReg(nn.Module):
     def forward(self, x):
         x = x.view(x.size(0), -1)
         x = (x @ self.l1_w) + self.l1_b  # Linear Layer
-        x = torch.log(softmax(x))  # Non-linear (LogSoftmax) Layer
+        x = torch.log(softmax(x)) # Non-linear (LogSoftmax) Layer
         return x
 
 
-# We create our neural net and the optimizer.  (We will use the same loss
-# and metrics from above).
+# We create our neural net and the optimizer.  (We will use the same loss and metrics from above).
 
 net2 = LogReg().cuda()
 opt = optim.Adam(net2.parameters())
@@ -412,8 +364,7 @@ vxmb
 preds = net2(vxmb).exp(); preds[:3]
 
 
-preds = preds.data.max(1)[1]
-preds
+preds = preds.data.max(1)[1]; preds
 
 
 # Let's look at our predictions on the first eight images:
@@ -427,9 +378,7 @@ np.mean(preds == y_valid)
 
 # ## Aside about Broadcasting and Matrix Multiplication
 
-# Now let's dig in to what we were doing with `torch.matmul`: matrix
-# multiplication.  First, let's start with a simpler building block:
-# **broadcasting**.
+# Now let's dig in to what we were doing with `torch.matmul`: matrix multiplication.  First, let's start with a simpler building block: **broadcasting**.
 
 # ### Element-wise operations
 
@@ -485,8 +434,7 @@ a > 0
 a + 1
 
 
-m = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
-m
+m = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]]); m
 
 
 2 * m
@@ -496,8 +444,7 @@ m
 
 # We can also broadcast a vector to a matrix:
 
-c = np.array([10, 20, 30])
-c
+c = np.array([10, 20, 30]); c
 
 
 m + c
@@ -506,8 +453,7 @@ m + c
 c + m
 
 
-# Although numpy does this automatically, you can also use the
-# `broadcast_to` method:
+# Although numpy does this automatically, you can also use the `broadcast_to` method:
 
 c.shape
 
@@ -524,9 +470,7 @@ c.shape
 np.expand_dims(c, 0).shape
 
 
-# The numpy `expand_dims` method lets us convert the 1-dimensional array
-# `c` into a 2-dimensional array (although one of those dimensions has
-# value 1).
+# The numpy `expand_dims` method lets us convert the 1-dimensional array `c` into a 2-dimensional array (although one of those dimensions has value 1).
 
 np.expand_dims(c, 0).shape
 
@@ -574,10 +518,7 @@ xg + yg
 #     Scale  (1d array):             3
 #     Result (3d array): 256 x 256 x 3
 #
-# The [numpy
-# documentation](https://docs.scipy.org/doc/numpy-1.13.0/user/basics.broadcasting.html#general-broadcasting-rules)
-# includes several examples of what dimensions can and can not be
-# broadcast together.
+# The [numpy documentation](https://docs.scipy.org/doc/numpy-1.13.0/user/basics.broadcasting.html#general-broadcasting-rules) includes several examples of what dimensions can and can not be broadcast together.
 
 # ### Matrix Multiplication
 
@@ -613,11 +554,9 @@ np.broadcast_to(c, (3, 3))
 
 # From a machine learning perspective, matrix multiplication is a way of creating features by saying how much we want to weight each input column.  **Different features are different weighted averages of the input columns**.
 #
-# The website [matrixmultiplication.xyz](http://matrixmultiplication.xyz/)
-# provides a nice visualization of matrix multiplcation
+# The website [matrixmultiplication.xyz](http://matrixmultiplication.xyz/) provides a nice visualization of matrix multiplcation
 
-n = np.array([[10, 40], [20, 0], [30, -5]])
-n
+n = np.array([[10, 40], [20, 0], [30, -5]]); n
 
 
 m
@@ -634,8 +573,7 @@ m @ n
 
 # ## Writing Our Own Training Loop
 
-# As a reminder, this is what we did above to write our own logistic
-# regression class (as a pytorch neural net):
+# As a reminder, this is what we did above to write our own logistic regression class (as a pytorch neural net):
 
 # Our code from above
 class LogReg(nn.Module):
@@ -649,7 +587,6 @@ class LogReg(nn.Module):
         x = x @ self.l1_w + self.l1_b
         return torch.log(softmax(x))
 
-
 net2 = LogReg().cuda()
 opt = optim.Adam(net2.parameters())
 
@@ -660,8 +597,7 @@ fit(net2, md, epochs=1, crit=loss, opt=opt, metrics=metrics)
 #
 # **Review question:** What does it mean to train a model?
 
-# We will use the LogReg class we created, as well as the same loss
-# function, learning rate, and optimizer as before:
+# We will use the LogReg class we created, as well as the same loss function, learning rate, and optimizer as before:
 
 net2 = LogReg().cuda()
 loss = nn.NLLLoss()
@@ -669,15 +605,12 @@ learning_rate = 1e-3
 optimizer = optim.Adam(net2.parameters(), lr=learning_rate)
 
 
-# md is the ImageClassifierData object we created above.  We want an
-# iterable version of our training data (**question**: what does it mean
-# for something to be iterable?):
+# md is the ImageClassifierData object we created above.  We want an iterable version of our training data (**question**: what does it mean for something to be iterable?):
 
-dl = iter(md.trn_dl)  # Data loader
+dl = iter(md.trn_dl) # Data loader
 
 
-# First, we will do a **forward pass**, which means computing the
-# predicted y by passing x to the model.
+# First, we will do a **forward pass**, which means computing the predicted y by passing x to the model.
 
 xt, yt = next(dl)
 y_pred = net2(Variable(xt).cuda())
@@ -689,22 +622,14 @@ l = loss(y_pred, Variable(yt).cuda())
 print(l)
 
 
-# We may also be interested in the accuracy.  We don't expect our first
-# predictions to be very good, because the weights of our network were
-# initialized to random values.  Our goal is to see the loss decrease (and
-# the accuracy increase) as we train the network:
+# We may also be interested in the accuracy.  We don't expect our first predictions to be very good, because the weights of our network were initialized to random values.  Our goal is to see the loss decrease (and the accuracy increase) as we train the network:
 
 np.mean(to_np(y_pred).argmax(axis=1) == to_np(yt))
 
 
 # Now we will use the optimizer to calculate which direction to step in.  That is, how should we update our weights to try to decrease the loss?
 #
-# Pytorch has an automatic differentiation package
-# ([autograd](http://pytorch.org/docs/master/autograd.html)) that takes
-# derivatives for us, so we don't have to calculate the derivative
-# ourselves!  We just call `.backward()` on our loss to calculate the
-# direction of steepest descent (the direction to lower the loss the
-# most).
+# Pytorch has an automatic differentiation package ([autograd](http://pytorch.org/docs/master/autograd.html)) that takes derivatives for us, so we don't have to calculate the derivative ourselves!  We just call `.backward()` on our loss to calculate the direction of steepest descent (the direction to lower the loss the most).
 
 # Before the backward pass, use the optimizer object to zero all of the
 # gradients for the variables it will update (which are the learnable weights
@@ -728,23 +653,18 @@ l = loss(y_pred, Variable(yt).cuda())
 print(l)
 
 
-# Note that we are using **stochastic** gradient descent, so the loss is
-# not guaranteed to be strictly better each time.  The stochasticity comes
-# from the fact that we are using **mini-batches**; we are just using 64
-# images to calculate our prediction and update the weights, not the whole
-# dataset.
+# Note that we are using **stochastic** gradient descent, so the loss is not guaranteed to be strictly better each time.  The stochasticity comes from the fact that we are using **mini-batches**; we are just using 64 images to calculate our prediction and update the weights, not the whole dataset.
 
 np.mean(to_np(y_pred).argmax(axis=1) == to_np(yt))
 
 
-# If we run several iterations in a loop, we should see the loss decrease
-# and the accuracy increase with time.
+# If we run several iterations in a loop, we should see the loss decrease and the accuracy increase with time.
 
 for t in range(100):
     xt, yt = next(dl)
     y_pred = net2(Variable(xt).cuda())
     l = loss(y_pred, Variable(yt).cuda())
-
+    
     if t % 10 == 0:
         accuracy = np.mean(to_np(y_pred).argmax(axis=1) == to_np(yt))
         print("loss: ", l.data[0], "\t accuracy: ", accuracy)
@@ -777,18 +697,15 @@ for epoch in range(1):
         losses.append(l)
 
         # Before the backward pass, use the optimizer object to zero all of the
-        # gradients for the variables it will update (which are the learnable
-        # weights of the model)
+        # gradients for the variables it will update (which are the learnable weights of the model)
         optimizer.zero_grad()
 
-        # Backward pass: compute gradient of the loss with respect to model
-        # parameters
+        # Backward pass: compute gradient of the loss with respect to model parameters
         l.backward()
 
-        # Calling the step function on an Optimizer makes an update to its
-        # parameters
+        # Calling the step function on an Optimizer makes an update to its parameters
         optimizer.step()
-
+    
     val_dl = iter(md.val_dl)
     val_scores = [score(*next(val_dl)) for i in range(len(val_dl))]
     print(np.mean(val_scores))
@@ -814,12 +731,11 @@ for epoch in range(1):
         l = loss(y_pred, Variable(yt).cuda())
         losses.append(loss)
 
-        # Backward pass: compute gradient of the loss with respect to model
-        # parameters
+        # Backward pass: compute gradient of the loss with respect to model parameters
         l.backward()
         w.data -= w.grad.data * lr
         b.data -= b.grad.data * lr
-
+        
         w.grad.data.zero_()
         b.grad.data.zero_()
 

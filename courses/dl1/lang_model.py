@@ -1,9 +1,9 @@
 
 # coding: utf-8
 
-get_ipython().magic('reload_ext autoreload')
-get_ipython().magic('autoreload 2')
-get_ipython().magic('matplotlib inline')
+get_ipython().magic(u'reload_ext autoreload')
+get_ipython().magic(u'autoreload 2')
+get_ipython().magic(u'matplotlib inline')
 
 from fastai.imports import *
 from fastai.torch_imports import *
@@ -26,23 +26,20 @@ from fastai.lm_rnn import *
 # ### Data
 
 PATH = 'data/wikitext-2/'
-get_ipython().magic('ls {PATH}')
+get_ipython().magic(u'ls {PATH}')
 
 
-get_ipython().system('head -5 {PATH}wiki.train.tokens')
+get_ipython().system(u'head -5 {PATH}wiki.train.tokens')
 
 
-get_ipython().system('wc -lwc {PATH}wiki.train.tokens')
+get_ipython().system(u'wc -lwc {PATH}wiki.train.tokens')
 
 
-get_ipython().system('wc -lwc {PATH}wiki.valid.tokens')
+get_ipython().system(u'wc -lwc {PATH}wiki.valid.tokens')
 
 
 TEXT = data.Field(lower=True)
-FILES = dict(
-    train='wiki.train.tokens',
-    validation='wiki.valid.tokens',
-    test='wiki.test.tokens')
+FILES = dict(train='wiki.train.tokens', validation='wiki.valid.tokens', test='wiki.test.tokens')
 bs, bptt = 80, 70
 md = LanguageModelData(PATH, TEXT, **FILES, bs=bs, bptt=bptt, min_freq=10)
 len(md.trn_dl), md.nt, len(md.trn_ds), len(md.trn_ds[0].text)
@@ -64,40 +61,19 @@ clip = 0.3
 learner.fit(10, 1, wds=1e-6, reg_fn=reg_fn, clip=clip)
 
 
-learner.fit(
-    10,
-    6,
-    wds=1e-6,
-    reg_fn=reg_fn,
-    cycle_len=1,
-    cycle_mult=2,
-    clip=clip)
+learner.fit(10, 6, wds=1e-6, reg_fn=reg_fn, cycle_len=1, cycle_mult=2, clip=clip)
 
 
 learner.save('lm_420')
 
 
-learner.fit(
-    10,
-    6,
-    wds=1e-6,
-    reg_fn=reg_fn,
-    cycle_len=1,
-    cycle_mult=2,
-    clip=clip)
+learner.fit(10, 6, wds=1e-6, reg_fn=reg_fn, cycle_len=1, cycle_mult=2, clip=clip)
 
 
 learner.save('lm_419')
 
 
-learner.fit(
-    10,
-    6,
-    wds=1e-6,
-    reg_fn=reg_fn,
-    cycle_len=1,
-    cycle_mult=2,
-    clip=clip)
+learner.fit(10, 6, wds=1e-6, reg_fn=reg_fn, cycle_len=1, cycle_mult=2, clip=clip)
 
 
 learner.save('lm_418')
