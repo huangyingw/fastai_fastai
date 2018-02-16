@@ -47,7 +47,7 @@ def plots(ims, figsize=(12, 6), rows=1, titles=None):
         if titles is not None:
             sp.set_title(titles[i], fontsize=16)
             plt.imshow(ims[i])
-    #plt.show()
+    # plt.show()
 
 
 def plot_val_with_title(idxs, title, probs):
@@ -61,10 +61,13 @@ def most_by_mask(mask, mult, probs):
     idxs = np.where(mask)[0]
     return idxs[np.argsort(mult * probs[idxs])[:4]]
 
+
 def most_by_correct(y, is_correct, preds, probs):
     mult = -1 if (y == 1) == is_correct else 1
     return most_by_mask(((preds == data.val_y) == is_correct)
                         & (data.val_y == y), mult, probs)
+
+
 def learn1():
 
     learn = ConvLearner.pretrained(arch, data, precompute=True)
@@ -134,6 +137,8 @@ def learn1():
         plot_val_with_title(most_uncertain, "Most uncertain predictions", probs)
 
     drawing(probs, preds)
+
+
 def learn2():
     # ## Choosing a learning rate
     # The *learning rate* determines how quickly or how slowly you want to update the *weights* (or *parameters*). Learning rate is one of the most difficult parameters to set, because it significantly affect model performance.
@@ -364,6 +369,8 @@ def learn4():
     acts = np.array([1, 0, 0, 1])
     preds = np.array([0.9, 0.1, 0.2, 0.8])
     binary_loss(acts, preds)
+
+
     # Note that in our toy example above our accuracy is 100% and our loss is 0.16. Compare that to a loss of 0.03 that we are getting while predicting cats and dogs. Exercise: play with `preds` to get a lower loss for this example.
     #
     # **Example:** Here is an example on how to compute the loss for one example of binary classification problem. Suppose for an image x with label 1 and your model gives it a prediction of 0.9. For this case the loss should be small because our model is predicting a label $1$ with high probability.
