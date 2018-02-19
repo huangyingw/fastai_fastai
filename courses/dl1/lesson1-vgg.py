@@ -1,6 +1,6 @@
 from fastai.conv_learner import ConvLearner
 from fastai.dataset import ImageClassifierData
-from fastai.metrics import accuracy
+from fastai.metrics import accuracy_np
 from fastai.torch_imports import vgg16
 from fastai.transforms import tfms_from_model, transforms_side_on
 import numpy as np
@@ -34,4 +34,5 @@ learn.fit(lr, 3, saved_model_name='lesson1-vgg_5', cycle_len=1, cycle_mult=2)
 learn.fit(lr, 3, saved_model_name='lesson1-vgg_6', cycle_len=3)
 
 log_preds, y = learn.TTA()
-accuracy(log_preds, y)
+probs = np.mean(np.exp(log_preds), 0)
+accuracy_np(probs, y)
