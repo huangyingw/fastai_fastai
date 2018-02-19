@@ -221,7 +221,8 @@ class Learner():
         self.sched = None
         layer_opt = self.get_layer_opt(lrs, wds)
         result = self.fit_gen(self.model, self.data, layer_opt, n_cycle, **kwargs)
-        self.save(saved_model_name)
+        if saved_model_name:
+            self.save(saved_model_name)
         return result
 
     def warm_up(self, lr, wds=None):
