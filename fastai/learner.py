@@ -83,56 +83,41 @@ class Learner():
 
     def fit_gen(self, model, data, layer_opt, n_cycle, cycle_len=None, cycle_mult=1, cycle_save_name=None,
                 use_clr=None, metrics=None, callbacks=None, use_wd_sched=False, norm_wds=False, wds_sched_mult=None, **kwargs):
-        """Method does some preparation before finally delegating to the 'fit' method for
-        fitting the model. Namely, if cycle_len is defined, it adds a 'Cosine Annealing'
-        scheduler for varying the learning rate across iterations.
-
-        Method also computes the total number of epochs to fit based on provided 'cycle_len',
-        'cycle_mult', and 'n_cycle' parameters.
-
-        Args:
-            model (Learner):  Any neural architecture for solving a supported problem.
-                Eg. ResNet-34, RNN_Learner etc.
-
-            data (ModelData): An instance of ModelData.
-
-            layer_opt (LayerOptimizer): An instance of the LayerOptimizer class
-
-            n_cycle (int): number of cycles
-
-            cycle_len (int):  number of cycles before lr is reset to the initial value.
-                E.g if cycle_len = 3, then the lr is varied between a maximum
-                and minimum value over 3 epochs.
-
-            cycle_mult (int): additional parameter for influencing how the lr resets over
-                the cycles. For an intuitive explanation, please see
-                https://github.com/fastai/fastai/blob/master/courses/dl1/lesson1.ipynb
-
-            cycle_save_name (str): use to save the weights at end of each cycle
-
-            metrics (function): some function for evaluating a desired metric. Eg. accuracy.
-
-            callbacks (list(Callback)): callbacks to apply during the training.
-
-            use_wd_sched (bool, optional): set to True to enable weight regularization using
-                the technique mentioned in https://arxiv.org/abs/1711.05101. When this is True
-                alone (see below), the regularization is detached from gradient update and
-                applied directly to the weights.
-
-            norm_wds (bool, optional): when this is set to True along with use_wd_sched, the
-                regularization factor is normalized with each training cycle.
-
-            wds_sched_mult (function, optional): when this is provided along with use_wd_sched
-                as True, the value computed by this function is multiplied with the regularization
-                strength. This function is passed the WeightDecaySchedule object. And example
-                function that can be passed is:
-                            f = lambda x: np.array(x.layer_opt.lrs) / x.init_lrs
-
-            kwargs: other optional arguments
-
-        Returns:
-            None
-        """
+        #"""Method does some preparation before finally delegating to the 'fit' method for
+        # fitting the model. Namely, if cycle_len is defined, it adds a 'Cosine Annealing'
+        # scheduler for varying the learning rate across iterations.
+        # Method also computes the total number of epochs to fit based on provided 'cycle_len',
+        #'cycle_mult', and 'n_cycle' parameters.
+        # Args:
+        #    model (Learner):  Any neural architecture for solving a supported problem.
+        #        Eg. ResNet-34, RNN_Learner etc.
+        #    data (ModelData): An instance of ModelData.
+        #    layer_opt (LayerOptimizer): An instance of the LayerOptimizer class
+        #    n_cycle (int): number of cycles
+        #    cycle_len (int):  number of cycles before lr is reset to the initial value.
+        #        E.g if cycle_len = 3, then the lr is varied between a maximum
+        #        and minimum value over 3 epochs.
+        #    cycle_mult (int): additional parameter for influencing how the lr resets over
+        #        the cycles. For an intuitive explanation, please see
+        #        https://github.com/fastai/fastai/blob/master/courses/dl1/lesson1.ipynb
+        #    cycle_save_name (str): use to save the weights at end of each cycle
+        #    metrics (function): some function for evaluating a desired metric. Eg. accuracy.
+        #    callbacks (list(Callback)): callbacks to apply during the training.
+        #    use_wd_sched (bool, optional): set to True to enable weight regularization using
+        #        the technique mentioned in https://arxiv.org/abs/1711.05101. When this is True
+        #        alone (see below), the regularization is detached from gradient update and
+        #        applied directly to the weights.
+        #    norm_wds (bool, optional): when this is set to True along with use_wd_sched, the
+        #        regularization factor is normalized with each training cycle.
+        #    wds_sched_mult (function, optional): when this is provided along with use_wd_sched
+        #        as True, the value computed by this function is multiplied with the regularization
+        #        strength. This function is passed the WeightDecaySchedule object. And example
+        #        function that can be passed is:
+        #                    f = lambda x: np.array(x.layer_opt.lrs) / x.init_lrs
+        #    kwargs: other optional arguments
+        # Returns:
+        #    None
+        #"""
 
         if callbacks is None:
             callbacks = []
@@ -195,29 +180,22 @@ class Learner():
         if saved_model_name and os.path.isfile(self.get_model_path(saved_model_name)):
             self.load(saved_model_name)
             return
-        """Method gets an instance of LayerOptimizer and delegates to self.fit_gen(..)
+        # Method gets an instance of LayerOptimizer and delegates to self.fit_gen(..)
+        # Note that one can specify a list of learning rates which, when appropriately
+        # defined, will be applied to different segments of an architecture. This seems
+        # mostly relevant to ImageNet-trained models, where we want to alter the layers
+        # closest to the images by much smaller amounts.
+        # Likewise, a single or list of weight decay parameters can be specified, which
+        # if appropriate for a model, will apply variable weight decay parameters to
+        # different segments of the model.
+        # Args:
+        #    lrs (float or list(float)): learning rate for the model
+        #    n_cycle (int): number of cycles (or iterations) to fit the model for
+        #    wds (float or list(float)): weight decay parameter(s).
+        #    kwargs: other arguments
+        # Returns:
+        #    None
 
-        Note that one can specify a list of learning rates which, when appropriately
-        defined, will be applied to different segments of an architecture. This seems
-        mostly relevant to ImageNet-trained models, where we want to alter the layers
-        closest to the images by much smaller amounts.
-
-        Likewise, a single or list of weight decay parameters can be specified, which
-        if appropriate for a model, will apply variable weight decay parameters to
-        different segments of the model.
-
-        Args:
-            lrs (float or list(float)): learning rate for the model
-
-            n_cycle (int): number of cycles (or iterations) to fit the model for
-
-            wds (float or list(float)): weight decay parameter(s).
-
-            kwargs: other arguments
-
-        Returns:
-            None
-        """
         self.sched = None
         layer_opt = self.get_layer_opt(lrs, wds)
         result = self.fit_gen(self.model, self.data, layer_opt, n_cycle, **kwargs)

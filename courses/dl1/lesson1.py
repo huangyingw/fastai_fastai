@@ -213,9 +213,7 @@ def learn3():
     # parameter to `fit()`. So here's what our actual learning rates looked
     # like:
 
-    learn.lr_find()
     learn.sched.plot_lr()
-    learn.sched.plot()
 
     # Our validation loss isn't improving much, so there's probably no point
     # further training the last layer on its own.
