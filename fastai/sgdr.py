@@ -43,7 +43,7 @@ class LossRecorder(Callback):
         plt.xlabel("iterations")
         plt.ylabel("learning rate")
         plt.plot(self.iterations, self.lrs)
-        #plt.show()
+        plt.show()
 
 
 class LR_Updater(LossRecorder):
@@ -91,7 +91,7 @@ class LR_Finder(LR_Updater):
         plt.xlabel("learning rate (log scale)")
         plt.plot(self.lrs[n_skip:-5], self.losses[n_skip:-5])
         plt.xscale('log')
-        #plt.show()
+        plt.show()
 
 
 class CosAnneal(LR_Updater):

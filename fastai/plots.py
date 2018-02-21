@@ -69,7 +69,7 @@ def plot_confusion_matrix(cm, classes, normalize=False, title='Confusion matrix'
     plt.tight_layout()
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
-    #plt.show()
+    plt.show()
 
 
 def plots_raw(ims, figsize=(12, 6), rows=1, titles=None):

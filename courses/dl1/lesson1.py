@@ -47,7 +47,7 @@ def plots(ims, figsize=(12, 6), rows=1, titles=None):
         if titles is not None:
             sp.set_title(titles[i], fontsize=16)
             plt.imshow(ims[i])
-    # plt.show()
+    plt.show()
 
 
 def plot_val_with_title(idxs, title, probs):
@@ -384,7 +384,4 @@ def learn4():
     #
     # Why not just maximize accuracy? The binary classification loss is an
     # easier function to optimize.
-learn1()
-learn2()
 learn3()
-learn4()

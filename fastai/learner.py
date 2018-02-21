@@ -82,7 +82,7 @@ class Learner():
     def load_cycle(self, name, cycle): self.load(f'{name}_cyc_{cycle}')
 
     def fit_gen(self, model, data, layer_opt, n_cycle, cycle_len=None, cycle_mult=1, cycle_save_name=None,
-                use_clr=None, metrics=None, callbacks=None, use_wd_sched=False, norm_wds=False, wds_sched_mult=None, **kwargs):
+                use_clr=None, metrics=None, callbacks=None, use_wd_sched=False, norm_wds=False, wds_sched_mult=None, saved_model_name=None, **kwargs):
         #"""Method does some preparation before finally delegating to the 'fit' method for
         # fitting the model. Namely, if cycle_len is defined, it adds a 'Cosine Annealing'
         # scheduler for varying the learning rate across iterations.
@@ -150,8 +150,12 @@ class Learner():
             self.sched = LossRecorder(layer_opt)
         callbacks += [self.sched]
         n_epoch = sum_geom(cycle_len if cycle_len else 1, cycle_mult, n_cycle)
-        return fit(model, data, n_epoch, layer_opt.opt, self.crit,
-                   metrics=metrics, callbacks=callbacks, reg_fn=self.reg_fn, clip=self.clip, **kwargs)
+        if saved_model_name and os.path.isfile(self.get_model_path(saved_model_name)):
+            self.load(saved_model_name)
+            return
+        fit(model, data, n_epoch, layer_opt.opt, self.crit, metrics=metrics, callbacks=callbacks, reg_fn=self.reg_fn, clip=self.clip, **kwargs)
+        if saved_model_name:
+            self.save(saved_model_name)
 
     def get_layer_groups(self): return self.models.get_layer_groups()
 
@@ -177,9 +181,6 @@ class Learner():
         return LayerOptimizer(self.opt_fn, self.get_layer_groups(), lrs, wds)
 
     def fit(self, lrs, n_cycle, wds=None, saved_model_name=None, **kwargs):
-        if saved_model_name and os.path.isfile(self.get_model_path(saved_model_name)):
-            self.load(saved_model_name)
-            return
         # Method gets an instance of LayerOptimizer and delegates to self.fit_gen(..)
         # Note that one can specify a list of learning rates which, when appropriately
         # defined, will be applied to different segments of an architecture. This seems
@@ -198,10 +199,7 @@ class Learner():
 
         self.sched = None
         layer_opt = self.get_layer_opt(lrs, wds)
-        result = self.fit_gen(self.model, self.data, layer_opt, n_cycle, **kwargs)
-        if saved_model_name:
-            self.save(saved_model_name)
-        return result
+        return self.fit_gen(self.model, self.data, layer_opt, n_cycle, saved_model_name=saved_model_name, **kwargs)
 
     def warm_up(self, lr, wds=None):
         layer_opt = self.get_layer_opt(lr / 4, wds)
