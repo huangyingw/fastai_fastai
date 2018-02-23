@@ -1,14 +1,18 @@
-
-# coding: utf-8
-
-# ## Multi-label classification
-
-get_ipython().magic(u'reload_ext autoreload')
-get_ipython().magic(u'autoreload 2')
-get_ipython().magic(u'matplotlib inline')
-
-
-from fastai.conv_learner import *
+from PIL import Image
+from fastai.conv_learner import ConvLearner
+from fastai.dataset import ImageClassifierData
+from fastai.metrics import accuracy_np
+from fastai.plots import plot_confusion_matrix
+from fastai.transforms import tfms_from_model, transforms_side_on
+from sklearn.metrics import confusion_matrix
+from torchvision.models import resnet34
+import matplotlib.pyplot as plt
+import numpy as np
+import os
+import os.path
+import pprint
+import subprocess
+import torch
 
 
 PATH = 'data/planet/'
@@ -67,7 +71,7 @@ val_idxs = get_cv_idxs(n)
 def get_data(sz):
     tfms = tfms_from_model(f_model, sz, aug_tfms=transforms_top_down, max_zoom=1.05)
     return ImageClassifierData.from_csv(PATH, 'train-jpg', label_csv, tfms=tfms,
-                    suffix='.jpg', val_idxs=val_idxs, test_name='test-jpg')
+                                        suffix='.jpg', val_idxs=val_idxs, test_name='test-jpg')
 
 
 data = get_data(256)
@@ -82,7 +86,7 @@ y
 list(zip(data.classes, y[0]))
 
 
-plt.imshow(data.val_ds.denorm(to_np(x))[0] * 1.4);
+plt.imshow(data.val_ds.denorm(to_np(x))[0] * 1.4)
 
 
 sz = 64

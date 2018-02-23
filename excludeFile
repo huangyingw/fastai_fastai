@@ -12,5 +12,6 @@
 */.ipynb_checkpoints
 */data
 .git
+fastai/weights
 setup
 srts
