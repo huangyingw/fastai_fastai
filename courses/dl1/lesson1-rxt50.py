@@ -1,7 +1,7 @@
 from PIL import Image
 from fastai.conv_learner import ConvLearner
 from fastai.dataset import ImageClassifierData
-from fastai.metrics import accuracy
+from fastai.metrics import accuracy_np
 from fastai.plots import plot_confusion_matrix
 from fastai.torch_imports import resnext50
 from fastai.transforms import tfms_from_model, transforms_side_on
@@ -46,7 +46,7 @@ learn.load('224_all_50')
 log_preds, y = learn.TTA()
 probs = np.mean(np.exp(log_preds), 0)
 
-accuracy(probs, y)
+accuracy_np(probs, y)
 
 
 # ## Analyzing results
@@ -81,6 +81,7 @@ def plots(ims, figsize=(12, 6), rows=1, titles=None):
         if titles is not None:
             sp.set_title(titles[i], fontsize=16)
         plt.imshow(ims[i])
+    plt.show()
 
 
 def load_img_id(ds, idx): return np.array(Image.open(PATH + ds.fnames[idx]))
