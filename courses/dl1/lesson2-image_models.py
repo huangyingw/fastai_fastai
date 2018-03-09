@@ -1,9 +1,11 @@
 from PIL import Image
 from fastai.conv_learner import ConvLearner
-from fastai.dataset import ImageClassifierData
+from fastai.core import to_np
+from fastai.dataset import ImageClassifierData, get_cv_idxs
 from fastai.metrics import accuracy_np
-from fastai.plots import plot_confusion_matrix
-from fastai.transforms import tfms_from_model, transforms_side_on
+from fastai.plots import plot_confusion_matrix, plots_from_files
+from fastai.transforms import tfms_from_model, transforms_side_on, transforms_top_down
+from glob import glob, iglob
 from sklearn.metrics import confusion_matrix
 from torchvision.models import resnet34
 import matplotlib.pyplot as plt
@@ -15,26 +17,22 @@ import subprocess
 import torch
 
 
+os.chdir(os.path.dirname(os.path.realpath(__file__)))
 PATH = 'data/planet/'
 
 
 # Data preparation steps if you are using Crestle:
-
-os.makedirs('data/planet/models', exist_ok=True)
-os.makedirs('/cache/planet/tmp', exist_ok=True)
-
-get_ipython().system(u'ln -s /datasets/kaggle/planet-understanding-the-amazon-from-space/train-jpg {PATH}')
-get_ipython().system(u'ln -s /datasets/kaggle/planet-understanding-the-amazon-from-space/train_v2.csv {PATH}')
-get_ipython().system(u'ln -s /cache/planet/tmp {PATH}')
-
-
-ls {PATH}
+#
+#os.makedirs('data/planet/models', exist_ok=True)
+#os.makedirs('/cache/planet/tmp', exist_ok=True)
+#
+#get_ipython().system(u'ln -s /datasets/kaggle/planet-understanding-the-amazon-from-space/train-jpg {PATH}')
+#get_ipython().system(u'ln -s /datasets/kaggle/planet-understanding-the-amazon-from-space/train_v2.csv {PATH}')
+#get_ipython().system(u'ln -s /cache/planet/tmp {PATH}')
+# ls {PATH}
 
 
 # ## Multi-label versus single-label classification
-
-from fastai.plots import *
-
 
 def get_1st(path): return glob(f'{path}/*.*')[0]
 
