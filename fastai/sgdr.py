@@ -24,6 +24,7 @@ class LossRecorder(Callback):
         self.losses, self.lrs, self.iterations = [], [], []
 
     def on_train_begin(self):
+        self.losses, self.lrs, self.iterations = [], [], []
         self.iteration = 0
         self.epoch = 0
 
