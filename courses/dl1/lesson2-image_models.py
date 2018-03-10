@@ -81,7 +81,7 @@ data = get_data(sz)
 data = data.resize(int(sz * 1.3), 'tmp')
 learn = ConvLearner.pretrained(f_model, data, metrics=metrics)
 lrf = learn.lr_find()
-learn.sched.plot()
+#learn.sched.plot()
 lr = 0.2
 learn.fit(lr, 3, cycle_len=1, cycle_mult=2, saved_model_name='lesson2-image_models_1')
 
