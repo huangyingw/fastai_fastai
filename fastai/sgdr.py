@@ -21,9 +21,9 @@ class LossRecorder(Callback):
         self.layer_opt = layer_opt
         self.init_lrs = np.array(layer_opt.lrs)
         self.save_path = save_path
+        self.losses, self.lrs, self.iterations = [], [], []
 
     def on_train_begin(self):
-        self.losses, self.lrs, self.iterations = [], [], []
         self.iteration = 0
         self.epoch = 0
 
@@ -37,13 +37,16 @@ class LossRecorder(Callback):
         self.losses.append(loss)
 
     def plot_loss(self):
-        plt.plot(self.iterations[10:], self.losses[10:])
+        if not self.iterations and not self.losses:
+            plt.plot(self.iterations[10:], self.losses[10:])
+            plt.show()
 
     def plot_lr(self):
-        plt.xlabel("iterations")
-        plt.ylabel("learning rate")
-        plt.plot(self.iterations, self.lrs)
-        plt.show()
+        if not self.iterations and not self.lrs:
+            plt.xlabel("iterations")
+            plt.ylabel("learning rate")
+            plt.plot(self.iterations, self.lrs)
+            plt.show()
 
 
 class LR_Updater(LossRecorder):
@@ -87,11 +90,12 @@ class LR_Finder(LR_Updater):
         return super().on_batch_end(loss)
 
     def plot(self, n_skip=10):
-        plt.ylabel("loss")
-        plt.xlabel("learning rate (log scale)")
-        plt.plot(self.lrs[n_skip:-5], self.losses[n_skip:-5])
-        plt.xscale('log')
-        plt.show()
+        if not self.lrs and not self.losses:
+            plt.ylabel("loss")
+            plt.xlabel("learning rate (log scale)")
+            plt.plot(self.lrs[n_skip:-5], self.losses[n_skip:-5])
+            plt.xscale('log')
+            plt.show()
 
 
 class CosAnneal(LR_Updater):

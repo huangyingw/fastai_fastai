@@ -74,8 +74,8 @@ data = get_data(256)
 x, y = next(iter(data.val_dl))
 y
 list(zip(data.classes, y[0]))
-plt.imshow(data.val_ds.denorm(to_np(x))[0] * 1.4)
-plt.show()
+#plt.imshow(data.val_ds.denorm(to_np(x))[0] * 1.4)
+#plt.show()
 sz = 64
 data = get_data(sz)
 data = data.resize(int(sz * 1.3), 'tmp')
