@@ -1,8 +1,13 @@
 [remote "fastai"]
     url = https://github.com/fastai/fastai.git
     fetch = +refs/heads/*:refs/remotes/fastai/*
+[remote "github"]
+    url = git@github.com:huangyingw/fastai.git
+    fetch = +refs/heads/*:refs/remotes/github/*
+[push]
+    remote = github
 [gsync]
     remote = fastai
     branch = master
 [commit]
-	message = n
+    message = n
