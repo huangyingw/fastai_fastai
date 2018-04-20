@@ -8,9 +8,9 @@
 # You can use [this](https://github.com/floydwch/kaggle-cli) api to download the data from Kaggle.
 
 # Put these at the top of every notebook, to get automatic reloading and inline plotting
-get_ipython().magic(u'reload_ext autoreload')
-get_ipython().magic(u'autoreload 2')
-get_ipython().magic(u'matplotlib inline')
+get_ipython().run_line_magic('reload_ext', 'autoreload')
+get_ipython().run_line_magic('autoreload', '2')
+get_ipython().run_line_magic('matplotlib', 'inline')
 
 # This file contains all the main external libs we'll use
 from fastai.imports import *
@@ -22,13 +22,13 @@ PATH = "data/fish/"
 
 # ## First look at fish pictures
 
-get_ipython().system(u'ls {PATH}')
+get_ipython().system('ls {PATH}')
 
 
-get_ipython().system(u'ls {PATH}train')
+get_ipython().system('ls {PATH}train')
 
 
-files = get_ipython().getoutput(u'ls {PATH}train/ALB | head')
+files = get_ipython().getoutput('ls {PATH}train/ALB | head')
 files
 
 
@@ -68,7 +68,7 @@ img_path = f'{PATH}images'
 os.makedirs(img_path, exist_ok=True)
 
 
-get_ipython().system(u'cp {PATH}train/*/*.jpg {PATH}images/')
+get_ipython().system('cp {PATH}train/*/*.jpg {PATH}images/')
 
 
 # ## Our first model with Center  Cropping

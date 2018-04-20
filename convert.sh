@@ -6,5 +6,5 @@ cd "$SCRIPTPATH"
 find . -type f -name \*.ipynb -exec jupyter nbconvert --to=python --template=python.tpl {} \;
 find . -type f -name *.ipynb | while read ss
 do
-    autopep8 --in-place --aggressive "${ss%.ipynb}.py"
+    autopep8 --in-place "${ss%.ipynb}.py"
 done

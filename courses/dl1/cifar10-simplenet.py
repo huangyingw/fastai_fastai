@@ -26,8 +26,7 @@ data = ImageClassifierData.from_csv(PATH, 'train', PATH / 'train.csv', tfms=tfms
 learn = ConvLearner.pretrained(resnet18, data)
 
 
-lr = 1e-2
-wd = 1e-5
+lr = 1e-2; wd = 1e-5
 
 
 learn.lr_find()
@@ -66,11 +65,10 @@ class SimpleConv(nn.Module):
         self.bn = nn.BatchNorm2d(oc, momentum=0.05) if bn else None
         self.drop = nn.Dropout(drop, inplace=True)
         self.act = nn.ReLU(True)
-
+        
     def forward(self, x):
         x = self.conv(x)
-        if self.bn:
-            x = self.bn(x)
+        if self.bn: x = self.bn(x)
         return self.drop(self.act(x))
 
 
@@ -108,12 +106,12 @@ lr = 1e-3
 wd = 5e-3
 
 
-# sgd mom
+#sgd mom
 learn.lr_find()
 learn.sched.plot()
 
 
-# adam
+#adam
 learn.lr_find()
 learn.sched.plot()
 

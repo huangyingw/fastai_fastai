@@ -3,9 +3,9 @@
 
 # ## CIFAR 10
 
-get_ipython().magic(u'matplotlib inline')
-get_ipython().magic(u'reload_ext autoreload')
-get_ipython().magic(u'autoreload 2')
+get_ipython().run_line_magic('matplotlib', 'inline')
+get_ipython().run_line_magic('reload_ext', 'autoreload')
+get_ipython().run_line_magic('autoreload', '2')
 
 
 from fastai.conv_learner import *
@@ -63,7 +63,7 @@ learn.lr_find()
 learn.sched.plot()
 
 
-get_ipython().magic(u'time learn.fit(lr, 1)')
+get_ipython().run_line_magic('time', 'learn.fit(lr, 1)')
 
 
 learn.fit(lr, 2, cycle_len=1)
@@ -83,7 +83,7 @@ learn.load('8x8_8')
 learn.set_data(get_data(16, bs * 2))
 
 
-get_ipython().magic(u'time learn.fit(1e-3, 1, wds=wd)')
+get_ipython().run_line_magic('time', 'learn.fit(1e-3, 1, wds=wd)')
 
 
 learn.unfreeze()
