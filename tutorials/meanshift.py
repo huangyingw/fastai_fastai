@@ -7,7 +7,7 @@
 #
 # The easiest way to demonstrate how clustering works is to simply generate some data and show them in action. We'll start off by importing the libraries we'll be using today.
 
-get_ipython().magic(u'matplotlib inline')
+get_ipython().run_line_magic('matplotlib', 'inline')
 import math, numpy as np, matplotlib.pyplot as plt, operator, torch
 
 
@@ -125,7 +125,7 @@ def meanshift(data):
     return X
 
 
-get_ipython().magic(u'time X=meanshift(data)')
+get_ipython().run_line_magic('time', 'X=meanshift(data)')
 
 
 # We can see that mean shift clustering has almost reproduced our original clustering. The one exception are the very close clusters, but if we really wanted to differentiate them we could lower the bandwidth.
@@ -294,7 +294,7 @@ def meanshift(data):
 
 # Let's try it out...
 
-get_ipython().magic(u'time X = meanshift(data).cpu().numpy()')
+get_ipython().run_line_magic('time', 'X = meanshift(data).cpu().numpy()')
 plot_data(centroids + 2, X, n_samples)
 
 
@@ -338,7 +338,7 @@ torch.from_numpy(np.copy(data)).cuda()
 
 # Although each iteration still has to launch a new cuda kernel, there are now fewer iterations, and the acceleration from updating a batch of points more than makes up for it.
 
-get_ipython().magic(u'time X = meanshift(data).cpu().numpy()')
+get_ipython().run_line_magic('time', 'X = meanshift(data).cpu().numpy()')
 
 
 # That's more like it! We've gone from 2000ms to 26ms, which is a speedup of over 7000%. Oh, and it even gives the right answer!

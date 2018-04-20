@@ -3,11 +3,11 @@
 
 # # Random Forest Model interpretation
 
-get_ipython().magic(u'load_ext autoreload')
-get_ipython().magic(u'autoreload 2')
+get_ipython().run_line_magic('load_ext', 'autoreload')
+get_ipython().run_line_magic('autoreload', '2')
 
 
-get_ipython().magic(u'matplotlib inline')
+get_ipython().run_line_magic('matplotlib', 'inline')
 
 from fastai.imports import *
 from fastai.structured import *
@@ -62,14 +62,14 @@ print_score(m)
 
 # We saw how the model averages predictions across the trees to get an estimate - but how can we know the confidence of the estimate? One simple way is to use the standard deviation of predictions, instead of just the mean. This tells us the *relative* confidence of predictions - that is, for rows where the trees give very different results, you would want to be more cautious of using those results, compared to cases where they are more consistent. Using the same example as in the last lesson when we looked at bagging:
 
-get_ipython().magic(u'time preds = np.stack([t.predict(X_valid) for t in m.estimators_])')
+get_ipython().run_line_magic('time', 'preds = np.stack([t.predict(X_valid) for t in m.estimators_])')
 np.mean(preds[:, 0]), np.std(preds[:, 0])
 
 
 # When we use python to loop through trees like this, we're calculating each in series, which is slow! We can use parallel processing to speed things up:
 
 def get_preds(t): return t.predict(X_valid)
-get_ipython().magic(u'time preds = np.stack(parallel_trees(m, get_preds))')
+get_ipython().run_line_magic('time', 'preds = np.stack(parallel_trees(m, get_preds))')
 np.mean(preds[:, 0]), np.std(preds[:, 0])
 
 
@@ -311,7 +311,7 @@ contributions[0].sum()
 df_ext = df_keep.copy()
 df_ext['is_valid'] = 1
 df_ext.is_valid[:n_trn] = 0
-x, y = proc_df(df_ext, 'is_valid')
+x, y, nas = proc_df(df_ext, 'is_valid')
 
 
 m = RandomForestClassifier(n_estimators=40, min_samples_leaf=3, max_features=0.5, n_jobs=-1, oob_score=True)
@@ -382,5 +382,5 @@ np.save('tmp/subs_cols.npy', np.array(df_subs.columns))
 # # Our final model!
 
 m = RandomForestRegressor(n_estimators=160, max_features=0.5, n_jobs=-1, oob_score=True)
-get_ipython().magic(u'time m.fit(X_train, y_train)')
+get_ipython().run_line_magic('time', 'm.fit(X_train, y_train)')
 print_score(m)

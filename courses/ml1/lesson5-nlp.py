@@ -1,9 +1,9 @@
 
 # coding: utf-8
 
-get_ipython().magic(u'reload_ext autoreload')
-get_ipython().magic(u'autoreload 2')
-get_ipython().magic(u'matplotlib inline')
+get_ipython().run_line_magic('reload_ext', 'autoreload')
+get_ipython().run_line_magic('autoreload', '2')
+get_ipython().run_line_magic('matplotlib', 'inline')
 
 from fastai.nlp import *
 from sklearn.linear_model import LogisticRegression
@@ -29,13 +29,13 @@ PATH = 'data/aclImdb/'
 names = ['neg', 'pos']
 
 
-get_ipython().magic(u'ls {PATH}')
+get_ipython().run_line_magic('ls', '{PATH}')
 
 
-get_ipython().magic(u'ls {PATH}train')
+get_ipython().run_line_magic('ls', '{PATH}train')
 
 
-get_ipython().magic(u'ls {PATH}train/pos | head')
+get_ipython().run_line_magic('ls', '{PATH}train/pos | head')
 
 
 trn, trn_y = texts_labels_from_folders(f'{PATH}train', names)

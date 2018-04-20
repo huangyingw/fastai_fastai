@@ -38,9 +38,9 @@
 #
 # in the terminal, within the directory I'm working in, `home/fastai/courses/ml1`.
 
-get_ipython().magic(u'load_ext autoreload')
-get_ipython().magic(u'autoreload 2')
-get_ipython().magic(u'matplotlib inline')
+get_ipython().run_line_magic('load_ext', 'autoreload')
+get_ipython().run_line_magic('autoreload', '2')
+get_ipython().run_line_magic('matplotlib', 'inline')
 
 
 from fastai.imports import *
@@ -77,7 +77,6 @@ type(x), x.shape, type(y), y.shape
 
 mean = x.mean()
 std = x.std()
-
 
 x = (x - mean) / std
 mean, std, x.mean(), x.std()

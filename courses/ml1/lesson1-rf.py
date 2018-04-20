@@ -95,10 +95,10 @@
 
 # ## Imports
 
-get_ipython().magic(u'load_ext autoreload')
-get_ipython().magic(u'autoreload 2')
+get_ipython().run_line_magic('load_ext', 'autoreload')
+get_ipython().run_line_magic('autoreload', '2')
 
-get_ipython().magic(u'matplotlib inline')
+get_ipython().run_line_magic('matplotlib', 'inline')
 
 
 from fastai.imports import *
@@ -114,7 +114,7 @@ from sklearn import metrics
 PATH = "data/bulldozers/"
 
 
-get_ipython().system(u'ls {PATH}')
+get_ipython().system('ls {PATH}')
 
 
 # # Introduction to *Blue Book for Bulldozers*
@@ -183,15 +183,14 @@ df_raw = pd.read_csv(f'{PATH}Train.csv', low_memory=False,
 # In any sort of data science work, it's **important to look at your data**, to make sure you understand the format, how it's stored, what type of values it holds, etc. Even if you've read descriptions about your data, the actual data may not be what you expect.
 
 def display_all(df):
-    with pd.option_context("display.max_rows", 1000):
-        with pd.option_context("display.max_columns", 1000):
-            display(df)
+    with pd.option_context("display.max_rows", 1000, "display.max_columns", 1000):
+        display(df)
 
 
-display_all(df_raw.tail().transpose())
+display_all(df_raw.tail().T)
 
 
-display_all(df_raw.describe(include='all').transpose())
+display_all(df_raw.describe(include='all').T)
 
 
 # It's important to note what metric is being used for a project. Generally, selecting the metric(s) is an important part of the project setup. However, in this case Kaggle tells us what metric to use: RMSLE (root mean squared log error) between the actual and predicted auction prices. Therefore we take the log of the prices, so that RMSE will give us what we need.
@@ -301,7 +300,7 @@ def print_score(m):
 
 
 m = RandomForestRegressor(n_jobs=-1)
-get_ipython().magic(u'time m.fit(X_train, y_train)')
+get_ipython().run_line_magic('time', 'm.fit(X_train, y_train)')
 print_score(m)
 
 
@@ -315,7 +314,7 @@ y_train, _ = split_vals(y_trn, 20000)
 
 
 m = RandomForestRegressor(n_jobs=-1)
-get_ipython().magic(u'time m.fit(X_train, y_train)')
+get_ipython().run_line_magic('time', 'm.fit(X_train, y_train)')
 print_score(m)
 
 
@@ -401,7 +400,7 @@ print_score(m)
 
 # It turns out that one of the easiest ways to avoid over-fitting is also one of the best ways to speed up analysis: *subsampling*. Let's return to using our full dataset, so that we can demonstrate the impact of this technique.
 
-df_trn, y_trn = proc_df(df_raw, 'SalePrice')
+df_trn, y_trn, nas = proc_df(df_raw, 'SalePrice')
 X_train, X_valid = split_vals(df_trn, n_trn)
 y_train, y_valid = split_vals(y_trn, n_trn)
 
@@ -412,7 +411,7 @@ set_rf_samples(20000)
 
 
 m = RandomForestRegressor(n_jobs=-1, oob_score=True)
-get_ipython().magic(u'time m.fit(X_train, y_train)')
+get_ipython().run_line_magic('time', 'm.fit(X_train, y_train)')
 print_score(m)
 
 

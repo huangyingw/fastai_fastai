@@ -38,8 +38,8 @@
 
 # ### Imports
 
-get_ipython().magic(u'load_ext autoreload')
-get_ipython().magic(u'autoreload 2')
+get_ipython().run_line_magic('load_ext', 'autoreload')
+get_ipython().run_line_magic('autoreload', '2')
 
 from fastai.imports import *
 from fastai.torch_imports import *
@@ -131,7 +131,7 @@ x_valid.mean(), x_valid.std()
 
 # #### Helper methods
 
-get_ipython().magic(u'matplotlib inline')
+get_ipython().run_line_magic('matplotlib', 'inline')
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -317,7 +317,7 @@ net = nn.Sequential(
 ).cuda()
 
 
-# It turns out that `Linear` is defined by a matrix multiplication and then an addition.  Let's try defining this ourselves. This will allow us to see exactly where matrix multiplication is used (we will dive in to how matrix multiplication works in teh next section).
+# It turns out that `Linear` is defined by a matrix multiplication and then an addition.  Let's try defining this ourselves. This will allow us to see exactly where matrix multiplication is used (we will dive in to how matrix multiplication works in the next section).
 #
 # Just as Numpy has `np.matmul` for matrix multiplication (in Python 3, this is equivalent to the `@` operator), PyTorch has `torch.matmul`.
 #

@@ -3,11 +3,11 @@
 
 # # Random Forest from scratch!
 
-get_ipython().magic(u'load_ext autoreload')
-get_ipython().magic(u'autoreload 2')
+get_ipython().run_line_magic('load_ext', 'autoreload')
+get_ipython().run_line_magic('autoreload', '2')
 
 
-get_ipython().magic(u'matplotlib inline')
+get_ipython().run_line_magic('matplotlib', 'inline')
 
 from fastai.imports import *
 from fastai.structured import *
@@ -135,7 +135,7 @@ def find_better_split(self, var_idx):
             self.var_idx, self.score, self.split = var_idx, curr_score, x[i]
 
 
-get_ipython().magic(u'timeit find_better_split(tree,1)')
+get_ipython().run_line_magic('timeit', 'find_better_split(tree,1)')
 tree
 
 
@@ -172,7 +172,7 @@ def find_better_split_foo(self, var_idx):
             self.var_idx, self.score, self.split = var_idx, curr_score, xi
 
 
-get_ipython().magic(u'timeit find_better_split_foo(tree,1)')
+get_ipython().run_line_magic('timeit', 'find_better_split_foo(tree,1)')
 tree
 
 
@@ -226,7 +226,7 @@ cols = ['MachineID', 'YearMade', 'MachineHoursCurrentMeter', 'ProductSize', 'Enc
         'Coupler_System', 'saleYear']
 
 
-get_ipython().magic(u'time tree = TreeEnsemble(X_train[cols], y_train, 1, 1000).trees[0]')
+get_ipython().run_line_magic('time', 'tree = TreeEnsemble(X_train[cols], y_train, 1, 1000).trees[0]')
 x_samp, y_samp = tree.x, tree.y
 
 
@@ -259,7 +259,7 @@ def predict_row(self, xi):
 DecisionTree.predict_row = predict_row
 
 
-get_ipython().magic(u'time preds = tree.predict(X_valid[cols].values)')
+get_ipython().run_line_magic('time', 'preds = tree.predict(X_valid[cols].values)')
 
 
 plt.scatter(preds, y_valid, alpha=0.05)
@@ -269,7 +269,7 @@ metrics.r2_score(preds, y_valid)
 
 
 m = RandomForestRegressor(n_estimators=1, min_samples_leaf=5, bootstrap=False)
-get_ipython().magic(u'time m.fit(x_samp, y_samp)')
+get_ipython().run_line_magic('time', 'm.fit(x_samp, y_samp)')
 preds = m.predict(X_valid[cols].values)
 plt.scatter(preds, y_valid, alpha=0.05)
 
@@ -370,7 +370,7 @@ plt.scatter(y_valid, preds, alpha=0.1, s=6);
 metrics.r2_score(y_valid, preds)
 
 
-get_ipython().magic(u'load_ext Cython')
+get_ipython().run_line_magic('load_ext', 'Cython')
 
 
 def fib1(n):
@@ -379,16 +379,16 @@ def fib1(n):
         a, b = b, a + b
 
 
-get_ipython().run_cell_magic(u'cython', u'', u'def fib2(n):\n    a, b = 0, 1\n    while b < n:\n        a, b = b, a + b')
+get_ipython().run_cell_magic('cython', '', 'def fib2(n):\n    a, b = 0, 1\n    while b < n:\n        a, b = b, a + b')
 
 
-get_ipython().run_cell_magic(u'cython', u'', u'def fib3(int n):\n    cdef int b = 1\n    cdef int a = 0\n    cdef int t = 0\n    while b < n:\n        t = a\n        a = b\n        b = a + b')
+get_ipython().run_cell_magic('cython', '', 'def fib3(int n):\n    cdef int b = 1\n    cdef int a = 0\n    cdef int t = 0\n    while b < n:\n        t = a\n        a = b\n        b = a + b')
 
 
-get_ipython().magic(u'timeit fib1(50)')
+get_ipython().run_line_magic('timeit', 'fib1(50)')
 
 
-get_ipython().magic(u'timeit fib2(50)')
+get_ipython().run_line_magic('timeit', 'fib2(50)')
 
 
-get_ipython().magic(u'timeit fib3(50)')
+get_ipython().run_line_magic('timeit', 'fib3(50)')
