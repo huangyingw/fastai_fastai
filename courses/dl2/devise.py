@@ -47,15 +47,10 @@ fastai.dataloader.DataLoader
 
 arch = resnet50
 ttfms, vtfms = tfms_from_model(arch, 224, transforms_side_on, max_zoom=1.1)
-
-
 def to_array(x, y): return np.array(x).astype(np.float32) / 255, None
-
-
 def TT(x, y): return torch.from_numpy(x), None
 
-
-ttfms.tfms = [to_array] + ttfms.tfms  # + [TT]
+ttfms.tfms = [to_array] + ttfms.tfms# + [TT]
 
 
 ttfms(img)
@@ -95,8 +90,7 @@ get_data(f'http://files.fast.ai/data/{WORDS_FN}', PATH / WORDS_FN)
 
 class_dict = json.load((TMP_PATH / CLASSES_FN).open())
 classids_1k = dict(class_dict.values())
-nclass = len(class_dict)
-nclass
+nclass = len(class_dict); nclass
 
 
 class_dict['0']
@@ -116,7 +110,7 @@ lc_vec_d = {w.lower(): ft_vecs.get_word_vector(w) for w in ft_words[-1000000:]}
 syn_wv = [(k, lc_vec_d[v.lower()]) for k, v in classids.items()
           if v.lower() in lc_vec_d]
 syn_wv_1k = [(k, lc_vec_d[v.lower()]) for k, v in classids_1k.items()
-             if v.lower() in lc_vec_d]
+          if v.lower() in lc_vec_d]
 syn2wv = dict(syn_wv)
 len(syn2wv)
 
@@ -133,8 +127,7 @@ images = []
 img_vecs = []
 
 for d in (PATH / 'train').iterdir():
-    if d.name not in syn2wv:
-        continue
+    if d.name not in syn2wv: continue
     vec = syn2wv[d.name]
     for f in d.iterdir():
         images.append(str(f.relative_to(PATH)))
@@ -142,8 +135,7 @@ for d in (PATH / 'train').iterdir():
 
 n_val = 0
 for d in (PATH / 'valid').iterdir():
-    if d.name not in syn2wv:
-        continue
+    if d.name not in syn2wv: continue
     vec = syn2wv[d.name]
     for f in d.iterdir():
         images.append(str(f.relative_to(PATH)))
@@ -169,8 +161,7 @@ img_vecs = pickle.load((TMP_PATH / 'img_vecs.pkl').open('rb'))
 arch = resnet50
 
 
-n = len(images)
-n
+n = len(images); n
 
 
 val_idxs = list(range(n - 28650, n))
@@ -178,7 +169,7 @@ val_idxs = list(range(n - 28650, n))
 
 tfms = tfms_from_model(arch, 224, transforms_side_on, max_zoom=1.1)
 md = ImageClassifierData.from_names_and_array(PATH, images, img_vecs, val_idxs=val_idxs,
-                                              classes=None, tfms=tfms, continuous=True, bs=256)
+        classes=None, tfms=tfms, continuous=True, bs=256)
 
 
 x, y = next(iter(md.val_dl))
@@ -191,8 +182,6 @@ learn.opt_fn = partial(optim.Adam, betas=(0.9, 0.99))
 
 
 def cos_loss(inp, targ): return 1 - F.cosine_similarity(inp, targ).mean()
-
-
 learn.crit = cos_loss
 
 
@@ -247,19 +236,15 @@ start = 300
 
 denorm = md.val_ds.denorm
 
-
 def show_img(im, figsize=None, ax=None):
-    if not ax:
-        fig, ax = plt.subplots(figsize=figsize)
+    if not ax: fig, ax = plt.subplots(figsize=figsize)
     ax.imshow(im)
     ax.axis('off')
     return ax
 
-
 def show_imgs(ims, cols, figsize=None):
     fig, axes = plt.subplots(len(ims) // cols, cols, figsize=figsize)
-    for i, ax in enumerate(axes.flat):
-        show_img(ims[i], ax=ax)
+    for i, ax in enumerate(axes.flat): show_img(ims[i], ax=ax)
     plt.tight_layout()
 
 
@@ -268,17 +253,14 @@ show_imgs(denorm(md.val_ds[start:start + 25][0]), 5, (10, 10))
 
 import nmslib
 
-
 def create_index(a):
     index = nmslib.init(space='angulardist')
     index.addDataPointBatch(a)
     index.createIndex()
     return index
 
-
 def get_knns(index, vecs):
-    return zip(*index.knnQueryBatch(vecs, k=10, num_threads=4))
-
+     return zip(*index.knnQueryBatch(vecs, k=10, num_threads=4))
 
 def get_knn(index, vec): return index.knnQuery(vec, k=10)
 
@@ -319,21 +301,21 @@ vec = en_vecd['boat']
 
 
 idxs, dists = get_knn(nn_predwv, vec)
-show_imgs([open_image(PATH / md.val_ds.fnames[i]) for i in idxs[:3]], 3, figsize=(9, 3))
+show_imgs([open_image(PATH / md.val_ds.fnames[i]) for i in idxs[:3]], 3, figsize=(9, 3));
 
 
 vec = (en_vecd['engine'] + en_vecd['boat']) / 2
 
 
 idxs, dists = get_knn(nn_predwv, vec)
-show_imgs([open_image(PATH / md.val_ds.fnames[i]) for i in idxs[:3]], 3, figsize=(9, 3))
+show_imgs([open_image(PATH / md.val_ds.fnames[i]) for i in idxs[:3]], 3, figsize=(9, 3));
 
 
 vec = (en_vecd['sail'] + en_vecd['boat']) / 2
 
 
 idxs, dists = get_knn(nn_predwv, vec)
-show_imgs([open_image(PATH / md.val_ds.fnames[i]) for i in idxs[:3]], 3, figsize=(9, 3))
+show_imgs([open_image(PATH / md.val_ds.fnames[i]) for i in idxs[:3]], 3, figsize=(9, 3));
 
 
 # ### Image->image
@@ -344,7 +326,7 @@ fname = 'valid/n01440764/ILSVRC2012_val_00007197.JPEG'
 img = open_image(PATH / fname)
 
 
-show_img(img)
+show_img(img);
 
 
 t_img = md.val_ds.transform(img)
@@ -352,4 +334,4 @@ pred = learn.predict_array(t_img[None])
 
 
 idxs, dists = get_knn(nn_predwv, pred)
-show_imgs([open_image(PATH / md.val_ds.fnames[i]) for i in idxs[1:4]], 3, figsize=(9, 3))
+show_imgs([open_image(PATH / md.val_ds.fnames[i]) for i in idxs[1:4]], 3, figsize=(9, 3));

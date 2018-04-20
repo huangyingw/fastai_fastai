@@ -93,16 +93,15 @@ class BnReluConv(nn.Module):
         super().__init__()
         self.bn = nn.BatchNorm2d(ni)
         self.conv = nn.Conv2d(ni, nf, kernel_size, padding=kernel_size // 2, bias=bias)
-
+    
     def forward(self, x): return self.conv(F.relu(self.bn(x), inplace=True))
-
 
 class ResBlock(nn.Module):
     def __init__(self, ni, nf):
         super().__init__()
         self.conv1 = BnReluConv(ni, nf)
         self.conv2 = BnReluConv(ni, nf)
-
+        
     def forward(self, x): return x + self.conv2(self.conv1(x))
 
 
@@ -116,11 +115,10 @@ class SrResnet(nn.Module):
         self.uconv1 = BnReluConv(64, 64)
         self.uconv2 = BnReluConv(64, 64)
         self.conv2 = BnReluConv(64, 3, kernel_size=9, bias=True)
-
+        
     def forward(self, x):
         x = self.conv1(x)
-        for block in self.blocks:
-            x = block(x)
+        for block in self.blocks: x = block(x)
         x = self.uconv1(self.uscale(x))
         x = self.uconv2(self.uscale(x))
         x = self.conv2(x)
@@ -152,7 +150,7 @@ idx = 1
 show_img(y, idx)
 
 
-show_img(preds, idx)
+show_img(preds, idx);
 
 
 # ## Perceptual loss
@@ -191,13 +189,11 @@ class FeatureLoss(nn.Module):
         targ_feat = [V(o.features.data.clone()) for o in self.sfs]
         self.m(V(input.data))
         res += [F.mse_loss(inp.features, targ) * wgt for inp, targ, wgt in zip(self.sfs, targ_feat, self.wgts)]
-        if sum_layers:
-            res = sum(res)
+        if sum_layers: res = sum(res)
         return res
-
+    
     def close(self):
-        for o in self.sfs:
-            o.remove()
+        for o in self.sfs: o.remove()
 
 
 layers = block_ends[:2]

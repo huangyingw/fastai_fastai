@@ -3,9 +3,9 @@
 
 # ## CIFAR 10
 
-get_ipython().magic(u'matplotlib inline')
-get_ipython().magic(u'reload_ext autoreload')
-get_ipython().magic(u'autoreload 2')
+get_ipython().run_line_magic('matplotlib', 'inline')
+get_ipython().run_line_magic('reload_ext', 'autoreload')
+get_ipython().run_line_magic('autoreload', '2')
 
 
 # You can get the data via:
@@ -22,7 +22,7 @@ stats = (np.array([0.4914, 0.48216, 0.44653]), np.array([0.24703, 0.24349, 0.261
 
 
 def get_data(sz, bs):
-    tfms = tfms_from_stats(stats, sz, aug_tfms=[RandomFlipXY()], pad=sz // 8)
+    tfms = tfms_from_stats(stats, sz, aug_tfms=[RandomFlip()], pad=sz // 8)
     return ImageClassifierData.from_paths(PATH, val_name='test', tfms=tfms, bs=bs)
 
 
@@ -82,10 +82,10 @@ learn.lr_find()
 learn.sched.plot()
 
 
-get_ipython().magic(u'time learn.fit(lr, 2)')
+get_ipython().run_line_magic('time', 'learn.fit(lr, 2)')
 
 
-get_ipython().magic(u'time learn.fit(lr, 2, cycle_len=1)')
+get_ipython().run_line_magic('time', 'learn.fit(lr, 2, cycle_len=1)')
 
 
 # ## CNN
@@ -118,10 +118,10 @@ learn.lr_find(end_lr=100)
 learn.sched.plot()
 
 
-get_ipython().magic(u'time learn.fit(1e-1, 2)')
+get_ipython().run_line_magic('time', 'learn.fit(1e-1, 2)')
 
 
-get_ipython().magic(u'time learn.fit(1e-1, 4, cycle_len=1)')
+get_ipython().run_line_magic('time', 'learn.fit(1e-1, 4, cycle_len=1)')
 
 
 # ## Refactored
@@ -154,10 +154,10 @@ learn = ConvLearner.from_model_data(ConvNet2([3, 20, 40, 80], 10), data)
 learn.summary()
 
 
-get_ipython().magic(u'time learn.fit(1e-1, 2)')
+get_ipython().run_line_magic('time', 'learn.fit(1e-1, 2)')
 
 
-get_ipython().magic(u'time learn.fit(1e-1, 2, cycle_len=1)')
+get_ipython().run_line_magic('time', 'learn.fit(1e-1, 2, cycle_len=1)')
 
 
 # ## BatchNorm
@@ -201,10 +201,10 @@ learn = ConvLearner.from_model_data(ConvBnNet([10, 20, 40, 80, 160], 10), data)
 learn.summary()
 
 
-get_ipython().magic(u'time learn.fit(3e-2, 2)')
+get_ipython().run_line_magic('time', 'learn.fit(3e-2, 2)')
 
 
-get_ipython().magic(u'time learn.fit(1e-1, 4, cycle_len=1)')
+get_ipython().run_line_magic('time', 'learn.fit(1e-1, 4, cycle_len=1)')
 
 
 # ## Deep BatchNorm
@@ -229,13 +229,13 @@ class ConvBnNet2(nn.Module):
         return F.log_softmax(self.out(x), dim=-1)
 
 
-learn = ConvLearner.from_model_data((ConvBnNet2([10, 20, 40, 80, 160], 10), data)
+learn = ConvLearner.from_model_data(ConvBnNet2([10, 20, 40, 80, 160], 10), data)
 
 
-get_ipython().magic(u'time learn.fit(1e-2, 2)')
+get_ipython().run_line_magic('time', 'learn.fit(1e-2, 2)')
 
 
-get_ipython().magic(u'time learn.fit(1e-2, 2, cycle_len=1)')
+get_ipython().run_line_magic('time', 'learn.fit(1e-2, 2, cycle_len=1)')
 
 
 # ## Resnet
@@ -247,37 +247,37 @@ class ResnetLayer(BnLayer):
 class Resnet(nn.Module):
     def __init__(self, layers, c):
         super().__init__()
-        self.conv1=nn.Conv2d(3, 10, kernel_size=5, stride=1, padding=2)
-        self.layers=nn.ModuleList([BnLayer(layers[i], layers[i + 1])
+        self.conv1 = nn.Conv2d(3, 10, kernel_size=5, stride=1, padding=2)
+        self.layers = nn.ModuleList([BnLayer(layers[i], layers[i + 1])
             for i in range(len(layers) - 1)])
-        self.layers2=nn.ModuleList([ResnetLayer(layers[i + 1], layers[i + 1], 1)
+        self.layers2 = nn.ModuleList([ResnetLayer(layers[i + 1], layers[i + 1], 1)
             for i in range(len(layers) - 1)])
-        self.layers3=nn.ModuleList([ResnetLayer(layers[i + 1], layers[i + 1], 1)
+        self.layers3 = nn.ModuleList([ResnetLayer(layers[i + 1], layers[i + 1], 1)
             for i in range(len(layers) - 1)])
-        self.out=nn.Linear(layers[-1], c)
+        self.out = nn.Linear(layers[-1], c)
         
     def forward(self, x):
-        x=self.conv1(x)
+        x = self.conv1(x)
         for l, l2, l3 in zip(self.layers, self.layers2, self.layers3):
-            x=l3(l2(l(x)))
-        x=F.adaptive_max_pool2d(x, 1)
-        x=x.view(x.size(0), -1)
+            x = l3(l2(l(x)))
+        x = F.adaptive_max_pool2d(x, 1)
+        x = x.view(x.size(0), -1)
         return F.log_softmax(self.out(x), dim=-1)
 
 
-learn=ConvLearner.from_model_data(Resnet([10, 20, 40, 80, 160], 10), data)
+learn = ConvLearner.from_model_data(Resnet([10, 20, 40, 80, 160], 10), data)
 
 
-wd=1e-5
+wd = 1e-5
 
 
-get_ipython().magic(u'time learn.fit(1e-2, 2, wds=wd)')
+get_ipython().run_line_magic('time', 'learn.fit(1e-2, 2, wds=wd)')
 
 
-get_ipython().magic(u'time learn.fit(1e-2, 3, cycle_len=1, cycle_mult=2, wds=wd)')
+get_ipython().run_line_magic('time', 'learn.fit(1e-2, 3, cycle_len=1, cycle_mult=2, wds=wd)')
 
 
-get_ipython().magic(u'time learn.fit(1e-2, 8, cycle_len=4, wds=wd)')
+get_ipython().run_line_magic('time', 'learn.fit(1e-2, 8, cycle_len=4, wds=wd)')
 
 
 # ## Resnet 2
@@ -285,46 +285,46 @@ get_ipython().magic(u'time learn.fit(1e-2, 8, cycle_len=4, wds=wd)')
 class Resnet2(nn.Module):
     def __init__(self, layers, c, p=0.5):
         super().__init__()
-        self.conv1=BnLayer(3, 16, stride=1, kernel_size=7)
-        self.layers=nn.ModuleList([BnLayer(layers[i], layers[i + 1])
+        self.conv1 = BnLayer(3, 16, stride=1, kernel_size=7)
+        self.layers = nn.ModuleList([BnLayer(layers[i], layers[i + 1])
             for i in range(len(layers) - 1)])
-        self.layers2=nn.ModuleList([ResnetLayer(layers[i + 1], layers[i + 1], 1)
+        self.layers2 = nn.ModuleList([ResnetLayer(layers[i + 1], layers[i + 1], 1)
             for i in range(len(layers) - 1)])
-        self.layers3=nn.ModuleList([ResnetLayer(layers[i + 1], layers[i + 1], 1)
+        self.layers3 = nn.ModuleList([ResnetLayer(layers[i + 1], layers[i + 1], 1)
             for i in range(len(layers) - 1)])
-        self.out=nn.Linear(layers[-1], c)
-        self.drop=nn.Dropout(p)
+        self.out = nn.Linear(layers[-1], c)
+        self.drop = nn.Dropout(p)
         
     def forward(self, x):
-        x=self.conv1(x)
+        x = self.conv1(x)
         for l, l2, l3 in zip(self.layers, self.layers2, self.layers3):
-            x=l3(l2(l(x)))
-        x=F.adaptive_max_pool2d(x, 1)
-        x=x.view(x.size(0), -1)
-        x=self.drop(x)
+            x = l3(l2(l(x)))
+        x = F.adaptive_max_pool2d(x, 1)
+        x = x.view(x.size(0), -1)
+        x = self.drop(x)
         return F.log_softmax(self.out(x), dim=-1)
 
 
-learn=ConvLearner.from_model_data(Resnet2([16, 32, 64, 128, 256], 10, 0.2), data)
+learn = ConvLearner.from_model_data(Resnet2([16, 32, 64, 128, 256], 10, 0.2), data)
 
 
-wd=1e-6
+wd = 1e-6
 
 
-get_ipython().magic(u'time learn.fit(1e-2, 2, wds=wd)')
+get_ipython().run_line_magic('time', 'learn.fit(1e-2, 2, wds=wd)')
 
 
-get_ipython().magic(u'time learn.fit(1e-2, 3, cycle_len=1, cycle_mult=2, wds=wd)')
+get_ipython().run_line_magic('time', 'learn.fit(1e-2, 3, cycle_len=1, cycle_mult=2, wds=wd)')
 
 
-get_ipython().magic(u'time learn.fit(1e-2, 8, cycle_len=4, wds=wd)')
+get_ipython().run_line_magic('time', 'learn.fit(1e-2, 8, cycle_len=4, wds=wd)')
 
 
 learn.save('tmp3')
 
 
-log_preds, y=learn.TTA()
-preds=np.mean(np.exp(log_preds), 0)
+log_preds, y = learn.TTA()
+preds = np.mean(np.exp(log_preds), 0)
 
 
 metrics.log_loss(y, preds), accuracy(preds, y)

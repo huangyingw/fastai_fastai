@@ -3,9 +3,9 @@
 
 # # NasNet Dogs v Cats
 
-get_ipython().magic(u'reload_ext autoreload')
-get_ipython().magic(u'autoreload 2')
-get_ipython().magic(u'matplotlib inline')
+get_ipython().run_line_magic('reload_ext', 'autoreload')
+get_ipython().run_line_magic('autoreload', '2')
+get_ipython().run_line_magic('matplotlib', 'inline')
 
 
 from fastai.conv_learner import *
@@ -25,14 +25,14 @@ data = ImageClassifierData.from_paths(PATH, tfms=tfms, bs=bs)
 learn = ConvLearner.pretrained(nasnet, data, precompute=True, xtra_fc=[], ps=0.5)
 
 
-get_ipython().magic(u'time learn.fit(1e-2, 2)')
+get_ipython().run_line_magic('time', 'learn.fit(1e-2, 2)')
 
 
 learn.precompute = False
 learn.bn_freeze = True
 
 
-get_ipython().magic(u'time learn.fit(1e-2, 1, cycle_len=1)')
+get_ipython().run_line_magic('time', 'learn.fit(1e-2, 1, cycle_len=1)')
 
 
 learn.save('nas_pre')

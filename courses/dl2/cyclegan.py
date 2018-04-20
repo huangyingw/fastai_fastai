@@ -16,7 +16,7 @@ from cgan.options.train_options import *
 
 
 opt = TrainOptions().parse(['--dataroot', '/data0/datasets/cyclegan/horse2zebra', '--nThreads', '8', '--no_dropout',
-                            '--niter', '100', '--niter_decay', '100', '--name', 'nodrop', '--gpu_ids', '2'])
+                           '--niter', '100', '--niter_decay', '100', '--name', 'nodrop', '--gpu_ids', '2'])
 
 
 from cgan.options.train_options import TrainOptions
@@ -46,8 +46,7 @@ for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
 
     for i, data in tqdm(enumerate(dataset)):
         iter_start_time = time.time()
-        if total_steps % opt.print_freq == 0:
-            t_data = iter_start_time - iter_data_time
+        if total_steps % opt.print_freq == 0: t_data = iter_start_time - iter_data_time
         total_steps += opt.batchSize
         epoch_iter += opt.batchSize
         model.set_input(data)
@@ -76,8 +75,7 @@ for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
 
 
 def show_img(im, ax=None, figsize=None):
-    if not ax:
-        fig, ax = plt.subplots(figsize=figsize)
+    if not ax: fig, ax = plt.subplots(figsize=figsize)
     ax.imshow(im)
     ax.get_xaxis().set_visible(False)
     ax.get_yaxis().set_visible(False)
@@ -95,20 +93,17 @@ model.save(201)
 
 test_ims = []
 for i, o in enumerate(dataset):
-    if i > 10:
-        break
+    if i > 10: break
     test_ims.append(get_one(o))
 
 
 def show_grid(ims):
     fig, axes = plt.subplots(2, 3, figsize=(9, 6))
-    for i, ax in enumerate(axes.flat):
-        show_img(ims[i], ax)
+    for i, ax in enumerate(axes.flat): show_img(ims[i], ax);
     fig.tight_layout()
 
 
-for i in range(8):
-    show_grid(test_ims[i])
+for i in range(8): show_grid(test_ims[i])
 
 
 #! wget https://people.eecs.berkeley.edu/~taesung_park/CycleGAN/datasets/horse2zebra.zip
