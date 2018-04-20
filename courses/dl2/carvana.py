@@ -37,8 +37,7 @@ meta_csv.head()
 
 
 def show_img(im, figsize=None, ax=None, alpha=None):
-    if not ax:
-        fig, ax = plt.subplots(figsize=figsize)
+    if not ax: fig, ax = plt.subplots(figsize=figsize)
     ax.imshow(im, alpha=alpha)
     ax.set_axis_off()
     return ax
@@ -63,8 +62,7 @@ ims = [open_image(PATH / TRAIN_DN / f'{CAR_ID}_{i+1:02d}.jpg') for i in range(16
 
 
 fig, axes = plt.subplots(4, 4, figsize=(9, 6))
-for i, ax in enumerate(axes.flat):
-    show_img(ims[i], ax=ax)
+for i, ax in enumerate(axes.flat): show_img(ims[i], ax=ax)
 plt.tight_layout(pad=0.1)
 
 
@@ -79,8 +77,7 @@ def convert_img(fn):
 
 
 files = list((PATH / 'train_masks').iterdir())
-with ThreadPoolExecutor(8) as e:
-    e.map(convert_img, files)
+with ThreadPoolExecutor(8) as e: e.map(convert_img, files)
 
 
 (PATH / 'train_masks-128').mkdir(exist_ok=True)
@@ -89,10 +86,8 @@ with ThreadPoolExecutor(8) as e:
 def resize_mask(fn):
     Image.open(fn).resize((128, 128)).save((fn.parent.parent) / 'train_masks-128' / fn.name)
 
-
 files = list((PATH / 'train_masks_png').iterdir())
-with ThreadPoolExecutor(8) as e:
-    e.map(resize_img, files)
+with ThreadPoolExecutor(8) as e: e.map(resize_img, files)
 
 
 (PATH / 'train-128').mkdir(exist_ok=True)
@@ -101,10 +96,8 @@ with ThreadPoolExecutor(8) as e:
 def resize_img(fn):
     Image.open(fn).resize((128, 128)).save((fn.parent.parent) / 'train-128' / fn.name)
 
-
 files = list((PATH / 'train').iterdir())
-with ThreadPoolExecutor(8) as e:
-    e.map(resize_img, files)
+with ThreadPoolExecutor(8) as e: e.map(resize_img, files)
 
 
 # ## Dataset
@@ -177,7 +170,6 @@ plt.tight_layout(pad=0.1)
 class Empty(nn.Module):
     def forward(self, x): return x
 
-
 models = ConvnetBuilder(resnet34, 0, 0, 0, custom_head=Empty())
 learn = ConvLearner(md, models)
 learn.summary()
@@ -188,7 +180,7 @@ class StdUpsample(nn.Module):
         super().__init__()
         self.conv = nn.ConvTranspose2d(nin, nout, 2, stride=2)
         self.bn = nn.BatchNorm2d(nout)
-
+        
     def forward(self, x): return self.bn(F.relu(self.conv(x)))
 
 
@@ -235,10 +227,10 @@ py, ay = learn.predict_with_targs()
 ay.shape
 
 
-show_img(ay[0])
+show_img(ay[0]);
 
 
-show_img(py[0] > 0)
+show_img(py[0] > 0);
 
 
 learn.unfreeze()
@@ -261,11 +253,11 @@ py = to_np(learn.model(V(x)))
 
 
 ax = show_img(denorm(x)[0])
-show_img(py[0] > 0, ax=ax, alpha=0.5)
+show_img(py[0] > 0, ax=ax, alpha=0.5);
 
 
 ax = show_img(denorm(x)[0])
-show_img(y[0], ax=ax, alpha=0.5)
+show_img(y[0], ax=ax, alpha=0.5);
 
 
 # ## 512x512
@@ -356,11 +348,11 @@ py = to_np(learn.model(V(x)))
 
 
 ax = show_img(denorm(x)[0])
-show_img(py[0] > 0, ax=ax, alpha=0.5)
+show_img(py[0] > 0, ax=ax, alpha=0.5);
 
 
 ax = show_img(denorm(x)[0])
-show_img(y[0], ax=ax, alpha=0.5)
+show_img(y[0], ax=ax, alpha=0.5);
 
 
 # ## 1024x1024
@@ -442,17 +434,17 @@ py = to_np(learn.model(V(x)))
 
 
 ax = show_img(denorm(x)[0])
-show_img(py[0][0] > 0, ax=ax, alpha=0.5)
+show_img(py[0][0] > 0, ax=ax, alpha=0.5);
 
 
 ax = show_img(denorm(x)[0])
-show_img(y[0, ..., -1], ax=ax, alpha=0.5)
+show_img(y[0, ..., -1], ax=ax, alpha=0.5);
 
 
-show_img(py[0][0] > 0)
+show_img(py[0][0] > 0);
 
 
-show_img(y[0, ..., -1])
+show_img(y[0, ..., -1]);
 
 
 # ## Fin

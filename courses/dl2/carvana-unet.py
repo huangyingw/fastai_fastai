@@ -23,8 +23,7 @@ meta_csv = pd.read_csv(PATH / META_FN)
 
 
 def show_img(im, figsize=None, ax=None, alpha=None):
-    if not ax:
-        fig, ax = plt.subplots(figsize=figsize)
+    if not ax: fig, ax = plt.subplots(figsize=figsize)
     ax.imshow(im, alpha=alpha)
     ax.set_axis_off()
     return ax
@@ -81,7 +80,6 @@ def get_base():
 def mask_loss(pred, targ):
     return F.binary_cross_entropy_with_logits(pred[:, 0], targ[..., 0])
 
-
 def mask_acc(pred, targ): return accuracy_multi(pred[:, 0], targ[..., 0], 0.)
 
 
@@ -96,7 +94,7 @@ class StdUpsample(nn.Module):
         super().__init__()
         self.conv = nn.ConvTranspose2d(nin, nout, 2, stride=2)
         self.bn = nn.BatchNorm2d(nout)
-
+        
     def forward(self, x): return self.bn(F.relu(self.conv(x)))
 
 
@@ -109,7 +107,7 @@ class Upsample34(nn.Module):
         self.up3 = StdUpsample(256, 256)
         self.up4 = StdUpsample(256, 256)
         self.up5 = nn.ConvTranspose2d(256, 1, 2, stride=2)
-
+        
     def forward(self, x):
         x = F.relu(self.rn(x))
         x = self.up1(x)
@@ -194,7 +192,7 @@ class UnetBlock(nn.Module):
         self.x_conv = nn.Conv2d(x_in, x_out, 1)
         self.tr_conv = nn.ConvTranspose2d(up_in, up_out, 2, stride=2)
         self.bn = nn.BatchNorm2d(n_out)
-
+        
     def forward(self, up_p, x_p):
         up_p = self.tr_conv(up_p)
         x_p = self.x_conv(x_p)
@@ -212,7 +210,7 @@ class Unet34(nn.Module):
         self.up3 = UnetBlock(256, 64, 256)
         self.up4 = UnetBlock(256, 64, 256)
         self.up5 = nn.ConvTranspose2d(256, 1, 2, stride=2)
-
+        
     def forward(self, x):
         x = F.relu(self.rn(x))
         x = self.up1(x, self.sfs[3].features)
@@ -269,11 +267,11 @@ py = to_np(learn.model(V(x)))
 
 
 # ax = show_img(denorm(x)[0])
-show_img(py[0][0] > 0)
+show_img(py[0][0] > 0);
 
 
 # ax = show_img(denorm(x)[0])
-show_img(y[0, ..., -1])
+show_img(y[0, ..., -1]);
 
 
 # ## 512x512
@@ -327,10 +325,10 @@ x, y = next(iter(md.val_dl))
 py = to_np(learn.model(V(x)))
 
 
-show_img(py[0][0] > 0)
+show_img(py[0][0] > 0);
 
 
-show_img(y[0, ..., -1])
+show_img(y[0, ..., -1]);
 
 
 # ## 1024x1024
@@ -384,7 +382,7 @@ x, y = next(iter(md.val_dl))
 py = to_np(learn.model(V(x)))
 
 
-show_img(py[0][0] > 0)
+show_img(py[0][0] > 0);
 
 
-show_img(y[0, ..., -1])
+show_img(y[0, ..., -1]);
