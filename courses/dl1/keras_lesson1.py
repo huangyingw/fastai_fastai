@@ -3,9 +3,9 @@
 
 # ## Introduction to our first task: 'Dogs vs Cats'
 
-get_ipython().magic(u'reload_ext autoreload')
-get_ipython().magic(u'autoreload 2')
-get_ipython().magic(u'matplotlib inline')
+get_ipython().run_line_magic('reload_ext', 'autoreload')
+get_ipython().run_line_magic('autoreload', '2')
+get_ipython().run_line_magic('matplotlib', 'inline')
 
 
 PATH = "data/dogscats/"
@@ -55,7 +55,7 @@ for layer in base_model.layers: layer.trainable = False
 model.compile(optimizer='rmsprop', loss='binary_crossentropy', metrics=['accuracy'])
 
 
-get_ipython().run_cell_magic(u'time', u'', u'model.fit_generator(train_generator, train_generator.n // batch_size, epochs=3, workers=4,\n        validation_data=validation_generator, validation_steps=validation_generator.n // batch_size)')
+get_ipython().run_cell_magic('time', '', 'model.fit_generator(train_generator, train_generator.n // batch_size, epochs=3, workers=4,\n        validation_data=validation_generator, validation_steps=validation_generator.n // batch_size)')
 
 
 split_at = 140
@@ -64,4 +64,4 @@ for layer in model.layers[split_at:]: layer.trainable = True
 model.compile(optimizer='rmsprop', loss='binary_crossentropy', metrics=['accuracy'])
 
 
-get_ipython().run_cell_magic(u'time', u'', u'model.fit_generator(train_generator, train_generator.n // batch_size, epochs=1, workers=3,\n        validation_data=validation_generator, validation_steps=validation_generator.n // batch_size)')
+get_ipython().run_cell_magic('time', '', 'model.fit_generator(train_generator, train_generator.n // batch_size, epochs=1, workers=3,\n        validation_data=validation_generator, validation_steps=validation_generator.n // batch_size)')
