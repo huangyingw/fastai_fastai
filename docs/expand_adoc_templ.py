@@ -15,12 +15,12 @@ t = "hello {{method Jeremy}} there {{method close}}"
 def do_method(ps): return str(ps)
 
 
-fn_lu = {  # 'class': sub_class,
-    #'arguments': sub_arguments,
-    #'arg': sub_arg,
-    #'xref': sub_xref,
-    #'methods': sub_methods,
-    'method': do_method}
+fn_lu = {#'class': sub_class,
+         #'arguments': sub_arguments,
+         #'arg': sub_arg,
+         #'xref': sub_xref,
+         #'methods': sub_methods,
+         'method': do_method}
 
 
 def sub_methods():
