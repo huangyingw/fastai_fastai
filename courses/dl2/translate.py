@@ -205,10 +205,8 @@ def create_emb(vecs, itos, em_sz):
     wgts = emb.weight.data
     miss = []
     for i, w in enumerate(itos):
-        try:
-            wgts[i] = torch.from_numpy(vecs[w] * 3)
-        except BaseException:
-            miss.append(w)
+        try: wgts[i] = torch.from_numpy(vecs[w] * 3)
+        except: miss.append(w)
     print(len(miss), miss[5:10])
     return emb
 
@@ -224,13 +222,13 @@ class Seq2SeqRNN(nn.Module):
         self.emb_enc_drop = nn.Dropout(0.15)
         self.gru_enc = nn.GRU(em_sz_enc, nh, num_layers=nl, dropout=0.25)
         self.out_enc = nn.Linear(nh, em_sz_dec, bias=False)
-
+        
         self.emb_dec = create_emb(vecs_dec, itos_dec, em_sz_dec)
         self.gru_dec = nn.GRU(em_sz_dec, em_sz_dec, num_layers=nl, dropout=0.1)
         self.out_drop = nn.Dropout(0.35)
         self.out = nn.Linear(em_sz_dec, len(itos_dec))
         self.out.weight.data = self.emb_dec.weight.data
-
+        
     def forward(self, inp):
         sl, bs = inp.size()
         h = self.initHidden(bs)
@@ -246,20 +244,18 @@ class Seq2SeqRNN(nn.Module):
             outp = self.out(self.out_drop(outp[0]))
             res.append(outp)
             dec_inp = V(outp.data.max(1)[1])
-            if (dec_inp == 1).all():
-                break
+            if (dec_inp == 1).all(): break
         return torch.stack(res)
-
+    
     def initHidden(self, bs): return V(torch.zeros(self.nl, bs, self.nh))
 
 
 def seq2seq_loss(input, target):
     sl, bs = target.size()
     sl_in, bs_in, nc = input.size()
-    if sl > sl_in:
-        input = F.pad(input, (0, 0, 0, 0, 0, sl - sl_in))
+    if sl > sl_in: input = F.pad(input, (0, 0, 0, 0, 0, sl - sl_in))
     input = input[:sl]
-    return F.cross_entropy(input.view(-1, nc), target.view(-1))  # , ignore_index=1)
+    return F.cross_entropy(input.view(-1, nc), target.view(-1))#, ignore_index=1)
 
 
 opt_fn = partial(optim.Adam, betas=(0.8, 0.99))
@@ -315,7 +311,7 @@ class Seq2SeqRNN_Bidir(nn.Module):
         self.out_drop = nn.Dropout(0.35)
         self.out = nn.Linear(em_sz_dec, len(itos_dec))
         self.out.weight.data = self.emb_dec.weight.data
-
+        
     def forward(self, inp):
         sl, bs = inp.size()
         h = self.initHidden(bs)
@@ -332,10 +328,9 @@ class Seq2SeqRNN_Bidir(nn.Module):
             outp = self.out(self.out_drop(outp[0]))
             res.append(outp)
             dec_inp = V(outp.data.max(1)[1])
-            if (dec_inp == 1).all():
-                break
+            if (dec_inp == 1).all(): break
         return torch.stack(res)
-
+    
     def initHidden(self, bs): return V(torch.zeros(self.nl * 2, bs, self.nh))
 
 
@@ -357,12 +352,10 @@ class Seq2SeqStepper(Stepper):
         self.m.pr_force = (10 - epoch) * 0.1 if epoch < 10 else 0
         xtra = []
         output = self.m(*xs, y)
-        if isinstance(output, tuple):
-            output, *xtra = output
+        if isinstance(output, tuple): output, *xtra = output
         self.opt.zero_grad()
         loss = raw_loss = self.crit(output, y)
-        if self.reg_fn:
-            loss = self.reg_fn(output, xtra, raw_loss)
+        if self.reg_fn: loss = self.reg_fn(output, xtra, raw_loss)
         loss.backward()
         if self.clip:   # Gradient clipping
             nn.utils.clip_grad_norm(trainable_params_(self.m), self.clip)
@@ -384,7 +377,7 @@ class Seq2SeqRNN_TeacherForcing(nn.Module):
         self.out = nn.Linear(em_sz_dec, len(itos_dec))
         self.out.weight.data = self.emb_dec.weight.data
         self.pr_force = 1.
-
+        
     def forward(self, inp, y=None):
         sl, bs = inp.size()
         h = self.initHidden(bs)
@@ -400,14 +393,12 @@ class Seq2SeqRNN_TeacherForcing(nn.Module):
             outp = self.out(self.out_drop(outp[0]))
             res.append(outp)
             dec_inp = V(outp.data.max(1)[1])
-            if (dec_inp == 1).all():
-                break
+            if (dec_inp == 1).all(): break
             if (y is not None) and (random.random() < self.pr_force):
-                if i >= len(y):
-                    break
+                if i >= len(y): break
                 dec_inp = y[i]
         return torch.stack(res)
-
+    
     def initHidden(self, bs): return V(torch.zeros(self.nl, bs, self.nh))
 
 
@@ -425,8 +416,6 @@ learn.save('forcing')
 # ## Attentional model
 
 def rand_t(*sz): return torch.randn(sz) / math.sqrt(sz[0])
-
-
 def rand_p(*sz): return nn.Parameter(rand_t(*sz))
 
 
@@ -467,21 +456,18 @@ class Seq2SeqAttnRNN(nn.Module):
             Xa = (a.unsqueeze(2) * enc_out).sum(0)
             emb = self.emb_dec(dec_inp)
             wgt_enc = self.l3(torch.cat([emb, Xa], 1))
-
+            
             outp, h = self.gru_dec(wgt_enc.unsqueeze(0), h)
             outp = self.out(self.out_drop(outp[0]))
             res.append(outp)
             dec_inp = V(outp.data.max(1)[1])
-            if (dec_inp == 1).all():
-                break
+            if (dec_inp == 1).all(): break
             if (y is not None) and (random.random() < self.pr_force):
-                if i >= len(y):
-                    break
+                if i >= len(y): break
                 dec_inp = y[i]
 
         res = torch.stack(res)
-        if ret_attn:
-            res = res, torch.stack(attns)
+        if ret_attn: res = res, torch.stack(attns)
         return res
 
     def initHidden(self, bs): return V(torch.zeros(self.nl, bs, self.nh))
@@ -567,16 +553,14 @@ class Seq2SeqRNN_All(nn.Module):
             Xa = (a.unsqueeze(2) * enc_out).sum(0)
             emb = self.emb_dec(dec_inp)
             wgt_enc = self.l3(torch.cat([emb, Xa], 1))
-
+            
             outp, h = self.gru_dec(wgt_enc.unsqueeze(0), h)
             outp = self.out(self.out_drop(outp[0]))
             res.append(outp)
             dec_inp = V(outp.data.max(1)[1])
-            if (dec_inp == 1).all():
-                break
+            if (dec_inp == 1).all(): break
             if (y is not None) and (random.random() < self.pr_force):
-                if i >= len(y):
-                    break
+                if i >= len(y): break
                 dec_inp = y[i]
         return torch.stack(res)
 

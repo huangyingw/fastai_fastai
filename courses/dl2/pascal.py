@@ -75,23 +75,20 @@ im0_d[FILE_NAME], im0_d[ID]
 
 def hw_bb(bb): return np.array([bb[1], bb[0], bb[3] + bb[1] - 1, bb[2] + bb[0] - 1])
 
-
 trn_anno = collections.defaultdict(lambda: [])
 for o in trn_j[ANNOTATIONS]:
     if not o['ignore']:
         bb = o[BBOX]
         bb = hw_bb(bb)
         trn_anno[o[IMG_ID]].append((bb, o[CAT_ID]))
-
+        
 len(trn_anno)
 
 
-im_a = trn_anno[im0_d[ID]]
-im_a
+im_a = trn_anno[im0_d[ID]]; im_a
 
 
-im0_a = im_a[0]
-im0_a
+im0_a = im_a[0]; im0_a
 
 
 cats[7]
@@ -134,8 +131,7 @@ im = open_image(IMG_PATH / im0_d[FILE_NAME])
 # Matplotlib's `plt.subplots` is a really useful wrapper for creating plots, regardless of whether you have more than one subplot. Note that Matplotlib has an optional object-oriented API which I think is much easier to understand and use (although few examples online use it!)
 
 def show_img(im, figsize=None, ax=None):
-    if not ax:
-        fig, ax = plt.subplots(figsize=figsize)
+    if not ax: fig, ax = plt.subplots(figsize=figsize)
     ax.imshow(im)
     ax.get_xaxis().set_visible(False)
     ax.get_yaxis().set_visible(False)
@@ -158,7 +154,7 @@ def draw_rect(ax, b):
 
 def draw_text(ax, xy, txt, sz=14):
     text = ax.text(*xy, txt,
-                   verticalalignment='top', color='white', fontsize=sz, weight='bold')
+        verticalalignment='top', color='white', fontsize=sz, weight='bold')
     draw_outline(text, 1)
 
 
@@ -191,8 +187,7 @@ draw_idx(17)
 # A *lambda function* is simply a way to define an anonymous function inline. Here we use it to describe how to sort the annotation for each image - by bounding box size (descending).
 
 def get_lrg(b):
-    if not b:
-        raise Exception()
+    if not b: raise Exception()
     b = sorted(b, key=lambda x: np.product(x[0][-2:] - x[0][:2]), reverse=True)
     return b[0]
 
@@ -216,7 +211,7 @@ CSV = PATH / 'tmp/lrg.csv'
 # Often it's easiest to simply create a CSV of the data you want to model, rather than trying to create a custom dataset. Here we use Pandas to help us create a CSV of the image filename and class.
 
 df = pd.DataFrame({'fn': [trn_fns[o] for o in trn_ids],
-                   'cat': [cats[trn_lrg_anno[o][1]] for o in trn_ids]}, columns=['fn', 'cat'])
+    'cat': [cats[trn_lrg_anno[o][1]] for o in trn_ids]}, columns=['fn', 'cat'])
 df.to_csv(CSV, index=False)
 
 
@@ -234,7 +229,7 @@ md = ImageClassifierData.from_csv(PATH, JPEGS, CSV, tfms=tfms)
 x, y = next(iter(md.val_dl))
 
 
-show_img(md.val_ds.denorm(to_np(x))[0])
+show_img(md.val_ds.denorm(to_np(x))[0]);
 
 
 learn = ConvLearner.pretrained(f_model, md, metrics=[accuracy])
@@ -467,7 +462,7 @@ val_idxs = get_cv_idxs(len(trn_fns))
 
 tfms = tfms_from_model(f_model, sz, crop_type=CropType.NO, tfm_y=TfmType.COORD, aug_tfms=augs)
 md = ImageClassifierData.from_csv(PATH, JPEGS, BB_CSV, tfms=tfms,
-                                  continuous=True, val_idxs=val_idxs)
+    continuous=True, val_idxs=val_idxs)
 
 
 md2 = ImageClassifierData.from_csv(PATH, JPEGS, CSV, tfms=tfms_from_model(f_model, sz))
@@ -479,7 +474,7 @@ class ConcatLblDataset(Dataset):
     def __init__(self, ds, y2): self.ds, self.y2 = ds, y2
 
     def __len__(self): return len(self.ds)
-
+    
     def __getitem__(self, i):
         x, y = self.ds[i]
         return (x, (y, self.y2[i]))
@@ -505,8 +500,7 @@ md.val_dl.dataset = val_ds2
 x, y = next(iter(md.val_dl))
 idx = 3
 ima = md.val_ds.ds.denorm(to_np(x))[idx]
-b = bb_hw(to_np(y[0][idx]))
-b
+b = bb_hw(to_np(y[0][idx])); b
 
 
 ax = show_img(ima)
@@ -540,19 +534,16 @@ def detn_loss(input, target):
     #   to make them approximately equal
     return F.l1_loss(bb_i, bb_t) + F.cross_entropy(c_i, c_t) * 20
 
-
 def detn_l1(input, target):
     bb_t, _ = target
     bb_i = input[:, :4]
     bb_i = F.sigmoid(bb_i) * 224
     return F.l1_loss(V(bb_i), V(bb_t)).data
 
-
 def detn_acc(input, target):
     _, c_t = target
     c_i = input[:, 4:]
     return accuracy(c_i, c_t)
-
 
 learn.crit = detn_loss
 learn.metrics = [detn_acc, detn_l1]

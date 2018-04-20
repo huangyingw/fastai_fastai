@@ -35,8 +35,7 @@ TMP_PATH.mkdir(exist_ok=True)
 files = PATH.glob('bedroom/**/*.jpg')
 
 with CSV_PATH.open('w') as fo:
-    for f in files:
-        fo.write(f'{f.relative_to(IMG_PATH)},0\n')
+    for f in files: fo.write(f'{f.relative_to(IMG_PATH)},0\n')
 
 
 # Optional - sampling a subset of files
@@ -47,21 +46,20 @@ files = PATH.glob('bedroom/**/*.jpg')
 
 with CSV_PATH.open('w') as fo:
     for f in files:
-        if random.random() < 0.1:
-            fo.write(f'{f.relative_to(IMG_PATH)},0\n')
+        if random.random() < 0.1: fo.write(f'{f.relative_to(IMG_PATH)},0\n')
 
 
 class ConvBlock(nn.Module):
     def __init__(self, ni, no, ks, stride, bn=True, pad=None):
         super().__init__()
-        if pad is None:
-            pad = ks // 2 // stride
+        if pad is None: pad = ks // 2 // stride
         self.conv = nn.Conv2d(ni, no, ks, stride, padding=pad, bias=False)
-        self.bn = nn.BatchNorm2d(no)
+        self.bn = nn.BatchNorm2d(no) if bn else None
         self.relu = nn.LeakyReLU(0.2, inplace=True)
-
+    
     def forward(self, x):
-        return self.bn(self.relu(self.conv(x)))
+        x = self.relu(self.conv(x))
+        return self.bn(x) if self.bn else x
 
 
 class DCGAN_D(nn.Module):
@@ -72,15 +70,14 @@ class DCGAN_D(nn.Module):
         self.initial = ConvBlock(nc, ndf, 4, 2, bn=False)
         csize, cndf = isize / 2, ndf
         self.extra = nn.Sequential(*[ConvBlock(cndf, cndf, 3, 1)
-                                     for t in range(n_extra_layers)])
+                                    for t in range(n_extra_layers)])
 
         pyr_layers = []
         while csize > 4:
             pyr_layers.append(ConvBlock(cndf, cndf * 2, 4, 2))
-            cndf *= 2
-            csize /= 2
+            cndf *= 2; csize /= 2
         self.pyramid = nn.Sequential(*pyr_layers)
-
+        
         self.final = nn.Conv2d(cndf, 1, 4, padding=0, bias=False)
 
     def forward(self, input):
@@ -96,9 +93,10 @@ class DeconvBlock(nn.Module):
         self.conv = nn.ConvTranspose2d(ni, no, ks, stride, padding=pad, bias=False)
         self.bn = nn.BatchNorm2d(no)
         self.relu = nn.ReLU(inplace=True)
-
+        
     def forward(self, x):
-        return self.bn(self.relu(self.conv(x)))
+        x = self.relu(self.conv(x))
+        return self.bn(x) if self.bn else x
 
 
 class DCGAN_G(nn.Module):
@@ -107,16 +105,13 @@ class DCGAN_G(nn.Module):
         assert isize % 16 == 0, "isize has to be a multiple of 16"
 
         cngf, tisize = ngf // 2, 4
-        while tisize != isize:
-            cngf *= 2
-            tisize *= 2
+        while tisize != isize: cngf *= 2; tisize *= 2
         layers = [DeconvBlock(nz, cngf, 4, 1, 0)]
 
         csize, cndf = 4, cngf
         while csize < isize // 2:
             layers.append(DeconvBlock(cngf, cngf // 2, 4, 2, 1))
-            cngf //= 2
-            csize *= 2
+            cngf //= 2; csize *= 2
 
         layers += [DeconvBlock(cngf, cngf, 3, 1, 1) for t in range(n_extra_layers)]
         layers.append(nn.ConvTranspose2d(cngf, nc, 4, 2, 1, bias=False))
@@ -139,7 +134,7 @@ md = md.resize(128)
 x, _ = next(iter(md.val_dl))
 
 
-plt.imshow(md.trn_ds.denorm(x)[0])
+plt.imshow(md.trn_ds.denorm(x)[0]);
 
 
 netG = DCGAN_G(sz, nz, 3, 64, 1).cuda()
@@ -153,8 +148,7 @@ preds = netG(create_noise(4))
 pred_ims = md.trn_ds.denorm(preds)
 
 fig, axes = plt.subplots(2, 2, figsize=(6, 6))
-for i, ax in enumerate(axes.flat):
-    ax.imshow(pred_ims[i])
+for i, ax in enumerate(axes.flat): ax.imshow(pred_ims[i])
 
 
 def gallery(x, nc=3):
@@ -162,8 +156,8 @@ def gallery(x, nc=3):
     nr = n // nc
     assert n == nr * nc
     return (x.reshape(nr, nc, h, w, c)
-            .swapaxes(1, 2)
-            .reshape(h * nr, w * nc, c))
+              .swapaxes(1, 2)
+              .reshape(h * nr, w * nc, c))
 
 
 optimizerD = optim.RMSprop(netD.parameters(), lr=1e-4)
@@ -173,8 +167,7 @@ optimizerG = optim.RMSprop(netG.parameters(), lr=1e-4)
 def train(niter, first=True):
     gen_iterations = 0
     for epoch in trange(niter):
-        netD.train()
-        netG.train()
+        netD.train(); netG.train()
         data_iter = iter(md.trn_dl)
         i, n = 0, len(md.trn_dl)
         with tqdm(total=n) as pbar:
@@ -184,10 +177,8 @@ def train(niter, first=True):
                 d_iters = 100 if (first and (gen_iterations < 25) or (gen_iterations % 500 == 0)) else 5
                 j = 0
                 while (j < d_iters) and (i < n):
-                    j += 1
-                    i += 1
-                    for p in netD.parameters():
-                        p.data.clamp_(-0.01, 0.01)
+                    j += 1; i += 1
+                    for p in netD.parameters(): p.data.clamp_(-0.01, 0.01)
                     real = V(next(data_iter)[0])
                     real_loss = netD(real)
                     fake = netG(create_noise(real.size(0)))
@@ -205,7 +196,7 @@ def train(niter, first=True):
                 lossG.backward()
                 optimizerG.step()
                 gen_iterations += 1
-
+            
         print(f'Loss_D {to_np(lossD)}; Loss_G {to_np(lossG)}; '
               f'D_real {to_np(real_loss)}; Loss_D_fake {to_np(fake_loss)}')
 
@@ -228,13 +219,12 @@ optimizerG = optim.RMSprop(netG.parameters(), lr=1e-5)
 train(1, False)
 
 
-netD.eval()
-netG.eval()
+netD.eval(); netG.eval();
 fake = netG(fixed_noise).data.cpu()
 faked = np.clip(md.trn_ds.denorm(fake), 0, 1)
 
 plt.figure(figsize=(9, 9))
-plt.imshow(gallery(faked, 8))
+plt.imshow(gallery(faked, 8));
 
 
 torch.save(netG.state_dict(), TMP_PATH / 'netG_2.h5')

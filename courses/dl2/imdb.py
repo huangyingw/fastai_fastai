@@ -37,7 +37,6 @@ LM_PATH.mkdir(exist_ok=True)
 
 CLASSES = ['neg', 'pos', 'unsup']
 
-
 def get_texts(path):
     texts, labels = [], []
     for idx, label in enumerate(CLASSES):
@@ -45,7 +44,6 @@ def get_texts(path):
             texts.append(fname.open('r').read())
             labels.append(idx)
     return np.array(texts), np.array(labels)
-
 
 trn_texts, trn_labels = get_texts(PATH / 'train')
 val_texts, val_labels = get_texts(PATH / 'test')
@@ -119,7 +117,6 @@ chunksize = 24000
 
 re1 = re.compile(r'  +')
 
-
 def fixup(x):
     x = x.replace('#39;', "'").replace('amp;', '&').replace('#146;', "'").replace(
         'nbsp;', ' ').replace('#36;', '$').replace('\\n', "\n").replace('quot;', "'").replace(
@@ -131,8 +128,7 @@ def fixup(x):
 def get_texts(df, n_lbls=1):
     labels = df.iloc[:, range(n_lbls)].values.astype(np.int64)
     texts = f'\n{BOS} {FLD} 1 ' + df[n_lbls].astype(str)
-    for i in range(n_lbls + 1, len(df.columns)):
-        texts += f' {FLD} {i-n_lbls} ' + df[i].astype(str)
+    for i in range(n_lbls + 1, len(df.columns)): texts += f' {FLD} {i-n_lbls} ' + df[i].astype(str)
     texts = texts.apply(fixup).values.astype(str)
 
     tok = Tokenizer().proc_all_mp(partition_by_cores(texts))
@@ -144,7 +140,7 @@ def get_all(df, n_lbls):
     for i, r in enumerate(df):
         print(i)
         tok_, labels_ = get_texts(r, n_lbls)
-        tok += tok_
+        tok += tok_;
         labels += labels_
     return tok, labels
 
@@ -295,7 +291,7 @@ drops = np.array([0.25, 0.1, 0.2, 0.02, 0.15]) * 0.7
 # We also keep track of the *accuracy* metric.
 
 learner = md.get_model(opt_fn, em_sz, nh, nl,
-                       dropouti=drops[0], dropout=drops[1], wdrop=drops[2], dropoute=drops[3], dropouth=drops[4])
+    dropouti=drops[0], dropout=drops[1], wdrop=drops[2], dropoute=drops[3], dropouth=drops[4])
 
 learner.metrics = [accuracy]
 learner.unfreeze()
@@ -429,8 +425,8 @@ dps = np.array([0.4, 0.5, 0.05, 0.3, 0.4]) * 0.5
 
 
 m = get_rnn_classifer(bptt, 20 * 70, c, vs, emb_sz=em_sz, n_hid=nh, n_layers=nl, pad_token=1,
-                      layers=[em_sz * 3, 50, c], drops=[dps[4], 0.1],
-                      dropouti=dps[0], wdrop=dps[1], dropoute=dps[2], dropouth=dps[3])
+          layers=[em_sz * 3, 50, c], drops=[dps[4], 0.1],
+          dropouti=dps[0], wdrop=dps[1], dropoute=dps[2], dropouth=dps[3])
 
 
 opt_fn = partial(optim.Adam, betas=(0.7, 0.99))

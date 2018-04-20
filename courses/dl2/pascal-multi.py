@@ -9,8 +9,7 @@ get_ipython().run_line_magic('autoreload', '2')
 from fastai.conv_learner import *
 from fastai.dataset import *
 
-import json
-import pdb
+import json, pdb
 from PIL import ImageDraw, ImageFont
 from matplotlib import patches, patheffects
 torch.cuda.set_device(0)
@@ -43,13 +42,11 @@ def get_trn_anno():
             trn_anno[o[IMG_ID]].append((bb, o[CAT_ID]))
     return trn_anno
 
-
 trn_anno = get_trn_anno()
 
 
 def show_img(im, figsize=None, ax=None):
-    if not ax:
-        fig, ax = plt.subplots(figsize=figsize)
+    if not ax: fig, ax = plt.subplots(figsize=figsize)
     ax.imshow(im)
     ax.set_xticks(np.linspace(0, 224, 8))
     ax.set_yticks(np.linspace(0, 224, 8))
@@ -58,25 +55,21 @@ def show_img(im, figsize=None, ax=None):
     ax.set_xticklabels([])
     return ax
 
-
 def draw_outline(o, lw):
     o.set_path_effects([patheffects.Stroke(
         linewidth=lw, foreground='black'), patheffects.Normal()])
-
 
 def draw_rect(ax, b, color='white'):
     patch = ax.add_patch(patches.Rectangle(b[:2], *b[-2:], fill=False, edgecolor=color, lw=2))
     draw_outline(patch, 4)
 
-
 def draw_text(ax, xy, txt, sz=14, color='white'):
     text = ax.text(*xy, txt,
-                   verticalalignment='top', color=color, fontsize=sz, weight='bold')
+        verticalalignment='top', color=color, fontsize=sz, weight='bold')
     draw_outline(text, 1)
 
 
 def bb_hw(a): return np.array([a[1], a[0], a[3] - a[1] + 1, a[2] - a[0] + 1])
-
 
 def draw_im(im, ann):
     ax = show_img(im, figsize=(16, 8))
@@ -84,7 +77,6 @@ def draw_im(im, ann):
         b = bb_hw(b)
         draw_rect(ax, b)
         draw_text(ax, b[:2], cats[c], sz=16)
-
 
 def draw_idx(i):
     im_a = trn_anno[i]
@@ -182,8 +174,7 @@ bs = 64
 mc = [[cats[p[1]] for p in trn_anno[o]] for o in trn_ids]
 id2cat = list(cats.values())
 cat2id = {v: k for k, v in enumerate(id2cat)}
-mcs = np.array([np.array([cat2id[p] for p in o]) for o in mc])
-mcs
+mcs = np.array([np.array([cat2id[p] for p in o]) for o in mc]); mcs
 
 
 val_idxs = get_cv_idxs(len(trn_fns))
@@ -211,11 +202,9 @@ import matplotlib.cm as cmx
 import matplotlib.colors as mcolors
 from cycler import cycler
 
-
 def get_cmap(N):
     color_norm = mcolors.Normalize(vmin=0, vmax=N - 1)
     return cmx.ScalarMappable(norm=color_norm, cmap='Set3').to_rgba
-
 
 num_colr = 12
 cmap = get_cmap(num_colr)
@@ -224,19 +213,15 @@ colr_list = [cmap(float(x)) for x in range(num_colr)]
 
 def show_ground_truth(ax, im, bbox, clas=None, prs=None, thresh=0.3):
     bb = [bb_hw(o) for o in bbox.reshape(-1, 4)]
-    if prs is None:
-        prs = [None] * len(bb)
-    if clas is None:
-        clas = [None] * len(bb)
+    if prs is None: prs = [None] * len(bb)
+    if clas is None: clas = [None] * len(bb)
     ax = show_img(im, ax=ax)
     for i, (b, c, pr) in enumerate(zip(bb, clas, prs)):
         if((b[2] > 0) and (pr is None or pr > thresh)):
             draw_rect(ax, b, color=colr_list[i % num_colr])
             txt = f'{i}: '
-            if c is not None:
-                txt += ('bg' if c == len(id2cat) else id2cat[c])
-            if pr is not None:
-                txt += f' {pr:.2f}'
+            if c is not None: txt += ('bg' if c == len(id2cat) else id2cat[c])
+            if pr is not None: txt += f' {pr:.2f}'
             draw_text(ax, b[:2], txt, color=colr_list[i % num_colr])
 
 
@@ -246,7 +231,7 @@ class ConcatLblDataset(Dataset):
         self.sz = ds.sz
 
     def __len__(self): return len(self.ds)
-
+    
     def __getitem__(self, i):
         x, y = self.ds[i]
         return (x, (y, self.y2[i]))
@@ -293,7 +278,7 @@ grid_sizes = V(np.array([1 / anc_grid]), requires_grad=False).unsqueeze(1)
 
 plt.scatter(anc_x, anc_y)
 plt.xlim(0, 1)
-plt.ylim(0, 1)
+plt.ylim(0, 1);
 
 
 anchors
@@ -316,10 +301,9 @@ class StdConv(nn.Module):
         self.conv = nn.Conv2d(nin, nout, 3, stride=stride, padding=1)
         self.bn = nn.BatchNorm2d(nout)
         self.drop = nn.Dropout(drop)
-
+        
     def forward(self, x): return self.drop(self.bn(F.relu(self.conv(x))))
-
-
+        
 def flatten_conv(x, k):
     bs, nf, gx, gy = x.size()
     x = x.permute(0, 2, 3, 1).contiguous()
@@ -333,7 +317,7 @@ class OutConv(nn.Module):
         self.oconv1 = nn.Conv2d(nin, (len(id2cat) + 1) * k, 3, padding=1)
         self.oconv2 = nn.Conv2d(nin, 4 * k, 3, padding=1)
         self.oconv1.bias.data.zero_().add_(bias)
-
+        
     def forward(self, x):
         return [flatten_conv(self.oconv1(x), self.k),
                 flatten_conv(self.oconv2(x), self.k)]
@@ -347,14 +331,13 @@ class SSD_Head(nn.Module):
 #         self.sconv1 = StdConv(256,256)
         self.sconv2 = StdConv(256, 256)
         self.out = OutConv(k, 256, bias)
-
+        
     def forward(self, x):
         x = self.drop(F.relu(x))
         x = self.sconv0(x)
 #         x = self.sconv1(x)
         x = self.sconv2(x)
         return self.out(x)
-
 
 head_reg4 = SSD_Head(k, -3.)
 models = ConvnetBuilder(f_model, 0, 0, 0, custom_head=head_reg4)
@@ -368,7 +351,6 @@ k
 def one_hot_embedding(labels, num_classes):
     return torch.eye(num_classes)[labels.data.cpu()]
 
-
 class BCE_Loss(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
@@ -376,13 +358,12 @@ class BCE_Loss(nn.Module):
 
     def forward(self, pred, targ):
         t = one_hot_embedding(targ, self.num_classes + 1)
-        t = V(t[:, :-1].contiguous())  # .cpu()
+        t = V(t[:, :-1].contiguous())#.cpu()
         x = pred[:, :-1]
         w = self.get_weight(x, t)
         return F.binary_cross_entropy_with_logits(x, t, w, size_average=False) / self.num_classes
-
+    
     def get_weight(self, x, t): return None
-
 
 loss_f = BCE_Loss(len(id2cat))
 
@@ -393,9 +374,7 @@ def intersect(box_a, box_b):
     inter = torch.clamp((max_xy - min_xy), min=0)
     return inter[:, :, 0] * inter[:, :, 1]
 
-
 def box_sz(b): return ((b[:, 2] - b[:, 0]) * (b[:, 3] - b[:, 1]))
-
 
 def jaccard(box_a, box_b):
     inter = intersect(box_a, box_b)
@@ -408,25 +387,20 @@ def get_y(bbox, clas):
     bb_keep = ((bbox[:, 2] - bbox[:, 0]) > 0).nonzero()[:, 0]
     return bbox[bb_keep], clas[bb_keep]
 
-
 def actn_to_bb(actn, anchors):
     actn_bbs = torch.tanh(actn)
     actn_centers = (actn_bbs[:, :2] / 2 * grid_sizes) + anchors[:, :2]
     actn_hw = (actn_bbs[:, 2:] / 2 + 1) * anchors[:, 2:]
     return hw2corners(actn_centers, actn_hw)
 
-
 def map_to_ground_truth(overlaps, print_it=False):
     prior_overlap, prior_idx = overlaps.max(1)
-    if print_it:
-        print(prior_overlap)
+    if print_it: print(prior_overlap)
 #     pdb.set_trace()
     gt_overlap, gt_idx = overlaps.max(0)
     gt_overlap[prior_idx] = 1.99
-    for i, o in enumerate(prior_idx):
-        gt_idx[o] = i
+    for i, o in enumerate(prior_idx): gt_idx[o] = i
     return gt_overlap, gt_idx
-
 
 def ssd_1_loss(b_c, b_bb, bbox, clas, print_it=False):
     bbox, clas = get_y(bbox, clas)
@@ -442,15 +416,13 @@ def ssd_1_loss(b_c, b_bb, bbox, clas, print_it=False):
     clas_loss = loss_f(b_c, gt_clas)
     return loc_loss, clas_loss
 
-
 def ssd_loss(pred, targ, print_it=False):
     lcs, lls = 0., 0.
     for b_c, b_bb, bbox, clas in zip(*pred, *targ):
         loc_loss, clas_loss = ssd_1_loss(b_c, b_bb, bbox, clas, print_it)
         lls += loc_loss
         lcs += clas_loss
-    if print_it:
-        print(f'loc: {lls.data[0]}, clas: {lcs.data[0]}')
+    if print_it: print(f'loc: {lls.data[0]}, clas: {lcs.data[0]}')
     return lls + lcs
 
 
@@ -459,17 +431,14 @@ x, y = next(iter(md.val_dl))
 x, y = V(x), V(y)
 
 
-for i, o in enumerate(y):
-    y[i] = o.cpu()
+for i, o in enumerate(y): y[i] = o.cpu()
 learn.model.cpu()
 
 
 batch = learn.model(x)
 
 
-anchors = anchors.cpu()
-grid_sizes = grid_sizes.cpu()
-anchor_cnr = anchor_cnr.cpu()
+anchors = anchors.cpu(); grid_sizes = grid_sizes.cpu(); anchor_cnr = anchor_cnr.cpu()
 
 
 ssd_loss(batch, y, True)
@@ -515,7 +484,7 @@ bbox, clas
 
 def torch_gt(ax, ima, bbox, clas, prs=None, thresh=0.4):
     return show_ground_truth(ax, ima, to_np((bbox * 224).long()),
-                             to_np(clas), to_np(prs) if prs is not None else None, thresh)
+         to_np(clas), to_np(prs) if prs is not None else None, thresh)
 
 
 fig, ax = plt.subplots(figsize=(7, 7))
@@ -553,8 +522,7 @@ gt_overlap, gt_idx = map_to_ground_truth(overlaps)
 gt_overlap, gt_idx
 
 
-gt_clas = clas[gt_idx]
-gt_clas
+gt_clas = clas[gt_idx]; gt_clas
 
 
 thresh = 0.5
@@ -579,8 +547,7 @@ for idx, ax in enumerate(axes.flat):
     ima = md.val_ds.ds.denorm(to_np(x))[idx]
     bbox, clas = get_y(y[0][idx], y[1][idx])
     ima = md.val_ds.ds.denorm(to_np(x))[idx]
-    bbox, clas = get_y(bbox, clas)
-    bbox, clas
+    bbox, clas = get_y(bbox, clas); bbox, clas
     a_ic = actn_to_bb(b_bb[idx], anchors)
     torch_gt(ax, ima, a_ic, b_clas[idx].max(1)[1], b_clas[idx].max(1)[0].sigmoid(), 0.01)
 plt.tight_layout()
@@ -610,9 +577,9 @@ anc_ctrs = np.repeat(np.stack([anc_x, anc_y], axis=1), k, axis=0)
 
 
 anc_sizes = np.concatenate([np.array([[o / ag, p / ag] for i in range(ag * ag) for o, p in anchor_scales])
-                            for ag in anc_grids])
+               for ag in anc_grids])
 grid_sizes = V(np.concatenate([np.array([1 / ag for i in range(ag * ag) for o, p in anchor_scales])
-                               for ag in anc_grids]), requires_grad=False).unsqueeze(1)
+               for ag in anc_grids]), requires_grad=False).unsqueeze(1)
 anchors = V(np.concatenate([anc_ctrs, anc_sizes], axis=1), requires_grad=False).float()
 anchor_cnr = hw2corners(anchors[:, :2], anchors[:, 2:])
 
@@ -639,7 +606,6 @@ show_ground_truth(ax, x[0], a)
 
 drop = 0.4
 
-
 class SSD_MultiHead(nn.Module):
     def __init__(self, k, bias):
         super().__init__()
@@ -664,7 +630,6 @@ class SSD_MultiHead(nn.Module):
         o3c, o3l = self.out3(x)
         return [torch.cat([o1c, o2c, o3c], dim=1),
                 torch.cat([o1l, o2l, o3l], dim=1)]
-
 
 head_reg4 = SSD_MultiHead(k, -4.)
 models = ConvnetBuilder(f_model, 0, 0, 0, custom_head=head_reg4)
@@ -748,7 +713,6 @@ class FocalLoss(BCE_Loss):
         w = alpha * t + (1 - alpha) * (1 - t)
         return w * (1 - pt).pow(gamma)
 
-
 loss_f = FocalLoss(len(id2cat))
 
 
@@ -788,8 +752,7 @@ plot_results(0.75)
 
 def nms(boxes, scores, overlap=0.5, top_k=100):
     keep = scores.new(scores.size(0)).zero_().long()
-    if boxes.numel() == 0:
-        return keep
+    if boxes.numel() == 0: return keep
     x1 = boxes[:, 0]
     y1 = boxes[:, 1]
     x2 = boxes[:, 2]
@@ -809,8 +772,7 @@ def nms(boxes, scores, overlap=0.5, top_k=100):
         i = idx[-1]  # index of current largest val
         keep[count] = i
         count += 1
-        if idx.size(0) == 1:
-            break
+        if idx.size(0) == 1: break
         idx = idx[:-1]  # remove kept element from view
         # load bboxes of next highest vals
         torch.index_select(x1, 0, idx, out=xx1)
@@ -858,8 +820,7 @@ def show_nmf(idx):
     out1, out2, cc = [], [], []
     for cl in range(0, len(conf_scores) - 1):
         c_mask = conf_scores[cl] > 0.25
-        if c_mask.sum() == 0:
-            continue
+        if c_mask.sum() == 0: continue
         scores = conf_scores[cl][c_mask]
         l_mask = c_mask.unsqueeze(1).expand_as(a_ic)
         boxes = a_ic[l_mask].view(-1, 4)
@@ -876,8 +837,7 @@ def show_nmf(idx):
     torch_gt(ax, ima, out2, cc, out1, 0.1)
 
 
-for i in range(12):
-    show_nmf(i)
+for i in range(12): show_nmf(i)
 
 
 # ## End
