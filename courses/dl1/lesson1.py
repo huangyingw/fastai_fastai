@@ -71,7 +71,7 @@ def most_by_correct(y, is_correct, preds, probs):
 def learn1():
 
     learn = ConvLearner.pretrained(arch, data, precompute=True)
-    learn.fit(0.01, 3, saved_model_name='lesson1_1')
+    learn.fit(0.01, 2, saved_model_name='lesson1_1')
 
     pp = pprint.PrettyPrinter(indent=4)
     print('learn --> ')
@@ -143,7 +143,7 @@ def learn2():
     # ## Choosing a learning rate
     # The *learning rate* determines how quickly or how slowly you want to update the *weights* (or *parameters*). Learning rate is one of the most difficult parameters to set, because it significantly affect model performance.
     #
-    # The method `learn.lr_find()` helps you find an optimal learning rate. It uses the technique developed in the 2015 paper [Cyclical Learning Rates for Training Neural Networks](http://arxiv.org/abs/1506.01186), where we simply keep increasing the learning rate from a very small value, until the loss starts decreasing. We can plot the learning rate across batches to see what this looks like.
+    # The method `learn.lr_find()` helps you find an optimal learning rate. It uses the technique developed in the 2015 paper [Cyclical Learning Rates for Training Neural Networks](http://arxiv.org/abs/1506.01186), where we simply keep increasing the learning rate from a very small value, until the loss stops decreasing. We can plot the learning rate across batches to see what this looks like.
     #
     # We first create a new learner, since we want to know how to set the
     # learning rate for a new (untrained) model.
@@ -172,8 +172,7 @@ def learn2():
     # parameter.
 
     def get_augs():
-        data = ImageClassifierData.from_paths(
-            PATH, bs=2, tfms=tfms, num_workers=1)
+    data = ImageClassifierData.from_paths(PATH, bs=2, tfms=tfms, num_workers=1)
         x, _ = next(iter(data.aug_dl))
         return data.trn_ds.denorm(x)[1]
 

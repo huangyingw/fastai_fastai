@@ -1,9 +1,9 @@
 
 # coding: utf-8
 
-get_ipython().magic(u'reload_ext autoreload')
-get_ipython().magic(u'autoreload 2')
-get_ipython().magic(u'matplotlib inline')
+get_ipython().run_line_magic('reload_ext', 'autoreload')
+get_ipython().run_line_magic('autoreload', '2')
+get_ipython().run_line_magic('matplotlib', 'inline')
 
 from fastai.learner import *
 
@@ -17,6 +17,7 @@ from fastai.nlp import *
 from fastai.lm_rnn import *
 
 import dill as pickle
+import spacy
 
 
 # ## Language modeling
@@ -40,18 +41,18 @@ VAL_PATH = 'test/all/'
 TRN = f'{PATH}{TRN_PATH}'
 VAL = f'{PATH}{VAL_PATH}'
 
-get_ipython().magic(u'ls {PATH}')
+get_ipython().run_line_magic('ls', '{PATH}')
 
 
 # Let's look inside the training folder...
 
-trn_files = get_ipython().getoutput(u'ls {TRN}')
+trn_files = get_ipython().getoutput('ls {TRN}')
 trn_files[:10]
 
 
 # ...and at an example review.
 
-review = get_ipython().getoutput(u'cat {TRN}{trn_files[6]}')
+review = get_ipython().getoutput('cat {TRN}{trn_files[6]}')
 review[0]
 
 
@@ -59,22 +60,25 @@ review[0]
 #
 # Now we'll check how many words are in the dataset.
 
-get_ipython().system(u"find {TRN} -name '*.txt' | xargs cat | wc -w")
+get_ipython().system("find {TRN} -name '*.txt' | xargs cat | wc -w")
 
 
-get_ipython().system(u"find {VAL} -name '*.txt' | xargs cat | wc -w")
+get_ipython().system("find {VAL} -name '*.txt' | xargs cat | wc -w")
 
 
 # Before we can analyze text, we must first *tokenize* it. This refers to the process of splitting a sentence into an array of words (or more generally, into an array of *tokens*).
 
-' '.join(spacy_tok(review[0]))
+spacy_tok = spacy.load('en')
+
+
+' '.join([sent.string.strip() for sent in spacy_tok(review[0])])
 
 
 # We use Pytorch's [torchtext](https://github.com/pytorch/text) library to preprocess our data, telling it to use the wonderful [spacy](https://spacy.io/) library to handle tokenization.
 #
 # First, we create a torchtext *field*, which describes how to preprocess a piece of text - in this case, we tell torchtext to make everything lowercase, and tokenize it with spacy.
 
-TEXT = data.Field(lower=True, tokenize=spacy_tok)
+TEXT = data.Field(lower=True, tokenize="spacy")
 
 
 # fastai works closely with torchtext. We create a ModelData object for language modeling by taking advantage of `LanguageModelData`, passing it our torchtext field object, and the paths to our training, test, and validation sets. In this case, we don't have a separate test set, so we'll just use `VAL_PATH` for that too.
@@ -264,7 +268,7 @@ m3.load_encoder(f'adam3_20_enc')
 # Because we're fine-tuning a pretrained model, we'll use differential learning rates, and also increase the max gradient for clipping, to allow the SGDR to work better.
 
 m3.clip = 25.
-lrs = np.array([1e-4, 1e-3, 1e-2])
+lrs = np.array([1e-4, 1e-4, 1e-4, 1e-3, 1e-2])
 
 
 m3.freeze_to(-1)

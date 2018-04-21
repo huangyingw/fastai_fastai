@@ -7,9 +7,9 @@
 #
 # The motivation behind exploring this architecture is it's relevance to real-world application. Most data used for decision making day-to-day in industry is structured and/or time-series data. Here we explore the end-to-end process of using neural networks with practical structured data problems.
 
-get_ipython().magic(u'matplotlib inline')
-get_ipython().magic(u'reload_ext autoreload')
-get_ipython().magic(u'autoreload 2')
+get_ipython().run_line_magic('matplotlib', 'inline')
+get_ipython().run_line_magic('reload_ext', 'autoreload')
+get_ipython().run_line_magic('autoreload', '2')
 
 
 from fastai.structured import *
@@ -257,7 +257,7 @@ def get_elapsed(fld, pre):
             last_date = np.datetime64()
             last_store = s
         if v: last_date = d
-        res.append(((d - last_date).astype('timedelta64[D]') / day1).astype(int))
+        res.append(((d - last_date).astype('timedelta64[D]') / day1))
     df[pre + fld] = res
 
 
@@ -316,7 +316,7 @@ columns = ['SchoolHoliday', 'StateHoliday', 'Promo']
 for o in ['Before', 'After']:
     for p in columns:
         a = o + p
-        df[a] = df[a].fillna(0)
+        df[a] = df[a].fillna(0).astype(int)
 
 
 # Next we'll demonstrate window functions in pandas to calculate rolling quantities.
