@@ -6,69 +6,55 @@ import copy
 
 class Callback:
     def on_train_begin(self): pass
-
     def on_batch_begin(self): pass
-
     def on_phase_begin(self): pass
-
     def on_epoch_end(self, metrics): pass
-
     def on_phase_end(self): pass
-
     def on_batch_end(self, metrics): pass
-
     def on_train_end(self): pass
 
 # Useful for maintaining status of a long-running job.
-#
+# 
 # Usage:
 # learn.fit(0.01, 1, callbacks = [LoggingCallback(save_path="/tmp/log")])
 class LoggingCallback(Callback):
     def __init__(self, save_path):
         super().__init__()
-        self.save_path = save_path
-
+        self.save_path=save_path
     def on_train_begin(self):
         self.batch = 0
         self.epoch = 0
         self.phase = 0
         self.f = open(self.save_path, "a", 1)
         self.log("\ton_train_begin")
-
     def on_batch_begin(self):
-        self.log(str(self.batch) + "\ton_batch_begin")
-
-    def on_phase_begin(self, metrics):
-        self.log(str(self.phase) + "\ton_phase_begin")
-
+        self.log(str(self.batch)+"\ton_batch_begin")
+    def on_phase_begin(self):
+        self.log(str(self.phase)+"\ton_phase_begin")
     def on_epoch_end(self, metrics):
-        self.log(str(self.epoch) + "\ton_epoch_end: " + str(metrics))
+        self.log(str(self.epoch)+"\ton_epoch_end: "+str(metrics))
         self.epoch += 1
-
-    def on_phase_end(self, metrics):
-        self.log(str(self.phase) + "\ton_phase_end")
-        self.phase += 1
-
+    def on_phase_end(self):
+        self.log(str(self.phase)+"\ton_phase_end")
+        self.phase+=1
     def on_batch_end(self, metrics):
-        self.log(str(self.batch) + "\ton_batch_end: " + str(metrics))
+        self.log(str(self.batch)+"\ton_batch_end: "+str(metrics))
         self.batch += 1
-
     def on_train_end(self):
         self.log("\ton_train_end")
         self.f.close()
-
     def log(self, string):
-        self.f.write(time.strftime("%Y-%m-%dT%H:%M:%S") + "\t" + string + "\n")
+        self.f.write(time.strftime("%Y-%m-%dT%H:%M:%S")+"\t"+string+"\n")
 
 class LossRecorder(Callback):
     def __init__(self, layer_opt, save_path='', record_mom=False, metrics=[]):
         super().__init__()
-        self.layer_opt = layer_opt
-        self.init_lrs = np.array(layer_opt.lrs)
+        self.layer_opt=layer_opt
+        self.init_lrs=np.array(layer_opt.lrs)
         self.save_path, self.record_mom, self.metrics = save_path, record_mom, metrics
 
     def on_train_begin(self):
-        self.losses, self.lrs, self.iterations = [], [], []
+        self.losses,self.lrs,self.iterations = [],[],[]
         self.val_losses, self.rec_metrics = [], []
         if self.record_mom:
             self.momentums = []
@@ -88,7 +74,7 @@ class LossRecorder(Callback):
         else: self.losses.append(loss)
         if self.record_mom: self.momentums.append(self.layer_opt.mom)
 
-    def save_metrics(self, vals):
+    def save_metrics(self,vals):
         self.val_losses.append(vals[0])
         if len(vals) > 2: self.rec_metrics.append(vals[1:])
         elif len(vals) == 2: self.rec_metrics.append(vals[1])
@@ -105,12 +91,12 @@ class LossRecorder(Callback):
         if not in_ipynb():
             plt.switch_backend('agg')
         if self.record_mom:
-            fig, axs = plt.subplots(1, 2, figsize=(12, 4))
-            for i in range(0, 2): axs[i].set_xlabel('iterations')
+            fig, axs = plt.subplots(1,2,figsize=(12,4))
+            for i in range(0,2): axs[i].set_xlabel('iterations')
             axs[0].set_ylabel('learning rate')
             axs[1].set_ylabel('momentum')
-            axs[0].plot(self.iterations, self.lrs)
-            axs[1].plot(self.iterations, self.momentums)
+            axs[0].plot(self.iterations,self.lrs)
+            axs[1].plot(self.iterations,self.momentums)   
         else:
             plt.xlabel("iterations")
             plt.ylabel("learning rate")
@@ -137,38 +123,38 @@ class LR_Updater(LossRecorder):
     def update_lr(self):
         new_lrs = self.calc_lr(self.init_lrs)
         self.layer_opt.set_lrs(new_lrs)
-
+    
     def update_mom(self):
         new_mom = self.calc_mom()
         self.layer_opt.set_mom(new_mom)
 
     @abstractmethod
     def calc_lr(self, init_lrs): raise NotImplementedError
-
+    
     @abstractmethod
     def calc_mom(self): raise NotImplementedError
 
 
 class LR_Finder(LR_Updater):
-    def __init__(self, layer_opt, nb, end_lr=10, linear=False, metrics=[]):
+    def __init__(self, layer_opt, nb, end_lr=10, linear=False, metrics = []):
         self.linear, self.stop_dv = linear, True
-        ratio = end_lr / layer_opt.lr
-        self.lr_mult = (ratio / nb) if linear else ratio**(1 / nb)
-        super().__init__(layer_opt, metrics=metrics)
+        ratio = end_lr/layer_opt.lr
+        self.lr_mult = (ratio/nb) if linear else ratio**(1/nb)
+        super().__init__(layer_opt,metrics=metrics)
 
     def on_train_begin(self):
         super().on_train_begin()
-        self.best = 1e9
+        self.best=1e9
 
     def calc_lr(self, init_lrs):
-        mult = self.lr_mult * self.iteration if self.linear else self.lr_mult**self.iteration
+        mult = self.lr_mult*self.iteration if self.linear else self.lr_mult**self.iteration
         return init_lrs * mult
 
     def on_batch_end(self, metrics):
-        loss = metrics[0] if isinstance(metrics, list) else metrics
-        if self.stop_dv and (math.isnan(loss) or loss > self.best * 4):
+        loss = metrics[0] if isinstance(metrics,list) else metrics
+        if self.stop_dv and (math.isnan(loss) or loss>self.best*4):
             return True
-        if (loss < self.best and self.iteration > 10): self.best = loss
+        if (loss<self.best and self.iteration>10): self.best=loss
         return super().on_batch_end(metrics)
 
     def plot(self, n_skip=10, n_skip_end=5):
@@ -191,41 +177,41 @@ class LR_Finder2(LR_Finder):
 
     def plot(self, n_skip=10, n_skip_end=5, smoothed=True):
         if self.metrics is None: self.metrics = []
-        n_plots = len(self.metrics) + 2
-        fig, axs = plt.subplots(n_plots, figsize=(6, 4 * n_plots))
-        for i in range(0, n_plots): axs[i].set_xlabel('learning rate')
+        n_plots = len(self.metrics)+2
+        fig, axs = plt.subplots(n_plots,figsize=(6,4*n_plots))
+        for i in range(0,n_plots): axs[i].set_xlabel('learning rate')
         axs[0].set_ylabel('training loss')
         axs[1].set_ylabel('validation loss')
-        for i, m in enumerate(self.metrics):
-            axs[i + 2].set_ylabel(m.__name__)
+        for i,m in enumerate(self.metrics): 
+            axs[i+2].set_ylabel(m.__name__)
             if len(self.metrics) == 1:
                 values = self.rec_metrics
             else:
                 values = [rec[i] for rec in self.rec_metrics]
-            if smoothed: values = smooth_curve(values, 0.98)
-            axs[i + 2].plot(self.lrs[n_skip:-n_skip_end], values[n_skip:-n_skip_end])
+            if smoothed: values = smooth_curve(values,0.98)
+            axs[i+2].plot(self.lrs[n_skip:-n_skip_end], values[n_skip:-n_skip_end])
         plt_val_l = smooth_curve(self.val_losses, 0.98) if smoothed else self.val_losses
-        axs[0].plot(self.lrs[n_skip:-n_skip_end], self.losses[n_skip:-n_skip_end])
-        axs[1].plot(self.lrs[n_skip:-n_skip_end], plt_val_l[n_skip:-n_skip_end])
+        axs[0].plot(self.lrs[n_skip:-n_skip_end],self.losses[n_skip:-n_skip_end])
+        axs[1].plot(self.lrs[n_skip:-n_skip_end],plt_val_l[n_skip:-n_skip_end])
         plt.show()
 
 class CosAnneal(LR_Updater):
     def __init__(self, layer_opt, nb, on_cycle_end=None, cycle_mult=1):
-        self.nb, self.on_cycle_end, self.cycle_mult = nb, on_cycle_end, cycle_mult
+        self.nb,self.on_cycle_end,self.cycle_mult = nb,on_cycle_end,cycle_mult
         super().__init__(layer_opt)
 
     def on_train_begin(self):
-        self.cycle_iter, self.cycle_count = 0, 0
+        self.cycle_iter,self.cycle_count=0,0
         super().on_train_begin()
 
     def calc_lr(self, init_lrs):
-        if self.iteration < self.nb / 20:
+        if self.iteration<self.nb/20:
             self.cycle_iter += 1
-            return init_lrs / 100.
+            return init_lrs/100.
 
-        cos_out = np.cos(np.pi * (self.cycle_iter) / self.nb) + 1
+        cos_out = np.cos(np.pi*(self.cycle_iter)/self.nb) + 1
         self.cycle_iter += 1
-        if self.cycle_iter == self.nb:
+        if self.cycle_iter==self.nb:
             self.cycle_iter = 0
             self.nb *= self.cycle_mult
             if self.on_cycle_end: self.on_cycle_end(self, self.cycle_count)
@@ -235,123 +221,122 @@ class CosAnneal(LR_Updater):
 
 class CircularLR(LR_Updater):
     def __init__(self, layer_opt, nb, div=4, cut_div=8, on_cycle_end=None, momentums=None):
-        self.nb, self.div, self.cut_div, self.on_cycle_end = nb, div, cut_div, on_cycle_end
+        self.nb,self.div,self.cut_div,self.on_cycle_end = nb,div,cut_div,on_cycle_end
         if momentums is not None:
             self.moms = momentums
         super().__init__(layer_opt, record_mom=(momentums is not None))
 
     def on_train_begin(self):
-        self.cycle_iter, self.cycle_count = 0, 0
+        self.cycle_iter,self.cycle_count=0,0
         super().on_train_begin()
 
     def calc_lr(self, init_lrs):
-        cut_pt = self.nb // self.cut_div
-        if self.cycle_iter > cut_pt:
-            pct = 1 - (self.cycle_iter - cut_pt) / (self.nb - cut_pt)
-        else: pct = self.cycle_iter / cut_pt
-        res = init_lrs * (1 + pct * (self.div - 1)) / self.div
+        cut_pt = self.nb//self.cut_div
+        if self.cycle_iter>cut_pt:
+            pct = 1 - (self.cycle_iter - cut_pt)/(self.nb - cut_pt)
+        else: pct = self.cycle_iter/cut_pt
+        res = init_lrs * (1 + pct*(self.div-1)) / self.div
         self.cycle_iter += 1
-        if self.cycle_iter == self.nb:
+        if self.cycle_iter==self.nb:
             self.cycle_iter = 0
             if self.on_cycle_end: self.on_cycle_end(self, self.cycle_count)
             self.cycle_count += 1
         return res
-
+    
     def calc_mom(self):
-        cut_pt = self.nb // self.cut_div
-        if self.cycle_iter > cut_pt:
-            pct = (self.cycle_iter - cut_pt) / (self.nb - cut_pt)
-        else: pct = 1 - self.cycle_iter / cut_pt
+        cut_pt = self.nb//self.cut_div
+        if self.cycle_iter>cut_pt:
+            pct = (self.cycle_iter - cut_pt)/(self.nb - cut_pt)
+        else: pct = 1 - self.cycle_iter/cut_pt
         res = self.moms[1] + pct * (self.moms[0] - self.moms[1])
         return res
 
 class CircularLR_beta(LR_Updater):
     def __init__(self, layer_opt, nb, div=10, pct=10, on_cycle_end=None, momentums=None):
-        self.nb, self.div, self.pct, self.on_cycle_end = nb, div, pct, on_cycle_end
-        self.cycle_nb = int(nb * (1 - pct / 100) / 2)
+        self.nb,self.div,self.pct,self.on_cycle_end = nb,div,pct,on_cycle_end
+        self.cycle_nb = int(nb * (1-pct/100) / 2)
         if momentums is not None:
             self.moms = momentums
         super().__init__(layer_opt, record_mom=(momentums is not None))
 
     def on_train_begin(self):
-        self.cycle_iter, self.cycle_count = 0, 0
+        self.cycle_iter,self.cycle_count=0,0
         super().on_train_begin()
 
     def calc_lr(self, init_lrs):
-        if self.cycle_iter > 2 * self.cycle_nb:
-            pct = (self.cycle_iter - 2 * self.cycle_nb) / (self.nb - 2 * self.cycle_nb)
-            res = init_lrs * (1 + (pct * (1 - 100) / 100)) / self.div
-        elif self.cycle_iter > self.cycle_nb:
-            pct = 1 - (self.cycle_iter - self.cycle_nb) / self.cycle_nb
-            res = init_lrs * (1 + pct * (self.div - 1)) / self.div
+        if self.cycle_iter>2 * self.cycle_nb:
+            pct = (self.cycle_iter - 2*self.cycle_nb)/(self.nb - 2*self.cycle_nb)
+            res = init_lrs * (1 + (pct * (1-100)/100)) / self.div
+        elif self.cycle_iter>self.cycle_nb:
+            pct = 1 - (self.cycle_iter - self.cycle_nb)/self.cycle_nb
+            res = init_lrs * (1 + pct*(self.div-1)) / self.div
         else:
-            pct = self.cycle_iter / self.cycle_nb
-            res = init_lrs * (1 + pct * (self.div - 1)) / self.div
+            pct = self.cycle_iter/self.cycle_nb
+            res = init_lrs * (1 + pct*(self.div-1)) / self.div
         self.cycle_iter += 1
-        if self.cycle_iter == self.nb:
+        if self.cycle_iter==self.nb:
             self.cycle_iter = 0
             if self.on_cycle_end: self.on_cycle_end(self, self.cycle_count)
             self.cycle_count += 1
         return res
 
     def calc_mom(self):
-        if self.cycle_iter > 2 * self.cycle_nb:
+        if self.cycle_iter>2*self.cycle_nb:
             res = self.moms[0]
-        elif self.cycle_iter > self.cycle_nb:
-            pct = 1 - (self.cycle_iter - self.cycle_nb) / self.cycle_nb
+        elif self.cycle_iter>self.cycle_nb:
+            pct = 1 - (self.cycle_iter - self.cycle_nb)/self.cycle_nb
             res = self.moms[0] + pct * (self.moms[1] - self.moms[0])
         else:
-            pct = self.cycle_iter / self.cycle_nb
+            pct = self.cycle_iter/self.cycle_nb
             res = self.moms[0] + pct * (self.moms[1] - self.moms[0])
         return res
 
 
 class SaveBestModel(LossRecorder):
-
+    
     """ Save weights of the best model based during training.
         If metrics are provided, the first metric in the list is used to
-        find the best model.
+        find the best model. 
         If no metrics are provided, the loss is used.
-
+        
         Args:
             model: the fastai model
             lr: indicate to use test images; otherwise use validation images
             name: the name of filename of the weights without '.h5'
-
+        
         Usage:
             Briefly, you have your model 'learn' variable and call fit.
             >>> learn.fit(lr, 2, cycle_len=2, cycle_mult=1, best_save_name='mybestmodel')
             ....
             >>> learn.load('mybestmodel')
-
+            
             For more details see http://forums.fast.ai/t/a-code-snippet-to-save-the-best-model-during-training/12066
-
+ 
     """
-
     def __init__(self, model, layer_opt, metrics, name='best_model'):
         super().__init__(layer_opt)
         self.name = name
         self.model = model
         self.best_loss = None
         self.best_acc = None
-        self.save_method = self.save_when_only_loss if metrics == None else self.save_when_acc
-
+        self.save_method = self.save_when_only_loss if metrics==None else self.save_when_acc
+        
     def save_when_only_loss(self, metrics):
         loss = metrics[0]
         if self.best_loss == None or loss < self.best_loss:
             self.best_loss = loss
             self.model.save(f'{self.name}')
-
+    
     def save_when_acc(self, metrics):
         loss, acc = metrics[0], metrics[1]
         if self.best_acc == None or acc > self.best_acc:
             self.best_acc = acc
             self.best_loss = loss
             self.model.save(f'{self.name}')
-        elif acc == self.best_acc and loss < self.best_loss:
+        elif acc == self.best_acc and  loss < self.best_loss:
             self.best_loss = loss
             self.model.save(f'{self.name}')
-
+        
     def on_epoch_end(self, metrics):
         super().on_epoch_end(metrics)
         self.save_method(metrics)
@@ -444,24 +429,24 @@ class DecayScheduler():
     def __init__(self, dec_type, num_it, start_val, end_val=None, extra=None):
         self.dec_type, self.nb, self.start_val, self.end_val, self.extra = dec_type, num_it, start_val, end_val, extra
         self.it = 0
-        if self.end_val is None and not (self.dec_type in [1, 4]): self.end_val = 0
-
+        if self.end_val is None and not (self.dec_type in [1,4]): self.end_val = 0
+    
     def next_val(self):
         self.it += 1
         if self.dec_type == DecayType.NO:
             return self.start_val
         elif self.dec_type == DecayType.LINEAR:
-            pct = self.it / self.nb
-            return self.start_val + pct * (self.end_val - self.start_val)
+            pct = self.it/self.nb
+            return self.start_val + pct * (self.end_val-self.start_val)
         elif self.dec_type == DecayType.COSINE:
-            cos_out = np.cos(np.pi * (self.it) / self.nb) + 1
-            return self.end_val + (self.start_val - self.end_val) / 2 * cos_out
+            cos_out = np.cos(np.pi*(self.it)/self.nb) + 1
+            return self.end_val + (self.start_val-self.end_val) / 2 * cos_out
         elif self.dec_type == DecayType.EXPONENTIAL:
             ratio = self.end_val / self.start_val
-            return self.start_val * (ratio ** (self.it / self.nb))
+            return self.start_val * (ratio **  (self.it/self.nb))
         elif self.dec_type == DecayType.POLYNOMIAL:
-            return self.end_val + (self.start_val - self.end_val) * (1 - self.it / self.nb)**self.extra
-
+            return self.end_val + (self.start_val-self.end_val) * (1 - self.it/self.nb)**self.extra
+        
 
 class TrainingPhase():
 
@@ -482,17 +467,17 @@ class TrainingPhase():
         wds: weight decay (can be an array for differential wds)
         """
         self.epochs, self.opt_fn, self.lr, self.momentum, self.beta, self.wds = epochs, opt_fn, lr, momentum, beta, wds
-        if isinstance(lr_decay, tuple): self.lr_decay, self.extra_lr = lr_decay
+        if isinstance(lr_decay,tuple): self.lr_decay, self.extra_lr = lr_decay
         else: self.lr_decay, self.extra_lr = lr_decay, None
-        if isinstance(momentum_decay, tuple): self.mom_decay, self.extra_mom = momentum_decay
+        if isinstance(momentum_decay,tuple): self.mom_decay, self.extra_mom = momentum_decay
         else: self.mom_decay, self.extra_mom = momentum_decay, None
 
     def phase_begin(self, layer_opt, nb_batches):
         self.layer_opt = layer_opt
-        if isinstance(self.lr, tuple): start_lr, end_lr = self.lr
+        if isinstance(self.lr, tuple): start_lr,end_lr = self.lr
         else: start_lr, end_lr = self.lr, None
         self.lr_sched = DecayScheduler(self.lr_decay, nb_batches * self.epochs, start_lr, end_lr, extra=self.extra_lr)
-        if isinstance(self.momentum, tuple): start_mom, end_mom = self.momentum
+        if isinstance(self.momentum, tuple): start_mom,end_mom = self.momentum
         else: start_mom, end_mom = self.momentum, None
         self.mom_sched = DecayScheduler(self.mom_decay, nb_batches * self.epochs, start_mom, end_mom, extra=self.extra_mom)
         self.layer_opt.set_opt_fn(self.opt_fn)
@@ -500,31 +485,32 @@ class TrainingPhase():
         self.layer_opt.set_mom(start_mom)
         if self.beta is not None: self.layer_opt.set_beta(self.beta)
         if self.wds is not None: self.layer_opt.set_wds(self.wds)
-
+    
     def update(self):
         new_lr, new_mom = self.lr_sched.next_val(), self.mom_sched.next_val()
         self.layer_opt.set_lrs(new_lr)
         self.layer_opt.set_mom(new_mom)
+    
 
 
 class OptimScheduler(LossRecorder):
 
-    def __init__(self, layer_opt, phases, nb_batches, stop_div=False):
+    def __init__(self, layer_opt, phases, nb_batches, stop_div = False):
         self.phases, self.nb_batches, self.stop_div = phases, nb_batches, stop_div
         super().__init__(layer_opt, record_mom=True)
 
     def on_train_begin(self):
         super().on_train_begin()
-        self.phase, self.best = 0, 1e9
+        self.phase,self.best=0,1e9
 
     def on_batch_end(self, metrics):
-        loss = metrics[0] if isinstance(metrics, list) else metrics
-        if self.stop_div and (math.isnan(loss) or loss > self.best * 4):
+        loss = metrics[0] if isinstance(metrics,list) else metrics
+        if self.stop_div and (math.isnan(loss) or loss>self.best*4):
             return True
-        if (loss < self.best and self.iteration > 10): self.best = loss
+        if (loss<self.best and self.iteration>10): self.best=loss
         super().on_batch_end(metrics)
         self.phases[self.phase].update()
-
+    
     def on_phase_begin(self):
         self.phases[self.phase].phase_begin(self.layer_opt, self.nb_batches)
 
@@ -541,38 +527,38 @@ class OptimScheduler(LossRecorder):
         if not in_ipynb():
             plt.switch_backend('agg')
         np_plts = 2 if show_moms else 1
-        fig, axs = plt.subplots(1, np_plts, figsize=(6 * np_plts, 4))
+        fig, axs = plt.subplots(1,np_plts,figsize=(6*np_plts,4))
         if not show_moms: axs = [axs]
         for i in range(np_plts): axs[i].set_xlabel('iterations')
         axs[0].set_ylabel('learning rate')
-        axs[0].plot(self.iterations, self.lrs)
+        axs[0].plot(self.iterations,self.lrs)
         if show_moms:
             axs[1].set_ylabel('momentum')
-            axs[1].plot(self.iterations, self.momentums)
-        if show_text:
+            axs[1].plot(self.iterations,self.momentums)
+        if show_text:   
             for i, phase in enumerate(self.phases):
                 text = phase.opt_fn.__name__
-                if phase.wds is not None: text += '\nwds=' + str(phase.wds)
-                if phase.beta is not None: text += '\nbeta=' + str(phase.beta)
+                if phase.wds is not None: text+='\nwds='+str(phase.wds)
+                if phase.beta is not None: text+='\nbeta='+str(phase.beta)
                 for k in range(np_plts):
-                    if i < len(self.phases) - 1:
-                        draw_line(axs[k], phase_limits[i + 1])
-                    draw_text(axs[k], (phase_limits[i] + phase_limits[i + 1]) / 2, text)
+                    if i < len(self.phases)-1:
+                        draw_line(axs[k], phase_limits[i+1])
+                    draw_text(axs[k], (phase_limits[i]+phase_limits[i+1])/2, text) 
         if not in_ipynb():
             plt.savefig(os.path.join(self.save_path, 'lr_plot.png'))
 
-def draw_line(ax, x):
+def draw_line(ax,x):
     xmin, xmax, ymin, ymax = ax.axis()
-    ax.plot([x, x], [ymin, ymax], color='red', linestyle='dashed')
+    ax.plot([x,x],[ymin,ymax], color='red', linestyle='dashed')
 
-def draw_text(ax, x, text):
+def draw_text(ax,x, text):
     xmin, xmax, ymin, ymax = ax.axis()
-    ax.text(x, (ymin + ymax) / 2, text, horizontalalignment='center', verticalalignment='center', fontsize=14, alpha=0.5)
+    ax.text(x,(ymin+ymax)/2,text, horizontalalignment='center', verticalalignment='center', fontsize=14, alpha=0.5)
 
 def smooth_curve(vals, beta):
     avg_val = 0
     smoothed = []
-    for (i, v) in enumerate(vals):
-        avg_val = beta * avg_val + (1 - beta) * v
-        smoothed.append(avg_val / (1 - beta**(i + 1)))
+    for (i,v) in enumerate(vals):
+        avg_val = beta * avg_val + (1-beta) * v
+        smoothed.append(avg_val/(1-beta**(i+1)))
     return smoothed
