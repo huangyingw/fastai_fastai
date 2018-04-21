@@ -1,9 +1,9 @@
 
 # coding: utf-8
 
-get_ipython().magic(u'reload_ext autoreload')
-get_ipython().magic(u'autoreload 2')
-get_ipython().magic(u'matplotlib inline')
+get_ipython().run_line_magic('reload_ext', 'autoreload')
+get_ipython().run_line_magic('autoreload', '2')
+get_ipython().run_line_magic('matplotlib', 'inline')
 
 from fastai.io import *
 from fastai.conv_learner import *
@@ -40,11 +40,11 @@ chars.insert(0, "\0")
 
 # Map from chars to indices and back again
 
-char_indices = dict((c, i) for i, c in enumerate(chars))
-indices_char = dict((i, c) for i, c in enumerate(chars))
+char_indices = {c: i for i, c in enumerate(chars)}
+indices_char = {i: c for i, c in enumerate(chars)}
 
 
-# *idx* will be the data we use from now own - it simply converts all the characters to their index (based on the mapping above)
+# *idx* will be the data we use from now on - it simply converts all the characters to their index (based on the mapping above)
 
 idx = [char_indices[c] for c in text]
 
@@ -182,7 +182,7 @@ get_next('and')
 cs = 8
 
 
-# For each of 0 through 7, create a list of every 8th character with that starting point. These will be the 8 inputs to out model.
+# For each of 0 through 7, create a list of every 8th character with that starting point. These will be the 8 inputs to our model.
 
 c_in_dat = [[idx[i + j] for i in range(cs)] for j in range(len(idx) - cs)]
 
@@ -485,10 +485,10 @@ VAL_PATH = 'val/'
 TRN = f'{PATH}{TRN_PATH}'
 VAL = f'{PATH}{VAL_PATH}'
 
-get_ipython().magic(u'ls {PATH}')
+get_ipython().run_line_magic('ls', '{PATH}')
 
 
-get_ipython().magic(u'ls {PATH}trn')
+get_ipython().run_line_magic('ls', '{PATH}trn')
 
 
 TEXT = data.Field(lower=True, tokenize=list)

@@ -3,9 +3,9 @@
 
 # ## Dogs v Cats
 
-get_ipython().magic(u'reload_ext autoreload')
-get_ipython().magic(u'autoreload 2')
-get_ipython().magic(u'matplotlib inline')
+get_ipython().run_line_magic('reload_ext', 'autoreload')
+get_ipython().run_line_magic('autoreload', '2')
+get_ipython().run_line_magic('matplotlib', 'inline')
 
 from fastai.imports import *
 
@@ -63,14 +63,15 @@ class SaveFeatures():
 
     def __init__(self, m): self.hook = m.register_forward_hook(self.hook_fn)
 
-    def hook_fn(self, module, input, output): self.features = to_np(output)
+    def hook_fn(self, module, input, output): self.features = output
 
     def remove(self): self.hook.remove()
 
 
 x, y = next(iter(data.val_dl))
-x, y = x[None, 1], y[None, 1]
 
+
+x, y = x[None, 1], y[None, 1]
 vx = Variable(x.cuda(), requires_grad=True)
 
 
@@ -78,14 +79,22 @@ dx = data.val_ds.denorm(x)[0]
 plt.imshow(dx);
 
 
-sf = SaveFeatures(m[-4])
-py = m(Variable(x.cuda()))
-sf.remove()
+sfs = [SaveFeatures(o) for o in [m[-7], m[-6], m[-5], m[-4]]]
+
+
+get_ipython().run_line_magic('time', 'py = m(Variable(x.cuda()))')
+
+
+for o in sfs: o.remove()
+
+
+[o.features.size() for o in sfs]
+
 
 py = np.exp(to_np(py)[0]); py
 
 
-feat = np.maximum(0, sf.features[0])
+feat = np.maximum(0, to_np(sfs[3].features[0]))
 feat.shape
 
 
