@@ -172,7 +172,7 @@ def learn2():
     # parameter.
 
     def get_augs():
-    data = ImageClassifierData.from_paths(PATH, bs=2, tfms=tfms, num_workers=1)
+        data = ImageClassifierData.from_paths(PATH, bs=2, tfms=tfms, num_workers=1)
         x, _ = next(iter(data.aug_dl))
         return data.trn_ds.denorm(x)[1]
 
@@ -197,7 +197,7 @@ def learn3():
     # *frozen*. That means that it's still only updating the weights in the
     # last layer when we call `fit`.
 
-    learn.fit(1e-2, 3, saved_model_name='lesson1_1e-2-3', cycle_len=1)
+    learn.fit(1e-2, 3, cycle_len=1, saved_model_name='lesson1_1e-2-3')
 
     # What is that `cycle_len` parameter? What we've done here is used a technique called *stochastic gradient descent with restarts (SGDR)*, a variant of *learning rate annealing*, which gradually decreases the learning rate as training progresses. This is helpful because as we get closer to the optimal weights, we want to take smaller steps.
     #
@@ -244,7 +244,7 @@ def learn3():
 
     lr = np.array([1e-4, 1e-3, 1e-2])
 
-    learn.fit(lr, 3, saved_model_name='224_all', cycle_len=1, cycle_mult=2)
+    learn.fit(lr, 3, cycle_len=1, cycle_mult=2, saved_model_name='224_all')
 
     # Another trick we've used here is adding the `cycle_mult` parameter. Take
     # a look at the following chart, and see if you can figure out what the
@@ -366,7 +366,6 @@ def learn4():
     acts = np.array([1, 0, 0, 1])
     preds = np.array([0.9, 0.1, 0.2, 0.8])
     binary_loss(acts, preds)
-
 
     # Note that in our toy example above our accuracy is 100% and our loss is 0.16. Compare that to a loss of 0.03 that we are getting while predicting cats and dogs. Exercise: play with `preds` to get a lower loss for this example.
     #
