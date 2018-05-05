@@ -138,12 +138,12 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
                 for cb in callbacks: cb.on_phase_end()
                 phase += 1
                 if phase >= len(n_epochs):
-                    t.close()#Weird bug with the bar not disappearing
+                    t.close()
                     break
                 for cb in callbacks: cb.on_phase_begin()
                 if isinstance(opt, LayerOptimizer): model_stepper.opt = opt.opt
                 if cur_data != data[phase]:
-                    t.close()#Weird bug with the bar not disappearing
+                    t.close()
                     break
 
         if not all_val:
@@ -161,10 +161,8 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
             ep_vals = append_stats(ep_vals, epoch, [debias_loss] + vals)
         if stop: break
     for cb in callbacks: cb.on_train_end()
-    if get_ep_vals:
-        return vals, ep_vals
-    else:
-        return vals
+    if get_ep_vals: return vals, ep_vals
+    else: return vals
 
 def append_stats(ep_vals, epoch, values, decimals=6):
     ep_vals[epoch]=list(np.round(values, decimals))
@@ -206,12 +204,11 @@ def validate(stepper, dl, metrics):
     stepper.reset(False)
     with no_grad_context():
         for (*x,y) in iter(dl):
-            y = VV(y)
-            preds,l = stepper.evaluate(VV(x), y)
+            preds, l = stepper.evaluate(VV(x), VV(y))
             if isinstance(x,list): batch_cnts.append(len(x[0]))
             else: batch_cnts.append(len(x))
             loss.append(to_np(l))
-            res.append([f(preds.data,y.data) for f in metrics])
+            res.append([f(preds.data, y) for f in metrics])
     return [np.average(loss, 0, weights=batch_cnts)] + list(np.average(np.stack(res), 0, weights=batch_cnts))
 
 def no_grad_context(): return torch.no_grad() if IS_TORCH_04 else contextlib.suppress()

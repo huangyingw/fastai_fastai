@@ -175,7 +175,7 @@ class LR_Finder(LR_Updater):
     def plot(self, n_skip=10, n_skip_end=5):
         plt.ylabel("loss")
         plt.xlabel("learning rate (log scale)")
-        plt.plot(self.lrs[n_skip:-n_skip_end], self.losses[n_skip:-n_skip_end])
+        plt.plot(self.lrs[n_skip:-(n_skip_end+1)], self.losses[n_skip:-(n_skip_end+1)])
         plt.xscale('log')
         plt.show()
 
@@ -561,6 +561,15 @@ class OptimScheduler(LossRecorder):
                     draw_text(axs[k], (phase_limits[i] + phase_limits[i + 1]) / 2, text)
         if not in_ipynb():
             plt.savefig(os.path.join(self.save_path, 'lr_plot.png'))
+    
+    def plot(self, n_skip=10, n_skip_end=5, linear=None):
+        if linear is None: linear = self.phases[-1].lr_decay == DecayType.LINEAR
+        plt.ylabel("loss")
+        plt.plot(self.lrs[n_skip:-n_skip_end], self.losses[n_skip:-n_skip_end])
+        if linear: plt.xlabel("learning rate")
+        else:
+            plt.xlabel("learning rate (log scale)")
+            plt.xscale('log')
 
 def draw_line(ax, x):
     xmin, xmax, ymin, ymax = ax.axis()
