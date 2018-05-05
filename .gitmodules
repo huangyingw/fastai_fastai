@@ -1,6 +1,0 @@
-[submodule "pytorch"]
-	path = pytorch
-	url = https://github.com/pytorch/pytorch.git
-[submodule "torchvision"]
-	path = torchvision
-	url = https://github.com/pytorch/vision.git
