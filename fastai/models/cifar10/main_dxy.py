@@ -73,19 +73,15 @@ def main():
   if args.dataset == 'cifar10':
     train_data = dset.CIFAR10(args.data_path, train=True, transform=train_transform, download=True)
     test_data = dset.CIFAR10(args.data_path, train=False, transform=test_transform, download=True)
-    num_classes = 10
   elif args.dataset == 'cifar100':
     train_data = dset.CIFAR100(args.data_path, train=True, transform=train_transform, download=True)
     test_data = dset.CIFAR100(args.data_path, train=False, transform=test_transform, download=True)
-    num_classes = 100
   elif args.dataset == 'svhn':
     train_data = dset.SVHN(args.data_path, split='train', transform=train_transform, download=True)
     test_data = dset.SVHN(args.data_path, split='test', transform=test_transform, download=True)
-    num_classes = 10
   elif args.dataset == 'stl10':
     train_data = dset.STL10(args.data_path, split='train', transform=train_transform, download=True)
     test_data = dset.STL10(args.data_path, split='test', transform=test_transform, download=True)
-    num_classes = 10
   elif args.dataset == 'imagenet':
     assert False, 'Do not finish imagenet code'
   else:
@@ -133,30 +129,30 @@ def main():
   for epoch in range(args.start_epoch, args.epochs):
     current_learning_rate = adjust_learning_rate(optimizer, epoch, args.gammas, args.schedule)
 
-    need_hour, need_mins, need_secs = convert_secs2time(epoch_time.avg * (args.epochs-epoch))
+    need_hour, need_mins, need_secs = convert_secs2time(epoch_time.avg * (args.epochs - epoch))
     need_time = '[Need: {:02d}:{:02d}:{:02d}]'.format(need_hour, need_mins, need_secs)
 
     print_log('\n==>>{:s} [Epoch={:03d}/{:03d}] {:s} [learning_rate={:6.4f}]'.format(time_string(), epoch, args.epochs, need_time, current_learning_rate) \
-                + ' [Best : Accuracy={:.2f}, Error={:.2f}]'.format(recorder.max_accuracy(False), 100-recorder.max_accuracy(False)), log)
+                + ' [Best : Accuracy={:.2f}, Error={:.2f}]'.format(recorder.max_accuracy(False), 100 - recorder.max_accuracy(False)), log)
 
     # train for one epoch
     train_acc, train_los = train(train_loader, net, criterion, optimizer, epoch, log)
 
     # evaluate on validation set
-    val_acc,   val_los   = validate(test_loader, net, criterion, log)
+    val_acc, val_los = validate(test_loader, net, criterion, log)
     is_best = recorder.update(epoch, train_los, train_acc, val_los, val_acc)
 
     save_checkpoint({
       'epoch': epoch + 1,
       'state_dict': net.state_dict(),
       'recorder': recorder,
-      'optimizer' : optimizer.state_dict(),
+      'optimizer': optimizer.state_dict(),
     }, is_best, args.save_path, 'checkpoint.pth.tar')
 
     # measure elapsed time
     epoch_time.update(time.time() - start_time)
     start_time = time.time()
-    recorder.plot_curve( os.path.join(args.save_path, 'curve.png') )
+    recorder.plot_curve(os.path.join(args.save_path, 'curve.png'))
 
   log.close()
 
@@ -235,7 +231,7 @@ def validate(val_loader, model, criterion, log):
     top1.update(prec1[0], input.size(0))
     top5.update(prec5[0], input.size(0))
 
-  print_log('  **Test** Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f} Error@1 {error1:.3f}'.format(top1=top1, top5=top5, error1=100-top1.avg), log)
+  print_log('  **Test** Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f} Error@1 {error1:.3f}'.format(top1=top1, top5=top5, error1=100 - top1.avg), log)
 
   return top1.avg, losses.avg
 
