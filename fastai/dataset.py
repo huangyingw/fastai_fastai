@@ -1,4 +1,3 @@
-import csv
 
 from .imports import *
 from .torch_imports import *
@@ -9,15 +8,15 @@ from .dataloader import DataLoader
 
 def get_cv_idxs(n, cv_idx=0, val_pct=0.2, seed=42):
     """ Get a list of index values for Validation set from a dataset
-    
+
     Arguments:
         n : int, Total number of elements in the data set.
-        cv_idx : int, starting index [idx_start = cv_idx*int(val_pct*n)] 
-        val_pct : (int, float), validation set percentage 
+        cv_idx : int, starting index [idx_start = cv_idx*int(val_pct*n)]
+        val_pct : (int, float), validation set percentage
         seed : seed value for RandomState
-        
+
     Returns:
-        list of indexes 
+        list of indexes
     """
     np.random.seed(seed)
     n_val = int(val_pct*n)
@@ -41,9 +40,9 @@ def resize_img(fname, targ, path, new_path):
 def resize_imgs(fnames, targ, path, new_path):
     """
     Enlarge or shrink a set of images in the same directory to scale, such that the smaller of the height or width dimension is equal to targ.
-    Note: 
-    -- This function is multithreaded for efficiency. 
-    -- When destination file or folder already exist, function exists without raising an error. 
+    Note:
+    -- This function is multithreaded for efficiency.
+    -- When destination file or folder already exist, function exists without raising an error.
     """
     if not os.path.exists(os.path.join(path,new_path,str(targ),fnames[0])):
         with ThreadPoolExecutor(8) as e:
@@ -62,7 +61,7 @@ def read_dir(path, folder):
 
 def read_dirs(path, folder):
     '''
-    Fetches name of all files in path in long form, and labels associated by extrapolation of directory names. 
+    Fetches name of all files in path in long form, and labels associated by extrapolation of directory names.
     '''
     lbls, fnames, all_lbls = [], [], []
     full_path = os.path.join(path, folder)
@@ -85,7 +84,7 @@ def n_hot(ids, c):
 def folder_source(path, folder):
     """
     Returns the filenames and labels for a folder within a path
-    
+
     Returns:
     -------
     fnames: a list of the filenames within `folder`
@@ -126,7 +125,7 @@ def parse_csv_labels(fn, skip_header=True, cat_separator = ' '):
     return sorted(fnames), list(df.to_dict().values())[0]
 
 def nhot_labels(label2idx, csv_labels, fnames, c):
-    
+
     all_idx = {k: n_hot([label2idx[o] for o in v], c)
                for k,v in csv_labels.items()}
     return np.stack([all_idx[o] for o in fnames])
@@ -485,4 +484,3 @@ def split_by_idx(idxs, *a):
     mask = np.zeros(len(a[0]),dtype=bool)
     mask[np.array(idxs)] = True
     return [(o[mask],o[~mask]) for o in a]
-
