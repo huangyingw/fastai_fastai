@@ -11,3 +11,5 @@
     branch = master
 [commit]
     message = n
+[vrun]
+    silent = false
