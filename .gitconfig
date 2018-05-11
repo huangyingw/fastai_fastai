@@ -13,3 +13,6 @@
     message = n
 [vrun]
     silent = false
+[branch "dev"]
+    remote = github
+    merge = refs/heads/dev
