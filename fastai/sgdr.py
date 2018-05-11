@@ -6,9 +6,10 @@ import copy
 
 class Callback:
     '''
-    An abstract class that all callback(e.g., LossRecorder) classes extends from. 
+    An abstract class that all callback(e.g., LossRecorder) classes extends from.
     Must be extended before usage.
     '''
+
     def on_train_begin(self): pass
 
     def on_batch_begin(self): pass
@@ -32,6 +33,7 @@ class LoggingCallback(Callback):
     A class useful for maintaining status of a long-running job.
     e.g.: learn.fit(0.01, 1, callbacks = [LoggingCallback(save_path="/tmp/log")])
     '''
+
     def __init__(self, save_path):
         super().__init__()
         self.save_path = save_path
@@ -67,12 +69,13 @@ class LoggingCallback(Callback):
 
     def log(self, string):
         self.f.write(time.strftime("%Y-%m-%dT%H:%M:%S") + "\t" + string + "\n")
-        
+
 class LossRecorder(Callback):
     '''
-    Saves and displays loss functions and other metrics. 
-    Default sched when none is specified in a learner. 
+    Saves and displays loss functions and other metrics.
+    Default sched when none is specified in a learner.
     '''
+
     def __init__(self, layer_opt, save_path='', record_mom=False, metrics=[]):
         super().__init__()
         self.layer_opt = layer_opt
@@ -109,8 +112,8 @@ class LossRecorder(Callback):
 
     def plot_loss(self, n_skip=10, n_skip_end=5):
         '''
-        plots loss function as function of iterations. 
-        When used in Jupyternotebook, plot will be displayed in notebook. Else, plot will be displayed in console and both plot and loss are saved in save_path. 
+        plots loss function as function of iterations.
+        When used in Jupyternotebook, plot will be displayed in notebook. Else, plot will be displayed in console and both plot and loss are saved in save_path.
         '''
         if not in_ipynb(): plt.switch_backend('agg')
         plt.plot(self.iterations[n_skip:-n_skip_end], self.losses[n_skip:-n_skip_end])
@@ -142,9 +145,10 @@ class LossRecorder(Callback):
 class LR_Updater(LossRecorder):
     '''
     Abstract class where all Learning Rate updaters inherit from. (e.g., CirularLR)
-    Calculates and updates new learning rate and momentum at the end of each batch. 
-    Have to be extended. 
+    Calculates and updates new learning rate and momentum at the end of each batch.
+    Have to be extended.
     '''
+
     def on_train_begin(self):
         super().on_train_begin()
         self.update_lr()
@@ -175,9 +179,10 @@ class LR_Updater(LossRecorder):
 
 class LR_Finder(LR_Updater):
     '''
-    Helps you find an optimal learning rate for a model, as per suggetion of 2015 CLR paper. 
-    Learning rate is increased in linear or log scale, depending on user input, and the result of the loss funciton is retained and can be plotted later. 
+    Helps you find an optimal learning rate for a model, as per suggetion of 2015 CLR paper.
+    Learning rate is increased in linear or log scale, depending on user input, and the result of the loss funciton is retained and can be plotted later.
     '''
+
     def __init__(self, layer_opt, nb, end_lr=10, linear=False, metrics=[]):
         self.linear, self.stop_dv = linear, True
         ratio = end_lr / layer_opt.lr
@@ -201,11 +206,11 @@ class LR_Finder(LR_Updater):
 
     def plot(self, n_skip=10, n_skip_end=5):
         '''
-        Plots the loss function with respect to learning rate, in log scale. 
+        Plots the loss function with respect to learning rate, in log scale.
         '''
         plt.ylabel("loss")
         plt.xlabel("learning rate (log scale)")
-        plt.plot(self.lrs[n_skip:-(n_skip_end+1)], self.losses[n_skip:-(n_skip_end+1)])
+        plt.plot(self.lrs[n_skip:-(n_skip_end + 1)], self.losses[n_skip:-(n_skip_end + 1)])
         plt.xscale('log')
         plt.show()
 
@@ -215,6 +220,7 @@ class LR_Finder2(LR_Finder):
         an epoch but a fixed num of iterations (which may be more or less than an epoch
         depending on your data).
     """
+
     def __init__(self, layer_opt, nb, end_lr=10, linear=False, metrics=[], stop_dv=True):
         self.nb, self.metrics = nb, metrics
         super().__init__(layer_opt, nb, end_lr, linear, metrics)
@@ -247,6 +253,7 @@ class LR_Finder2(LR_Finder):
 
 class CosAnneal(LR_Updater):
     ''' Learning rate scheduler that inpelements a cosine annealation schedule. '''
+
     def __init__(self, layer_opt, nb, on_cycle_end=None, cycle_mult=1):
         self.nb, self.on_cycle_end, self.cycle_mult = nb, on_cycle_end, cycle_mult
         super().__init__(layer_opt)
@@ -272,9 +279,10 @@ class CosAnneal(LR_Updater):
 
 class CircularLR(LR_Updater):
     '''
-    An learning rate updater that implements the CirularLearningRate (CLR) scheme. 
-    Learning rate is increased then decreased linearly. 
+    An learning rate updater that implements the CirularLearningRate (CLR) scheme.
+    Learning rate is increased then decreased linearly.
     '''
+
     def __init__(self, layer_opt, nb, div=4, cut_div=8, on_cycle_end=None, momentums=None):
         self.nb, self.div, self.cut_div, self.on_cycle_end = nb, div, cut_div, on_cycle_end
         if momentums is not None:
@@ -508,9 +516,10 @@ class DecayScheduler():
 
 class TrainingPhase():
     '''
-    Object with training information for each phase, when multiple phases are involved during training.  
+    Object with training information for each phase, when multiple phases are involved during training.
     Used in fit_opt_sched in learner.py
     '''
+
     def __init__(self, epochs=1, opt_fn=optim.SGD, lr=1e-2, lr_decay=DecayType.NO, momentum=0.9,
                 momentum_decay=DecayType.NO, beta=None, wds=None, wd_loss=True):
         """
@@ -547,11 +556,11 @@ class TrainingPhase():
         self.layer_opt.set_mom(start_mom)
         if self.beta is not None: self.layer_opt.set_beta(self.beta)
         if self.wds is not None:
-            if not isinstance(self.wds, Iterable): self.wds=[self.wds]
-            if len(self.wds)==1: self.wds=self.wds*len(self.layer_opt.layer_groups) 
+            if not isinstance(self.wds, Iterable): self.wds = [self.wds]
+            if len(self.wds) == 1: self.wds = self.wds * len(self.layer_opt.layer_groups)
             if self.wd_loss: self.layer_opt.set_wds(self.wds)
             else: self.layer_opt.set_wds([0] * len(self.wds))
-    
+
     def on_batch_begin(self):
         if not self.wd_loss: self.param_groups_old = copy.deepcopy(self.layer_opt.opt.param_groups)
 
@@ -560,13 +569,14 @@ class TrainingPhase():
         self.layer_opt.set_lrs(new_lr)
         self.layer_opt.set_mom(new_mom)
         if not self.wd_loss: # Decay the weights outside of the loss
-            if not isinstance(new_lr, Iterable): new_lr=[new_lr]
-            if len(new_lr)==1: new_lr=new_lr*len(self.layer_opt.layer_groups)
+            if not isinstance(new_lr, Iterable): new_lr = [new_lr]
+            if len(new_lr) == 1: new_lr = new_lr * len(self.layer_opt.layer_groups)
             for group, group_old, wds, lr in zip(self.layer_opt.opt.param_groups, self.param_groups_old, self.wds, new_lr):
                 for p, p_old in zip(group['params'], group_old['params']):
                     if p.grad is None: continue
-                    p.data = p.data.add(-wds*lr, p_old.data)
-    
+                    p.data = p.data.add(-wds * lr, p_old.data)
+
+
 class OptimScheduler(LossRecorder):
     '''Learning rate Scheduler for training involving multiple phases.'''
 
@@ -577,7 +587,7 @@ class OptimScheduler(LossRecorder):
     def on_train_begin(self):
         super().on_train_begin()
         self.phase, self.best = 0, 1e9
-    
+
     def on_batch_begin(self):
         self.phases[self.phase].on_batch_begin()
         super().on_batch_begin()
@@ -623,7 +633,7 @@ class OptimScheduler(LossRecorder):
                     draw_text(axs[k], (phase_limits[i] + phase_limits[i + 1]) / 2, text)
         if not in_ipynb():
             plt.savefig(os.path.join(self.save_path, 'lr_plot.png'))
-    
+
     def plot(self, n_skip=10, n_skip_end=5, linear=None):
         if linear is None: linear = self.phases[-1].lr_decay == DecayType.LINEAR
         plt.ylabel("loss")
