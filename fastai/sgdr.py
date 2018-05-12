@@ -81,7 +81,6 @@ class LossRecorder(Callback):
         self.layer_opt = layer_opt
         self.init_lrs = np.array(layer_opt.lrs)
         self.save_path, self.record_mom, self.metrics = save_path, record_mom, metrics
-        self.losses, self.lrs, self.iterations = [], [], []
 
     def on_train_begin(self):
         self.losses, self.lrs, self.iterations = [], [], []
@@ -117,7 +116,6 @@ class LossRecorder(Callback):
         '''
         if not in_ipynb(): plt.switch_backend('agg')
         plt.plot(self.iterations[n_skip:-n_skip_end], self.losses[n_skip:-n_skip_end])
-        plt.show()
         if not in_ipynb():
             plt.savefig(os.path.join(self.save_path, 'loss_plot.png'))
             np.save(os.path.join(self.save_path, 'losses.npy'), self.losses[10:])
@@ -137,7 +135,6 @@ class LossRecorder(Callback):
             plt.xlabel("iterations")
             plt.ylabel("learning rate")
             plt.plot(self.iterations, self.lrs)
-        plt.show()
         if not in_ipynb():
             plt.savefig(os.path.join(self.save_path, 'lr_plot.png'))
 
@@ -212,7 +209,6 @@ class LR_Finder(LR_Updater):
         plt.xlabel("learning rate (log scale)")
         plt.plot(self.lrs[n_skip:-(n_skip_end + 1)], self.losses[n_skip:-(n_skip_end + 1)])
         plt.xscale('log')
-        plt.show()
 
 class LR_Finder2(LR_Finder):
     """
@@ -249,7 +245,6 @@ class LR_Finder2(LR_Finder):
         plt_val_l = smooth_curve(self.val_losses, 0.98) if smoothed else self.val_losses
         axs[0].plot(self.lrs[n_skip:-n_skip_end], self.losses[n_skip:-n_skip_end])
         axs[1].plot(self.lrs[n_skip:-n_skip_end], plt_val_l[n_skip:-n_skip_end])
-        plt.show()
 
 class CosAnneal(LR_Updater):
     ''' Learning rate scheduler that inpelements a cosine annealation schedule. '''
