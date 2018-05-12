@@ -1,6 +1,5 @@
 from .imports import *
 from .torch_imports import *
-from sklearn.metrics import confusion_matrix
 
 def ceildiv(a, b):
     return -(-a // b)
@@ -62,7 +61,6 @@ def plot_confusion_matrix(cm, classes, normalize=False, title='Confusion matrix'
     plt.tight_layout()
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
-    plt.show()
 
 def plots_raw(ims, figsize=(12, 6), rows=1, titles=None):
     f = plt.figure(figsize=figsize)
