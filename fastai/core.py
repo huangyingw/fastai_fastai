@@ -167,3 +167,6 @@ def chunk_iter(iterable, chunk_size):
             if chunk: yield chunk
             break
 
+def set_grad_enabled(mode): return torch.set_grad_enabled(mode) if IS_TORCH_04 else contextlib.suppress()
+
+def no_grad_context(): return torch.no_grad() if IS_TORCH_04 else contextlib.suppress()
