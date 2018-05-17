@@ -12,6 +12,9 @@
 */.ipynb_checkpoints
 */data
 .git
+build
+dist
+fastai.egg-info
 fastai/weights
 setup
 srts
