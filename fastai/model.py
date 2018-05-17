@@ -61,7 +61,7 @@ class Stepper():
         if self.clip:   # Gradient clipping
             if IS_TORCH_04: nn.utils.clip_grad_norm_(trainable_params_(self.m), self.clip)
             else: nn.utils.clip_grad_norm(trainable_params_(self.m), self.clip)
-        if 'wd' in self.opt.param_groups and self.opt.param_groups['wd'] != 0: 
+        if 'wd' in self.opt.param_groups and self.opt.param_groups['wd'] != 0:
             #Weight decay out of the loss. After the gradient computation but before the step.
             for group in self.opt.param_groups:
                 lr, wd = group['lr'], group['wd']
@@ -202,10 +202,10 @@ def validate_next(stepper, metrics, val_iter):
     """Computes the loss on the next minibatch of the validation set."""
     stepper.reset(False)
     with no_grad_context():
-        (*x,y) = val_iter.next()
-        preds,l = stepper.evaluate(VV(x), VV(y))
+        (*x, y) = val_iter.next()
+        preds, l = stepper.evaluate(VV(x), VV(y))
         res = [to_np(l)[0]]
-        res += [f(preds.data,y) for f in metrics]
+        res += [f(preds.data, y) for f in metrics]
     stepper.reset(True)
     return res
 
