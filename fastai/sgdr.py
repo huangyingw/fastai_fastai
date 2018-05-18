@@ -135,6 +135,7 @@ class LossRecorder(Callback):
             plt.xlabel("iterations")
             plt.ylabel("learning rate")
             plt.plot(self.iterations, self.lrs)
+            plt.show()
         if not in_ipynb():
             plt.savefig(os.path.join(self.save_path, 'lr_plot.png'))
 

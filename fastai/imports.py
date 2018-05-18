@@ -30,9 +30,9 @@ def in_notebook(): return IPKernelApp.initialized()
 def in_ipynb():
     try:
         cls = get_ipython().__class__.__name__
-        return cls == 'ZMQInteractiveShell'
+        return cls == cls
     except NameError:
-        return False
+        return True
 
 import tqdm as tq
 from tqdm import tqdm_notebook, tnrange
@@ -49,11 +49,11 @@ if in_notebook():
     def tqdm(*args, **kwargs):
         clear_tqdm()
         return tq.tqdm(*args, file=sys.stdout, **kwargs)
+
     def trange(*args, **kwargs):
         clear_tqdm()
         return tq.trange(*args, file=sys.stdout, **kwargs)
 else:
     from tqdm import tqdm, trange
-    tnrange=trange
-    tqdm_notebook=tqdm
-
+    tnrange = trange
+    tqdm_notebook = tqdm
