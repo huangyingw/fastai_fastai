@@ -1,7 +1,6 @@
 from .imports import *
 from .layer_optimizer import *
 from enum import IntEnum
-import copy
 
 
 class Callback:
@@ -119,6 +118,7 @@ class LossRecorder(Callback):
         if not in_ipynb():
             plt.savefig(os.path.join(self.save_path, 'loss_plot.png'))
             np.save(os.path.join(self.save_path, 'losses.npy'), self.losses[10:])
+        plt.show()
 
     def plot_lr(self):
         '''Plots learning rate in jupyter notebook or console, depending on the enviroment of the learner.'''
@@ -135,9 +135,9 @@ class LossRecorder(Callback):
             plt.xlabel("iterations")
             plt.ylabel("learning rate")
             plt.plot(self.iterations, self.lrs)
-            plt.show()
         if not in_ipynb():
             plt.savefig(os.path.join(self.save_path, 'lr_plot.png'))
+        plt.show()
 
     def state_dict(self):
         """Returns the state of the scheduler as a :class:`dict`.
@@ -226,6 +226,7 @@ class LR_Finder(LR_Updater):
         plt.xlabel("learning rate (log scale)")
         plt.plot(self.lrs[n_skip:-(n_skip_end + 1)], self.losses[n_skip:-(n_skip_end + 1)])
         plt.xscale('log')
+        plt.show()
 
 class LR_Finder2(LR_Finder):
     """
@@ -627,6 +628,7 @@ class OptimScheduler(LossRecorder):
         else:
             plt.xlabel("learning rate (log scale)")
             plt.xscale('log')
+        plt.show()
 
 def draw_line(ax, x):
     xmin, xmax, ymin, ymax = ax.axis()
