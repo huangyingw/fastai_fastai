@@ -43,16 +43,16 @@
 
 # code notebooks strip out
 [filter "fastai-nbstripout-code"]
-        clean = tools/fastai-nbstripout
-        smudge = cat
-        required = true
+    clean = tools/fastai-nbstripout
+    smudge = cat
+    required = true
 [diff "ipynb-code"]
-        textconv = tools/fastai-nbstripout -t
+    textconv = tools/fastai-nbstripout -t
 
 # docs notebooks strip out
 [filter "fastai-nbstripout-docs"]
-        clean = tools/fastai-nbstripout -d
-        smudge = cat
-        required = true
+    clean = tools/fastai-nbstripout -d
+    smudge = cat
+    required = true
 [diff "ipynb-docs"]
-        textconv = tools/fastai-nbstripout -dt
+    textconv = tools/fastai-nbstripout -dt
