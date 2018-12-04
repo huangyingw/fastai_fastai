@@ -459,7 +459,7 @@
 "./prunefix.conf"
 "./python.tpl"
 "./requirements.txt"
-"./run.sh"
+"./run.rsh"
 "./running.lck"
 "./running.time"
 "./setup.cfg"

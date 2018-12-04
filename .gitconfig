@@ -13,6 +13,10 @@
     message = n
 [vrun]
     silent = false
+    async = false
+[deploy]
+    host = server
+    path = ~/myproject/git/AI/fastai/fastai
 [branch "dev"]
     remote = github
     merge = refs/heads/dev
