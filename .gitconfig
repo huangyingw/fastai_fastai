@@ -1,13 +1,13 @@
-[remote "fastai"]
+[remote "origin"]
     url = https://github.com/fastai/fastai.git
-    fetch = +refs/heads/*:refs/remotes/fastai/*
+    fetch = +refs/heads/*:refs/remotes/origin/*
 [remote "github"]
     url = git@github.com:huangyingw/fastai.git
     fetch = +refs/heads/*:refs/remotes/github/*
 [push]
     remote = github
 [gsync]
-    remote = fastai
+    remote = origin
     branch = master
 [commit]
     message = n
