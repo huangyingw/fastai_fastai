@@ -39,7 +39,7 @@ tfms = tfms_from_model(
 def learn1():
     data = ImageClassifierData.from_paths(PATH, tfms=tfms)
     learn = ConvLearner.pretrained(arch, data, precompute=True)
-    learn.fit(1e-2, 1, saved_model_name='lesson1_1e-2')
+    learn.fit(1e-2, 1, saved_model_name='save_restore')
     learn.sched.plot_lr()
 
 learn1()
