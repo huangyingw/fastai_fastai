@@ -27,7 +27,6 @@ class DeviceDataLoader():
     device: torch.device
     tfms: List[Callable]=None
     collate_fn: Callable=data_collate
-    skip_size1:bool=False
     def __post_init__(self):
         self.dl.collate_fn=self.collate_fn
         self.tfms = listify(self.tfms)
@@ -47,14 +46,18 @@ class DeviceDataLoader():
     @num_workers.setter
     def num_workers(self,v): self.dl.num_workers = v
 
-    def add_tfm(self,tfm:Callable)->None:    self.tfms.append(tfm)
-    def remove_tfm(self,tfm:Callable)->None: self.tfms.remove(tfm)
+    def add_tfm(self,tfm:Callable)->None:    
+        "Add `tfm` to `self.tfms`."
+        self.tfms.append(tfm)
+    def remove_tfm(self,tfm:Callable)->None: 
+        "Remove `tfm` from `self.tfms`."
+        self.tfms.remove(tfm)
 
     def new(self, **kwargs):
         "Create a new copy of `self` with `kwargs` replacing current values."
         new_kwargs = {**self.dl.init_kwargs, **kwargs}
         return DeviceDataLoader(DataLoader(self.dl.dataset, **new_kwargs), self.device, self.tfms,
-                                self.collate_fn, self.skip_size1)
+                                self.collate_fn)
 
     def proc_batch(self,b:Tensor)->Tensor:
         "Proces batch `b` of `TensorImage`."
@@ -64,22 +67,21 @@ class DeviceDataLoader():
 
     def __iter__(self):
         "Process and returns items from `DataLoader`."
-        assert not self.skip_size1 or self.batch_size > 1, "Batch size cannot be one if skip_size1 is set to True"
         for b in self.dl:
             y = b[1][0] if is_listy(b[1]) else b[1]
-            if not self.skip_size1 or y.size(0) != 1: yield self.proc_batch(b)
+            yield self.proc_batch(b)
 
     @classmethod
     def create(cls, dataset:Dataset, bs:int=64, shuffle:bool=False, device:torch.device=defaults.device,
                tfms:Collection[Callable]=tfms, num_workers:int=defaults.cpus, collate_fn:Callable=data_collate, **kwargs:Any):
-        "Create DeviceDataLoader from `dataset` with `batch_size` and `shuffle`: processs using `num_workers`."
+        "Create DeviceDataLoader from `dataset` with `bs` and `shuffle`: processs using `num_workers`."
         return cls(DataLoader(dataset, batch_size=bs, shuffle=shuffle, num_workers=num_workers, **kwargs),
                    device=device, tfms=tfms, collate_fn=collate_fn)
 
 class DataBunch():
+    "Bind `train_dl`,`valid_dl` and `test_dl` in a a data object."
     _batch_first=True
 
-    "Bind `train_dl`,`valid_dl` and`test_dl` to `device`. tfms are DL tfms (normalize). `path` is for models."
     def __init__(self, train_dl:DataLoader, valid_dl:DataLoader, test_dl:Optional[DataLoader]=None,
                  device:torch.device=None, tfms:Optional[Collection[Callable]]=None, path:PathOrStr='.',
                  collate_fn:Callable=data_collate):
@@ -88,7 +90,7 @@ class DataBunch():
         assert not isinstance(train_dl,DeviceDataLoader)
         def _create_dl(dl, **kwargs):
             return DeviceDataLoader(dl, self.device, self.tfms, collate_fn, **kwargs)
-        self.train_dl = _create_dl(train_dl, skip_size1=True)
+        self.train_dl = _create_dl(train_dl)
         self.valid_dl = _create_dl(valid_dl)
         self.single_dl = _create_dl(DataLoader(valid_dl.dataset, batch_size=1, num_workers=0))
         self.test_dl  = _create_dl(test_dl) if test_dl is not None else None
@@ -101,11 +103,11 @@ class DataBunch():
     def create(cls, train_ds:Dataset, valid_ds:Dataset, test_ds:Dataset=None, path:PathOrStr='.', bs:int=64,
                num_workers:int=defaults.cpus, tfms:Optional[Collection[Callable]]=None, device:torch.device=None,
                collate_fn:Callable=data_collate)->'DataBunch':
-        "`DataBunch` factory. `bs` batch size, `tfms` for `Dataset`, `tfms` for `DataLoader`."
+        "Create a `DataBunch` from `train_ds`, `valid_ds` and maybe `test_ds` with a batch size of `bs`."
         datasets = [train_ds,valid_ds]
         if test_ds is not None: datasets.append(test_ds)
         val_bs = bs
-        dls = [DataLoader(*o, num_workers=num_workers) for o in
+        dls = [DataLoader(d, b, shuffle=s, drop_last=(s and b>1), num_workers=num_workers) for d,b,s in
                zip(datasets, (bs,val_bs,val_bs), (True,False,False))]
         return cls(*dls, path=path, device=device, tfms=tfms, collate_fn=collate_fn)
 
@@ -137,7 +139,7 @@ class DataBunch():
         norm = getattr(self,'norm',False)
         if denorm and norm:
             x = self.denorm(x)
-            if norm.keywords.get('do_y',False): y = self.denorm(y)
+            if norm.keywords.get('do_y',False): y = self.denorm(y, do_x=True)
         return x,y
 
     def one_item(self, item, detach:bool=False, denorm:bool=False):
@@ -158,6 +160,7 @@ class DataBunch():
         self.train_ds.x.show_xys(xs, ys, **kwargs)
 
     def export(self, fname:str='export.pkl'):
+        "Export the minimal state of `self` for inference in `self.path/fname`."
         self.valid_ds.export(self.path/fname)
 
     @property

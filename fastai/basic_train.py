@@ -284,8 +284,8 @@ class Learner():
         if norm:
             x = self.data.denorm(x)
             if norm.keywords.get('do_y',True):
-                y     = self.data.denorm(y)
-                preds = self.data.denorm(preds)
+                y     = self.data.denorm(y, do_x=True)
+                preds = self.data.denorm(preds, do_x=True)
         analyze_kwargs,kwargs = split_kwargs_by_func(kwargs, ds.y.analyze_pred)
         preds = [ds.y.analyze_pred(grab_idx(preds, i), **analyze_kwargs) for i in range(rows)]
         xs = [ds.x.reconstruct(grab_idx(x, i, self.data._batch_first)) for i in range(rows)]
@@ -306,8 +306,9 @@ class RecordOnCPU(Callback):
 class LearnerCallback(Callback):
     "Base class for creating callbacks for a `Learner`."
     learn: Learner
-    def __post_init__(self):
-        if self.cb_name: setattr(self.learn, self.cb_name, self)
+    def __post_init__(self): setattr(self.learn, self.cb_name, self)
+
+    def __getattr__(self,k): return getattr(self.learn, k)
 
     @property
     def cb_name(self): return camel2snake(self.__class__.__name__)
@@ -327,7 +328,7 @@ class Recorder(LearnerCallback):
         self.names = ['epoch', 'train_loss'] if self.no_val else ['epoch', 'train_loss', 'valid_loss']
         self.names += metrics_names
         if hasattr(self, '_added_met_names'): self.names += self._added_met_names
-        self.pbar.write('  '.join(self.names), table=True)
+        self.pbar.write(self.names, table=True)
         self.losses,self.val_losses,self.lrs,self.moms,self.metrics,self.nb_batches = [],[],[],[],[],[]
 
     def on_batch_begin(self, train, **kwargs:Any)->None:
@@ -358,10 +359,8 @@ class Recorder(LearnerCallback):
         "Format stats before printing."
         str_stats = []
         for name,stat in zip(self.names,stats):
-            t = '' if stat is None else str(stat) if isinstance(stat, int) else f'{stat:.6f}'
-            t += ' ' * (len(name) - len(t))
-            str_stats.append(t)
-        self.pbar.write('  '.join(str_stats), table=True)
+            str_stats.append('' if stat is None else str(stat) if isinstance(stat, int) else f'{stat:.6f}')
+        self.pbar.write(str_stats, table=True)
 
     def add_metrics(self, metrics):
         "Add `metrics` to the inner stats."

@@ -16,14 +16,16 @@ def _get_files(parent, p, f, extensions):
            and (extensions is None or f'.{o.split(".")[-1].lower()}' in extensions)]
     return res
 
-def get_files(path:PathOrStr, extensions:Collection[str]=None, recurse:bool=False)->FilePathList:
-    "Return list of files in `path` that have a suffix in `extensions`. `recurse` determines if we search subfolders."
+def get_files(path:PathOrStr, extensions:Collection[str]=None, recurse:bool=False,
+              include:Optional[Collection[str]]=None)->FilePathList:
+    "Return list of files in `path` that have a suffix in `extensions`; optionally `recurse`."
     if recurse:
         res = []
         for p,d,f in os.walk(path):
-                # skip hidden dirs
-                d[:] = [o for o in d if not o.startswith('.')]
-                res += _get_files(path, p, f, extensions)
+            # skip hidden dirs
+            if include is not None: d[:] = [o for o in d if o in include]
+            else:                   d[:] = [o for o in d if not o.startswith('.')]
+            res += _get_files(path, p, f, extensions)
         return res
     else:
         f = [o.name for o in os.scandir(path) if o.is_file()]
@@ -91,10 +93,11 @@ class ItemList():
         else: return self.new(self.items[idxs], xtra=index_row(self.xtra, idxs))
 
     @classmethod
-    def from_folder(cls, path:PathOrStr, extensions:Collection[str]=None, recurse=True, **kwargs)->'ItemList':
+    def from_folder(cls, path:PathOrStr, extensions:Collection[str]=None, recurse=True,
+                    include:Optional[Collection[str]]=None, **kwargs)->'ItemList':
         "Create an `ItemList` in `path` from the filenames that have a suffix in `extensions`. `recurse` determines if we search subfolders."
         path = Path(path)
-        return cls(get_files(path, extensions, recurse=recurse), path=path, **kwargs)
+        return cls(get_files(path, extensions, recurse=recurse, include=include), path=path, **kwargs)
 
     @classmethod
     def from_df(cls, df:DataFrame, path:PathOrStr='.', cols:IntsOrStrs=0, **kwargs)->'ItemList':
@@ -260,7 +263,10 @@ class CategoryProcessor(PreProcessor):
         "Generate classes from `items` by taking the sorted unique values."
         return uniqueify(items)
 
-    def process_one(self,item): return self.c2i.get(item,None)
+    def process_one(self,item): 
+        try: return self.c2i.get(item)
+        except: 
+            raise Exception("Your validation data contains a label that isn't present in the training set, please fix your data.")
 
     def process(self, ds):
         if self.classes is None: self.create_classes(self.generate_classes(ds.items))
@@ -431,7 +437,7 @@ class LabelLists(ItemLists):
         return self
 
     def add_test_folder(self, test_folder:str='test', label:Any=None):
-        "Add test set containing items from `test_folder` and an arbitrary `label`."
+        "Add test set containing items from `test_folder` and an arbitrary `label`. No labels will be collected if available. Instead, either the passed `label` or a first label from train_ds will be used for all entries. If you want to use the test dataset with labels, you probably need to use it as a valid set, via split_by_folder(train='train', valid='test')"
         items = self.x.__class__.from_folder(self.path/test_folder)
         return self.add_test(items.items, label=label)
 
@@ -514,12 +520,6 @@ class LabelList(Dataset):
             if filt.sum()>0: self.x,self.y = self.x[~filt],self.y[~filt]
         self.x.process(xp)
         return self
-
-    @classmethod
-    def from_lists(cls, path:PathOrStr, inputs, labels)->'LabelList':
-        "Create a `LabelList` in `path` with `inputs` and `labels`."
-        inputs,labels = np.array(inputs),np.array(labels)
-        return cls(np.concatenate([inputs[:,None], labels[:,None]], 1), path)
 
     def transform(self, tfms:TfmList, tfm_y:bool=None, **kwargs):
         "Set the `tfms` and `tfm_y` value to be applied to the inputs and targets."

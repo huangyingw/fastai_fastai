@@ -11,18 +11,33 @@ Github. Parentheses after an item show the name or github id of the contributor
 of that change.
 
 
-## 1.0.33.dev0 (Work In Progress)
+
+
+## 1.0.34.dev0 (Work In Progress)
 
 ### New:
 
 ### Changed:
 
+### Fixed:
+
+
+
+## 1.0.33 (2018-12-05)
+
+### New:
+
+- `Learner.interpret` is a shortcut to `ClassificationLearner.from_learner`.
+
+### Changed:
+
 - Language models now use flattened loss, instead of flattening y in data loader
+- `ItemList.from_folder` now has an `include` parameter to only include certain folders
 
 ### Fixed:
 
-- `Learner.load` won't throw an error when trying to load an optimizer state of the wrong size, and silently ignore that optimizer state loading
-
+- `Learner.load` won't throw an error when trying to load an optimizer state of
+  the wrong size, and silently ignore that optimizer state loading
 
 
 ## 1.0.32 (2018-12-02)

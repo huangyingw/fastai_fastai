@@ -63,12 +63,12 @@ def create_cnn(data:DataBunch, arch:Callable, cut:Union[int,Callable]=None, pret
 
 def unet_learner(data:DataBunch, arch:Callable, pretrained:bool=True, blur_final:bool=True,
                  norm_type:Optional[NormType]=NormType, split_on:Optional[SplitFuncOrIdxList]=None, blur:bool=False,
-                 **kwargs:Any)->None:
+                 self_attention:bool=False, **kwargs:Any)->None:
     "Build Unet learners. `kwargs` are passed down to `conv_layer`."
     meta = cnn_config(arch)
     body = create_body(arch(pretrained), meta['cut'])
     model = to_device(models.unet.DynamicUnet(body, n_classes=data.c, blur=blur, blur_final=blur_final,
-                                              norm_type=norm_type), data.device)
+                                              self_attention=self_attention, norm_type=norm_type), data.device)
     learn = Learner(data, model, **kwargs)
     learn.split(ifnone(split_on,meta['split']))
     if pretrained: learn.freeze()
@@ -146,6 +146,11 @@ class ClassificationInterpretation():
                 for i,j in zip(*np.where(cm>min_val))]
         return sorted(res, key=itemgetter(2), reverse=True)
 
+def _learner_interpret(learn:Learner, ds_type:DatasetType=DatasetType.Valid, tta=False):
+    "a shortcut for getting the ClassificationInterpretation object from learner"
+    return ClassificationInterpretation.from_learner(learn, ds_type=ds_type, tta=tta)
+Learner.interpret = _learner_interpret
+
 class GANLearner(Learner):
     "`Learner` overwriting `predict` and `show_results` for GANs."
     def add_gan_trainer(self, cb):
@@ -167,10 +172,10 @@ class GANLearner(Learner):
         xs = [self.data.train_ds.x.reconstruct(o) for o in out[:rows*rows]]
         self.data.train_ds.x.show_xys(xs, [EmptyLabel()] * (rows*rows))
 
-def gan_learner(data, generator, discriminator, loss_funcD=None, loss_funcG=None, noise_size:int=None, wgan:bool=False,
+def gan_learner(data, generator, critic, loss_funcD=None, loss_funcG=None, noise_size:int=None, wgan:bool=False,
                 **kwargs):
-    "Create a `GANLearner` from `data` with a `generator` and a `discriminator`."
-    gan = models.GAN(generator, discriminator)
+    "Create a `GANLearner` from `data` with a `generator` and a `critic`."
+    gan = models.GAN(generator, critic)
     learn = GANLearner(data, gan, loss_func=NoopLoss(), **kwargs)
     if wgan: loss_funcD,loss_funcG = WassersteinLoss(),NoopLoss()
     if noise_size is None: cb = GANTrainer(learn, loss_funcD, loss_funcG)
