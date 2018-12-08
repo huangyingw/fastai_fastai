@@ -1,25 +1,3 @@
-[remote "origin"]
-    url = https://github.com/fastai/fastai.git
-    fetch = +refs/heads/*:refs/remotes/origin/*
-[remote "github"]
-    url = git@github.com:huangyingw/fastai.git
-    fetch = +refs/heads/*:refs/remotes/github/*
-[push]
-    remote = github
-[gsync]
-    remote = origin
-    branch = master
-[commit]
-    message = n
-[vrun]
-    silent = false
-    async = false
-[deploy]
-    host = server
-    path = ~/myproject/git/AI/fastai/fastai
-[branch "dev"]
-    remote = github
-    merge = refs/heads/dev
 # You need to enable this configuration once after checking out the repo
 # for the first time (assuming you checked it out into fastai/ dir):
 #
@@ -60,3 +38,26 @@
     required = true
 [diff "ipynb-docs"]
     textconv = tools/fastai-nbstripout -dt
+
+[remote "origin"]
+    url = https://github.com/fastai/fastai.git
+    fetch = +refs/heads/*:refs/remotes/origin/*
+[remote "github"]
+    url = git@github.com:huangyingw/fastai.git
+    fetch = +refs/heads/*:refs/remotes/github/*
+[push]
+    remote = github
+[gsync]
+    remote = origin
+    branch = master
+[commit]
+    message = n
+[vrun]
+    silent = false
+    async = false
+[deploy]
+    host = server
+    path = ~/myproject/git/AI/fastai/fastai
+[branch "dev"]
+    remote = github
+    merge = refs/heads/dev
