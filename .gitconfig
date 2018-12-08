@@ -61,3 +61,22 @@
 [branch "dev"]
     remote = github
     merge = refs/heads/dev
+[gdif]
+    ignore = .gitmodules
+    ignore = convert.sh
+    ignore = copy.sh
+    ignore = courses/dl1/*.py
+    ignore = courses/dl1/lesson1_notes.pdf
+    ignore = courses/dl2/*.py
+    ignore = courses/ml1/*.py
+    ignore = deploy.list
+    ignore = deploy.sh
+    ignore = docs/expand_adoc_templ.py
+    ignore = excludeFile
+    ignore = gme.default
+    ignore = install_fastai.sh
+    ignore = old/tutorials/linalg_pytorch.py
+    ignore = old/tutorials/meanshift.py
+    ignore = python.tpl
+    ignore = run.rsh
+    ignore = srts/*.srt
