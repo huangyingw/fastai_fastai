@@ -16,7 +16,9 @@ sl = 1000
 vocab_size = 200000
 
 
-PATH = '/data2/datasets/part1/arxiv/arxiv.csv'
+PATH = 'data/arxiv/arxiv.csv'
+
+# You can download a similar to Jeremy's original arxiv.csv here: https://drive.google.com/file/d/0B34BjUTAgwm6SzdPWDAtVG1vWVU/. It comes from this article https://hackernoon.com/building-brundage-bot-10252facf3d1 and github https://github.com/amauboussin/arxiv-twitterbot, just rename it to arxiv.csv
 
 df = pd.read_csv(PATH)
 df.head()

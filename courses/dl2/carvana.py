@@ -87,7 +87,7 @@ def resize_mask(fn):
     Image.open(fn).resize((128, 128)).save((fn.parent.parent) / 'train_masks-128' / fn.name)
 
 files = list((PATH / 'train_masks_png').iterdir())
-with ThreadPoolExecutor(8) as e: e.map(resize_img, files)
+with ThreadPoolExecutor(8) as e: e.map(resize_mask, files)
 
 
 (PATH / 'train-128').mkdir(exist_ok=True)

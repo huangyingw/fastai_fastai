@@ -8,9 +8,15 @@ get_ipython().run_line_magic('autoreload', '2')
 
 from fastai.conv_learner import *
 from fastai.dataset import *
+from fastai.models.resnet import vgg_resnet50
 
-from pathlib import Path
 import json
+
+
+torch.cuda.set_device(2)
+
+
+torch.backends.cudnn.benchmark = True
 
 
 # ## Data
@@ -36,6 +42,13 @@ bs = 64
 nw = 16
 
 
+TRAIN_DN = 'train'
+MASKS_DN = 'train_masks_png'
+sz = 128
+bs = 64
+nw = 16
+
+
 class MatchedFilesDataset(FilesDataset):
     def __init__(self, fnames, y, transform, path):
         self.y = y
@@ -55,15 +68,21 @@ val_idxs = list(range(1008))
 ((val_x, trn_x), (val_y, trn_y)) = split_by_idx(val_idxs, x_names, y_names)
 
 
-aug_tfms = [RandomRotate(4, tfm_y=TfmType.PIXEL),
-            RandomFlip(tfm_y=TfmType.PIXEL),
-            RandomLighting(0.05, 0.05)]
+aug_tfms = [RandomRotate(4, tfm_y=TfmType.CLASS),
+            RandomFlip(tfm_y=TfmType.CLASS),
+            RandomLighting(0.05, 0.05, tfm_y=TfmType.CLASS)]
 
 
-tfms = tfms_from_model(resnet34, sz, crop_type=CropType.NO, tfm_y=TfmType.PIXEL, aug_tfms=aug_tfms)
+tfms = tfms_from_model(resnet34, sz, crop_type=CropType.NO, tfm_y=TfmType.CLASS, aug_tfms=aug_tfms)
 datasets = ImageData.get_ds(MatchedFilesDataset, (trn_x, trn_y), (val_x, val_y), tfms, path=PATH)
 md = ImageData(PATH, datasets, bs, num_workers=16, classes=None)
 denorm = md.trn_ds.denorm
+
+
+x, y = next(iter(md.trn_dl))
+
+
+x.shape, y.shape
 
 
 # ## Simple upsample
@@ -77,16 +96,9 @@ def get_base():
     return nn.Sequential(*layers)
 
 
-def mask_loss(pred, targ):
-    return F.binary_cross_entropy_with_logits(pred[:, 0], targ[..., 0])
-
-def mask_acc(pred, targ): return accuracy_multi(pred[:, 0], targ[..., 0], 0.)
-
-
 def dice(pred, targs):
-    m1 = (pred[:, 0] > 0).float()
-    m2 = targs[..., 0]
-    return 2. * (m1 * m2).sum() / (m1 + m2).sum()
+    pred = (pred > 0).float()
+    return 2. * (pred * targs).sum() / (pred + targs).sum()
 
 
 class StdUpsample(nn.Module):
@@ -102,23 +114,15 @@ class Upsample34(nn.Module):
     def __init__(self, rn):
         super().__init__()
         self.rn = rn
-        self.up1 = StdUpsample(512, 256)
-        self.up2 = StdUpsample(256, 256)
-        self.up3 = StdUpsample(256, 256)
-        self.up4 = StdUpsample(256, 256)
-        self.up5 = nn.ConvTranspose2d(256, 1, 2, stride=2)
+        self.features = nn.Sequential(
+            rn, nn.ReLU(),
+            StdUpsample(512, 256),
+            StdUpsample(256, 256),
+            StdUpsample(256, 256),
+            StdUpsample(256, 256),
+            nn.ConvTranspose2d(256, 1, 2, stride=2))
         
-    def forward(self, x):
-        x = F.relu(self.rn(x))
-        x = self.up1(x)
-        x = self.up2(x)
-        x = self.up3(x)
-        x = self.up4(x)
-        x = self.up5(x)
-        return x
-
-
-m_base = get_base()
+    def forward(self, x): return self.features(x)[:, 0]
 
 
 class UpsampleModel():
@@ -127,7 +131,10 @@ class UpsampleModel():
 
     def get_layer_groups(self, precompute):
         lgs = list(split_by_idxs(children(self.model.rn), [lr_cut]))
-        return lgs + [children(self.model)[1:]]
+        return lgs + [children(self.model.features)[1:]]
+
+
+m_base = get_base()
 
 
 m = to_gpu(Upsample34(m_base))
@@ -136,8 +143,8 @@ models = UpsampleModel(m)
 
 learn = ConvLearner(md, models)
 learn.opt_fn = optim.Adam
-learn.crit = mask_loss
-learn.metrics = [mask_acc, dice]
+learn.crit = nn.BCEWithLogitsLoss()
+learn.metrics = [accuracy_thresh(0.5), dice]
 
 
 learn.freeze_to(1)
@@ -148,9 +155,11 @@ learn.sched.plot()
 
 
 lr = 4e-2
+wd = 1e-7
+lrs = np.array([lr / 100, lr / 10, lr]) / 2
 
 
-learn.fit(lr, 1, cycle_len=4, use_clr=(20, 8))
+learn.fit(lr, 1, wds=wd, cycle_len=4, use_clr=(20, 8))
 
 
 learn.save('tmp')
@@ -161,7 +170,6 @@ learn.load('tmp')
 
 learn.unfreeze()
 learn.bn_freeze(True)
-lrs = np.array([lr / 100, lr / 10, lr]) / 2
 
 
 learn.fit(lrs, 1, cycle_len=4, use_clr=(20, 8))
@@ -170,10 +178,17 @@ learn.fit(lrs, 1, cycle_len=4, use_clr=(20, 8))
 learn.save('128')
 
 
+x, y = next(iter(md.val_dl))
+py = to_np(learn.model(V(x)))
+
+
+show_img(py[0] > 0);
+
+
+show_img(y[0]);
+
+
 # ## U-net (ish)
-
-[o.features.size() for o in m.sfs]
-
 
 class SaveFeatures():
     features = None
@@ -218,18 +233,36 @@ class Unet34(nn.Module):
         x = self.up3(x, self.sfs[1].features)
         x = self.up4(x, self.sfs[0].features)
         x = self.up5(x)
-        return x
+        return x[:, 0]
+    
+    def close(self):
+        for sf in self.sfs: sf.remove()
+
+
+class UnetModel():
+    def __init__(self, model, name='unet'):
+        self.model, self.name = model, name
+
+    def get_layer_groups(self, precompute):
+        lgs = list(split_by_idxs(children(self.model.rn), [lr_cut]))
+        return lgs + [children(self.model)[1:]]
 
 
 m_base = get_base()
 m = to_gpu(Unet34(m_base))
-models = UpsampleModel(m)
+models = UnetModel(m)
 
 
 learn = ConvLearner(md, models)
 learn.opt_fn = optim.Adam
-learn.crit = mask_loss
-learn.metrics = [mask_acc, dice]
+learn.crit = nn.BCEWithLogitsLoss()
+learn.metrics = [accuracy_thresh(0.5), dice]
+
+
+learn.summary()
+
+
+[o.features.size() for o in m.sfs]
 
 
 learn.freeze_to(1)
@@ -239,7 +272,13 @@ learn.lr_find()
 learn.sched.plot()
 
 
-learn.fit(lr, 1, cycle_len=8, use_clr=(20, 8))
+lr = 4e-2
+wd = 1e-7
+
+lrs = np.array([lr / 100, lr / 10, lr])
+
+
+learn.fit(lr, 1, wds=wd, cycle_len=8, use_clr=(5, 8))
 
 
 learn.save('128urn-tmp')
@@ -250,10 +289,9 @@ learn.load('128urn-tmp')
 
 learn.unfreeze()
 learn.bn_freeze(True)
-lrs = np.array([lr / 100, lr / 10, lr])
 
 
-learn.fit(lrs, 1, cycle_len=40, use_clr=(20, 10))
+learn.fit(lrs / 4, 1, wds=wd, cycle_len=20, use_clr=(20, 10))
 
 
 learn.save('128urn-0')
@@ -266,12 +304,13 @@ x, y = next(iter(md.val_dl))
 py = to_np(learn.model(V(x)))
 
 
-# ax = show_img(denorm(x)[0])
-show_img(py[0][0] > 0);
+show_img(py[0] > 0);
 
 
-# ax = show_img(denorm(x)[0])
-show_img(y[0, ..., -1]);
+show_img(y[0]);
+
+
+m.close()
 
 
 # ## 512x512
@@ -280,7 +319,7 @@ sz = 512
 bs = 16
 
 
-tfms = tfms_from_model(resnet34, sz, crop_type=CropType.NO, tfm_y=TfmType.PIXEL, aug_tfms=aug_tfms)
+tfms = tfms_from_model(resnet34, sz, crop_type=CropType.NO, tfm_y=TfmType.CLASS, aug_tfms=aug_tfms)
 datasets = ImageData.get_ds(MatchedFilesDataset, (trn_x, trn_y), (val_x, val_y), tfms, path=PATH)
 md = ImageData(PATH, datasets, bs, num_workers=4, classes=None)
 denorm = md.trn_ds.denorm
@@ -288,13 +327,14 @@ denorm = md.trn_ds.denorm
 
 m_base = get_base()
 m = to_gpu(Unet34(m_base))
-models = UpsampleModel(m)
+models = UnetModel(m)
 
 
 learn = ConvLearner(md, models)
 learn.opt_fn = optim.Adam
-learn.crit = mask_loss
-learn.metrics = [mask_acc, dice]
+learn.crit = nn.BCEWithLogitsLoss()
+learn.metrics = [accuracy_thresh(0.5), dice]
+
 
 learn.freeze_to(1)
 
@@ -302,7 +342,7 @@ learn.freeze_to(1)
 learn.load('128urn-0')
 
 
-learn.fit(lr, 1, cycle_len=5, use_clr=(20, 5))
+learn.fit(lr, 1, wds=wd, cycle_len=5, use_clr=(5, 5))
 
 
 learn.save('512urn-tmp')
@@ -312,7 +352,10 @@ learn.unfreeze()
 learn.bn_freeze(True)
 
 
-learn.fit(lrs, 1, cycle_len=8, use_clr=(20, 8))
+learn.load('512urn-tmp')
+
+
+learn.fit(lrs / 4, 1, wds=wd, cycle_len=8, use_clr=(20, 8))
 
 
 learn.save('512urn')
@@ -325,10 +368,13 @@ x, y = next(iter(md.val_dl))
 py = to_np(learn.model(V(x)))
 
 
-show_img(py[0][0] > 0);
+show_img(py[0] > 0);
 
 
-show_img(y[0, ..., -1]);
+show_img(y[0]);
+
+
+m.close()
 
 
 # ## 1024x1024
@@ -337,39 +383,52 @@ sz = 1024
 bs = 4
 
 
-tfms = tfms_from_model(resnet34, sz, crop_type=CropType.NO, tfm_y=TfmType.PIXEL, aug_tfms=aug_tfms)
+tfms = tfms_from_model(resnet34, sz, crop_type=CropType.NO, tfm_y=TfmType.CLASS)
 datasets = ImageData.get_ds(MatchedFilesDataset, (trn_x, trn_y), (val_x, val_y), tfms, path=PATH)
-md = ImageData(PATH, datasets, bs, num_workers=4, classes=None)
+md = ImageData(PATH, datasets, bs, num_workers=16, classes=None)
 denorm = md.trn_ds.denorm
 
 
 m_base = get_base()
 m = to_gpu(Unet34(m_base))
-models = UpsampleModel(m)
+models = UnetModel(m)
 
 
 learn = ConvLearner(md, models)
 learn.opt_fn = optim.Adam
-learn.crit = mask_loss
-learn.metrics = [mask_acc, dice]
-
-learn.freeze_to(1)
+learn.crit = nn.BCEWithLogitsLoss()
+learn.metrics = [accuracy_thresh(0.5), dice]
 
 
 learn.load('512urn')
 
 
-learn.fit(lr, 1, cycle_len=2, use_clr=(20, 4))
+learn.freeze_to(1)
+
+
+learn.fit(lr, 1, wds=wd, cycle_len=2, use_clr=(5, 4))
 
 
 learn.save('1024urn-tmp')
+
+
+learn.load('1024urn-tmp')
 
 
 learn.unfreeze()
 learn.bn_freeze(True)
 
 
-learn.fit(lrs / 2, 1, cycle_len=4, use_clr=(20, 8))
+lrs = np.array([lr / 200, lr / 30, lr])
+
+
+learn.fit(lrs / 10, 1, wds=wd, cycle_len=4, use_clr=(20, 8))
+
+
+learn.fit(lrs / 10, 1, wds=wd, cycle_len=4, use_clr=(20, 8))
+
+
+learn.sched.plot_loss()
 
 
 learn.save('1024urn')
@@ -382,7 +441,7 @@ x, y = next(iter(md.val_dl))
 py = to_np(learn.model(V(x)))
 
 
-show_img(py[0][0] > 0);
+show_img(py[0] > 0);
 
 
-show_img(y[0, ..., -1]);
+show_img(y[0]);
