@@ -138,7 +138,7 @@ get_ipython().system('ls {PATH}')
 
 # ### ...this dataset
 
-# We will be looking at the Blue Book for Bulldozers Kaggle Competition: "The goal of the contest is to predict the sale price of a particular piece of heavy equiment at auction based on it's usage, equipment type, and configuaration.  The data is sourced from auction result postings and includes information on usage and equipment configurations."
+# We will be looking at the Blue Book for Bulldozers Kaggle Competition: "The goal of the contest is to predict the sale price of a particular piece of heavy equiment at auction based on it's usage, equipment type, and configuration.  The data is sourced from auction result postings and includes information on usage and equipment configurations."
 #
 # This is a very common type of dataset and prediciton problem, and similar to what you may see in your project or workplace.
 
@@ -162,12 +162,12 @@ get_ipython().system('ls {PATH}')
 # For this competition, you are predicting the sale price of bulldozers sold at auctions. The data for this competition is split into three parts:
 #
 # - **Train.csv** is the training set, which contains data through the end of 2011.
-# - **Valid.csv** is the validation set, which contains data from January 1, 2012 - April 30, 2012 You make predictions on this set throughout the majority of the competition. Your score on this set is used to create the public leaderboard.
+# - **Valid.csv** is the validation set, which contains data from January 1, 2012 - April 30, 2012. You make predictions on this set throughout the majority of the competition. Your score on this set is used to create the public leaderboard.
 # - **Test.csv** is the test set, which won't be released until the last week of the competition. It contains data from May 1, 2012 - November 2012. Your score on the test set determines your final rank for the competition.
 #
 # The key fields are in train.csv are:
 #
-# - SalesID: the uniue identifier of the sale
+# - SalesID: the unique identifier of the sale
 # - MachineID: the unique identifier of a machine.  A machine can be sold multiple times
 # - saleprice: what the machine sold for at auction (only provided in train.csv)
 # - saledate: the date of the sale
@@ -201,6 +201,7 @@ df_raw.SalePrice = np.log(df_raw.SalePrice)
 # ### Initial processing
 
 m = RandomForestRegressor(n_jobs=-1)
+# The following code is supposed to fail due to string values in the input data
 m.fit(df_raw.drop('SalePrice', axis=1), df_raw.SalePrice)
 
 
@@ -225,10 +226,12 @@ df_raw.UsageBand.cat.categories
 df_raw.UsageBand.cat.set_categories(['High', 'Medium', 'Low'], ordered=True, inplace=True)
 
 
+# Normally, pandas will continue displaying the text categories, while treating them as numerical data internally. Optionally, we can replace the text categories with numbers, which will make this variable non-categorical, like so:.
+
 df_raw.UsageBand = df_raw.UsageBand.cat.codes
 
 
-# We're still not quite done - for instance we have lots of missing values, wish we can't pass directly to a random forest.
+# We're still not quite done - for instance we have lots of missing values, which we can't pass directly to a random forest.
 
 display_all(df_raw.isnull().sum().sort_index() / len(df_raw))
 
@@ -258,7 +261,7 @@ m.fit(df, y)
 m.score(df, y)
 
 
-# *todo* define r^2
+# In statistics, the coefficient of determination, denoted R2 or r2 and pronounced "R squared", is the proportion of the variance in the dependent variable that is predictable from the independent variable(s). https://en.wikipedia.org/wiki/Coefficient_of_determination
 
 # Wow, an r^2 of 0.98 - that's great, right? Well, perhaps not...
 #
@@ -431,9 +434,42 @@ reset_rf_samples()
 
 # Let's get a baseline for this full set to compare to.
 
+def dectree_max_depth(tree):
+    children_left = tree.children_left
+    children_right = tree.children_right
+
+    def walk(node_id):
+        if (children_left[node_id] != children_right[node_id]):
+            left_max = 1 + walk(children_left[node_id])
+            right_max = 1 + walk(children_right[node_id])
+            return max(left_max, right_max)
+        else: # leaf
+            return 1
+
+    root_node_id = 0
+    return walk(root_node_id)
+
+
 m = RandomForestRegressor(n_estimators=40, n_jobs=-1, oob_score=True)
 m.fit(X_train, y_train)
 print_score(m)
+
+
+t = m.estimators_[0].tree_
+
+
+dectree_max_depth(t)
+
+
+m = RandomForestRegressor(n_estimators=40, min_samples_leaf=5, n_jobs=-1, oob_score=True)
+m.fit(X_train, y_train)
+print_score(m)
+
+
+t = m.estimators_[0].tree_
+
+
+dectree_max_depth(t)
 
 
 # Another way to reduce over-fitting is to grow our trees less deeply. We do this by specifying (with `min_samples_leaf`) that we require some minimum number of rows in every leaf node. This has two benefits:

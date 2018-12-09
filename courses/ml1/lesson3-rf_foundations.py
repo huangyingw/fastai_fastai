@@ -20,7 +20,7 @@ from sklearn import metrics
 
 PATH = "data/bulldozers/"
 
-df_raw = pd.read_feather('tmp/raw')
+df_raw = pd.read_feather('tmp/bulldozers-raw')
 df_trn, y_trn, nas = proc_df(df_raw, 'SalePrice')
 
 
@@ -124,10 +124,10 @@ draw_tree(m.estimators_[0], x_samp, precision=2)
 def find_better_split(self, var_idx):
     x, y = self.x.values[self.idxs, var_idx], self.y[self.idxs]
 
-    for i in range(1, self.n - 1):
+    for i in range(self.n):
         lhs = x <= x[i]
         rhs = x > x[i]
-        if rhs.sum() == 0: continue
+        if rhs.sum() < self.min_leaf or lhs.sum() < self.min_leaf: continue
         lhs_std = y[lhs].std()
         rhs_std = y[rhs].std()
         curr_score = lhs_std * lhs.sum() + rhs_std * rhs.sum()
@@ -149,7 +149,7 @@ tree = TreeEnsemble(x_sub, y_train, 1, 1000).trees[0]
 
 def std_agg(cnt, s1, s2): return math.sqrt((s2 / cnt) - (s1 / cnt)**2)
 
-def find_better_split_foo(self, var_idx):
+def find_better_split(self, var_idx):
     x, y = self.x.values[self.idxs, var_idx], self.y[self.idxs]
     
     sort_idx = np.argsort(x)
@@ -157,12 +157,12 @@ def find_better_split_foo(self, var_idx):
     rhs_cnt, rhs_sum, rhs_sum2 = self.n, sort_y.sum(), (sort_y**2).sum()
     lhs_cnt, lhs_sum, lhs_sum2 = 0, 0., 0.
 
-    for i in range(0, self.n - self.min_leaf - 1):
+    for i in range(0, self.n - self.min_leaf):
         xi, yi = sort_x[i], sort_y[i]
         lhs_cnt += 1; rhs_cnt -= 1
         lhs_sum += yi; rhs_sum -= yi
         lhs_sum2 += yi**2; rhs_sum2 -= yi**2
-        if i < self.min_leaf or xi == sort_x[i + 1]:
+        if i < self.min_leaf - 1 or xi == sort_x[i + 1]:
             continue
             
         lhs_std = std_agg(lhs_cnt, lhs_sum, lhs_sum2)
@@ -172,11 +172,11 @@ def find_better_split_foo(self, var_idx):
             self.var_idx, self.score, self.split = var_idx, curr_score, xi
 
 
-get_ipython().run_line_magic('timeit', 'find_better_split_foo(tree,1)')
+get_ipython().run_line_magic('timeit', 'find_better_split(tree,1)')
 tree
 
 
-find_better_split_foo(tree, 0); tree
+find_better_split(tree, 0); tree
 
 
 DecisionTree.find_better_split = find_better_split
@@ -320,12 +320,12 @@ class DecisionTree():
         rhs_cnt, rhs_sum, rhs_sum2 = self.n, sort_y.sum(), (sort_y**2).sum()
         lhs_cnt, lhs_sum, lhs_sum2 = 0, 0., 0.
 
-        for i in range(0, self.n - self.min_leaf - 1):
+        for i in range(0, self.n - self.min_leaf):
             xi, yi = sort_x[i], sort_y[i]
             lhs_cnt += 1; rhs_cnt -= 1
             lhs_sum += yi; rhs_sum -= yi
             lhs_sum2 += yi**2; rhs_sum2 -= yi**2
-            if i < self.min_leaf or xi == sort_x[i + 1]:
+            if i < self.min_leaf - 1 or xi == sort_x[i + 1]:
                 continue
 
             lhs_std = std_agg(lhs_cnt, lhs_sum, lhs_sum2)
@@ -382,7 +382,7 @@ def fib1(n):
 get_ipython().run_cell_magic('cython', '', 'def fib2(n):\n    a, b = 0, 1\n    while b < n:\n        a, b = b, a + b')
 
 
-get_ipython().run_cell_magic('cython', '', 'def fib3(int n):\n    cdef int b = 1\n    cdef int a = 0\n    cdef int t = 0\n    while b < n:\n        t = a\n        a = b\n        b = a + b')
+get_ipython().run_cell_magic('cython', '', 'def fib3(int n):\n    cdef int b = 1\n    cdef int a = 0\n    cdef int t = 0\n    while b < n:\n        t = a\n        a = b\n        b = t + b')
 
 
 get_ipython().run_line_magic('timeit', 'fib1(50)')

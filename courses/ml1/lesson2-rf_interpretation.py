@@ -24,7 +24,7 @@ set_plot_sizes(12, 14, 16)
 
 PATH = "data/bulldozers/"
 
-df_raw = pd.read_feather('tmp/raw')
+df_raw = pd.read_feather('tmp/bulldozers-raw')
 df_trn, y_trn, nas = proc_df(df_raw, 'SalePrice')
 
 
@@ -141,6 +141,32 @@ plot_fi(fi);
 
 # ## One-hot encoding
 
+# proc_df's optional *max_n_cat* argument will turn some categorical variables into new columns.
+#
+# For example, the column **ProductSize** which has 6 categories:
+#
+# * Large
+# * Large / Medium
+# * Medium
+# * Compact
+# * Small
+# * Mini
+#
+# gets turned into 6 new columns:
+#
+# * ProductSize_Large
+# * ProductSize_Large / Medium
+# * ProductSize_Medium
+# * ProductSize_Compact
+# * ProductSize_Small
+# * ProductSize_Mini
+#
+# and the column **ProductSize** gets removed.
+#
+# It will only happen to columns whose number of categories is no bigger than the value of the *max_n_cat* argument.
+#
+# Now some of these new columns may prove to have more important features than in the earlier situation, where all categories were in one column.
+
 df_trn2, y_trn, nas = proc_df(df_raw, 'SalePrice', max_n_cat=7)
 X_train, X_valid = split_vals(df_trn2, n_trn)
 
@@ -251,9 +277,10 @@ x = get_sample(X_train[X_train.YearMade > 1930], 500)
 
 def plot_pdp(feat, clusters=None, feat_name=None):
     feat_name = feat_name or feat
-    p = pdp.pdp_isolate(m, x, feat)
+    p = pdp.pdp_isolate(m, x, x.columns, feat)
     return pdp.pdp_plot(p, feat_name, plot_lines=True,
-                        cluster=clusters is not None, n_cluster_centers=clusters)
+                        cluster=clusters is not None,
+                        n_cluster_centers=clusters)
 
 
 plot_pdp('YearMade')
@@ -263,7 +290,7 @@ plot_pdp('YearMade', clusters=5)
 
 
 feats = ['saleElapsed', 'YearMade']
-p = pdp.pdp_interact(m, x, feats)
+p = pdp.pdp_interact(m, x, x.columns, feats)
 pdp.pdp_interact_plot(p, feats)
 
 
