@@ -7,7 +7,7 @@
 #
 # **Starting point: you are incredibly fortunate to be a student in MSAN, to be a data scientist in San Francisco. You have a responsibility to not do harm with your skills.**
 
-# **Not everything your employer asks you to do may be legal.**  An engineer at Volkswagon was [sentenced to 3.5 years in prison](https://www.nytimes.com/2017/08/25/business/volkswagen-engineer-prison-diesel-cheating.html) for helping develop the software to cheat on federal emissions tests.  Your boss asking you to do something is not an excuse that will protect you in court.
+# **Not everything your employer asks you to do may be legal.**  An engineer at Volkswagen was [sentenced to 3.5 years in prison](https://www.nytimes.com/2017/08/25/business/volkswagen-engineer-prison-diesel-cheating.html) for helping develop the software to cheat on federal emissions tests.  Your boss asking you to do something is not an excuse that will protect you in court.
 
 # **Not everything that is legal is ethical.**
 

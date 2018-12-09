@@ -25,7 +25,7 @@ set_plot_sizes(12, 14, 16)
 
 PATH = "data/bulldozers/"
 
-df_raw = pd.read_feather('tmp/raw')
+df_raw = pd.read_feather('tmp/bulldozers-raw')
 
 
 df_raw['age'] = df_raw.saleYear - df_raw.YearMade
@@ -79,7 +79,7 @@ keep_cols = list(np.load('tmp/keep_cols.npy'))
 df_sub = df_raw[keep_cols + ['age', 'SalePrice']]
 
 
-df, y, mapper, nas = proc_df(df_sub, 'SalePrice', max_n_cat=10, do_scale=True)
+df, y, nas, mapper = proc_df(df_sub, 'SalePrice', max_n_cat=10, do_scale=True)
 
 
 X_train, X_valid = split_vals(df, n_trn)

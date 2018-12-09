@@ -21,7 +21,7 @@ from fastai.column_data import *
 
 dep = 'SalePrice'
 PATH = "data/bulldozers/"
-df_raw = pd.read_feather('tmp/raw')
+df_raw = pd.read_feather('tmp/bulldozers-raw')
 keep_cols = list(np.load('tmp/keep_cols.npy'))
 
 
@@ -49,7 +49,7 @@ cont_flds = [n for n in df_indep.columns if n not in cat_flds]
 
 
 df_raw = df_raw[cat_flds + cont_flds + [dep]]
-df, y, mapper = proc_df(df_raw, 'SalePrice', do_scale=True)
+df, y, nas, mapper = proc_df(df_raw, 'SalePrice', do_scale=True)
 
 val_idx = list(range(n_trn, len(df)))
 
