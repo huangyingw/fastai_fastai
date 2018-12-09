@@ -263,22 +263,22 @@ binary_loss(acts, preds)
 
 # *Fitting* is the process by which the neural net learns the best parameters for the dataset.
 
-fit(net, md, epochs=5, crit=loss, opt=opt, metrics=metrics)
+fit(net, md, n_epochs=5, crit=loss, opt=opt, metrics=metrics)
 
 
 set_lrs(opt, 1e-2)
 
 
-fit(net, md, epochs=3, crit=loss, opt=opt, metrics=metrics)
+fit(net, md, n_epochs=3, crit=loss, opt=opt, metrics=metrics)
 
 
-fit(net, md, epochs=5, crit=loss, opt=opt, metrics=metrics)
+fit(net, md, n_epochs=5, crit=loss, opt=opt, metrics=metrics)
 
 
 set_lrs(opt, 1e-2)
 
 
-fit(net, md, epochs=3, crit=loss, opt=opt, metrics=metrics)
+fit(net, md, n_epochs=3, crit=loss, opt=opt, metrics=metrics)
 
 
 t = [o.numel() for o in net.parameters()]
@@ -347,7 +347,7 @@ net2 = LogReg().cuda()
 opt = optim.Adam(net2.parameters())
 
 
-fit(net2, md, epochs=1, crit=loss, opt=opt, metrics=metrics)
+fit(net2, md, n_epochs=1, crit=loss, opt=opt, metrics=metrics)
 
 
 dl = iter(md.trn_dl)
@@ -589,7 +589,7 @@ class LogReg(nn.Module):
 net2 = LogReg().cuda()
 opt = optim.Adam(net2.parameters())
 
-fit(net2, md, epochs=1, crit=loss, opt=opt, metrics=metrics)
+fit(net2, md, n_epochs=1, crit=loss, opt=opt, metrics=metrics)
 
 
 # Above, we are using the fastai method `fit` to train our model.  Now we will try writing the training loop ourselves.

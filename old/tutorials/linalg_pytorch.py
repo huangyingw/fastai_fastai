@@ -99,6 +99,7 @@ os.makedirs(path, exist_ok=True)
 URL = 'http://deeplearning.net/data/mnist/'
 FILENAME = 'mnist.pkl.gz'
 
+
 def load_mnist(filename):
     return pickle.load(gzip.open(filename, 'rb'), encoding='latin-1')
 
@@ -135,9 +136,11 @@ get_ipython().run_line_magic('matplotlib', 'inline')
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 def show(img, title=None):
     plt.imshow(img, interpolation='none', cmap="gray")
-    if title is not None: plt.title(title)
+    if title is not None:
+        plt.title(title)
 
 
 def plots(ims, figsize=(12, 6), rows=2, titles=None):
@@ -146,7 +149,8 @@ def plots(ims, figsize=(12, 6), rows=2, titles=None):
     for i in range(len(ims)):
         sp = f.add_subplot(rows, cols, i + 1)
         sp.axis('Off')
-        if titles is not None: sp.set_title(titles[i], fontsize=16)
+        if titles is not None:
+            sp.set_title(titles[i], fontsize=16)
         plt.imshow(ims[i], interpolation='none', cmap='gray')
 
 
@@ -155,7 +159,8 @@ def plots(ims, figsize=(12, 6), rows=2, titles=None):
 x_valid.shape
 
 
-x_imgs = np.reshape(x_valid, (-1, 28, 28)); x_imgs.shape
+x_imgs = np.reshape(x_valid, (-1, 28, 28))
+x_imgs.shape
 
 
 show(x_imgs[0], y_valid[0])
@@ -283,7 +288,7 @@ opt = optim.Adam(net.parameters())
 
 # *Fitting* is the process by which the neural net learns the best parameters for the dataset.
 
-fit(net, md, epochs=1, crit=loss, opt=opt, metrics=metrics)
+fit(net, md, n_epochs=1, crit=loss, opt=opt, metrics=metrics)
 
 
 # GPUs are great at handling lots of data at once (otherwise don't get performance benefit).  We break the data up into **batches**, and that specifies how many samples from our dataset we want to send to the GPU at a time.  The fastai library defaults to a batch size of 64.  On each iteration of the training loop, the error on 1 batch of data will be calculated, and the optimizer will update the parameters based on that.
@@ -295,7 +300,7 @@ fit(net, md, epochs=1, crit=loss, opt=opt, metrics=metrics)
 preds = predict(net, md.val_dl)
 
 
-preds = preds.max(1)[1]
+preds = np.argmax(preds, axis=1)
 
 
 # Let's see how some of our preditions look!
@@ -350,12 +355,13 @@ net2 = SimpleMnist().cuda()
 opt = optim.Adam(net2.parameters())
 
 
-fit(net2, md, epochs=1, crit=loss, opt=opt, metrics=metrics)
+fit(net2, md, n_epochs=1, crit=loss, opt=opt, metrics=metrics)
 
 
 # Now we can check our predictions:
 
-preds = predict(net2, md.val_dl).max(1)[1]
+preds = predict(net2, md.val_dl)
+preds = np.argmax(preds, axis=1)
 plots(x_imgs[:8], titles=preds[:8])
 
 
@@ -416,7 +422,8 @@ a > 0
 a + 1
 
 
-m = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]]); m
+m = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+m
 
 
 m * 2
@@ -426,7 +433,8 @@ m * 2
 
 # We can also broadcast a vector to a matrix:
 
-c = np.array([10, 20, 30]); c
+c = np.array([10, 20, 30])
+c
 
 
 m + c
@@ -509,7 +517,8 @@ np.broadcast_to(c, (3, 3))
 
 # Draw a picture
 
-n = np.array([[10, 40], [20, 0], [30, -5]]); n
+n = np.array([[10, 40], [20, 0], [30, -5]])
+n
 
 
 m @ n
@@ -553,7 +562,7 @@ m @ n
 import numpy as np
 
 
-#Exercise: Use Numpy to compute the answer to the above
+# Exercise: Use Numpy to compute the answer to the above
 
 
 # #### Matrix-Matrix Products
@@ -562,7 +571,7 @@ import numpy as np
 
 # #### Answer
 
-#Exercise: Use Numpy to compute the answer to the above
+# Exercise: Use Numpy to compute the answer to the above
 
 
 # ## End

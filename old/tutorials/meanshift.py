@@ -8,7 +8,13 @@
 # The easiest way to demonstrate how clustering works is to simply generate some data and show them in action. We'll start off by importing the libraries we'll be using today.
 
 get_ipython().run_line_magic('matplotlib', 'inline')
-import math, numpy as np, matplotlib.pyplot as plt, operator, torch
+import math
+import numpy as np
+import matplotlib.pyplot as plt
+import operator
+import torch
+
+from fastai.core import *
 
 
 # ## Create data
@@ -21,7 +27,7 @@ n_samples = 250
 
 centroids = np.random.uniform(-35, 35, (n_clusters, 2))
 slices = [np.random.multivariate_normal(centroids[i], np.diag([5., 5.]), n_samples)
-           for i in range(n_clusters)]
+          for i in range(n_clusters)]
 data = np.concatenate(slices).astype(np.float32)
 
 
@@ -32,8 +38,10 @@ def plot_data(centroids, data, n_samples):
     for i, centroid in enumerate(centroids):
         samples = data[i * n_samples:(i + 1) * n_samples]
         plt.scatter(samples[:, 0], samples[:, 1], c=colour[i], s=1)
-        plt.plot(centroid[0], centroid[1], markersize=10, marker="x", color='k', mew=5)
-        plt.plot(centroid[0], centroid[1], markersize=5, marker="x", color='m', mew=2)
+        plt.plot(centroid[0], centroid[1], markersize=10,
+                 marker="x", color='k', mew=5)
+        plt.plot(centroid[0], centroid[1], markersize=5,
+                 marker="x", color='m', mew=2)
 
 
 plot_data(centroids, data, n_samples)
@@ -57,10 +65,11 @@ plot_data(centroids, data, n_samples)
 
 # So here's the definition of the gaussian kernel, which you may remember from high school...
 
-from numpy import exp, sqrt, array
+from numpy import exp, sqrt, array, abs
 
 
-def gaussian(d, bw): return exp(-0.5 * ((d / bw))**2) / (bw * math.sqrt(2 * math.pi))
+def gaussian(d, bw): return exp(-0.5 * ((d / bw))**2) / \
+    (bw * math.sqrt(2 * math.pi))
 
 
 #  This person at the science march certainly remembered!
@@ -71,9 +80,9 @@ def gaussian(d, bw): return exp(-0.5 * ((d / bw))**2) / (bw * math.sqrt(2 * math
 
 x = np.linspace(0, 5)
 fig, ax = plt.subplots()
-ax.plot(x, gaussian(x, 1), label='bw=1');
+ax.plot(x, gaussian(x, 1), label='bw=1')
 ax.plot(x, gaussian(x, 2.5), label='bw=2.5')
-ax.legend();
+ax.legend()
 
 
 # In our implementation, we choose the bandwidth to be 2.5. (One easy way to choose bandwidth is to find which bandwidth covers one third of the data, which you can try implementing as an exercise.)
@@ -85,7 +94,8 @@ def distance(x, X): return sqrt(((x - X)**2).sum(1))
 
 # Let's try it out. (More on how this function works shortly)
 
-d = distance(array([2, 3]), array([[1, 2], [2, 3], [-1, 1]])); d
+d = distance(array([2, 3]), array([[1, 2], [2, 3], [-1, 1]]))
+d
 
 
 # We can feed the distances into our gaussian function to see what weights we would get in this case.
@@ -95,16 +105,18 @@ gaussian(d, 2.5)
 
 # We can put these steps together to define a single iteration of the algorithm.
 
-def meanshift_iter(X):
-    # Loop through every point
-    for i, x in enumerate(X):
-        # Find distance from point x to every other point in X
-        dist = distance(x, X)
-        # Use gaussian to turn into array of weights
-        weight = gaussian(dist, 2.5)
-        # Weighted sum (see next section for details)
-        X[i] = (weight[:, None] * X).sum(0) / weight.sum()
-    return X
+def meanshift_inner(x, X, bandwidth):
+    # Find distance from point x to every other point in X
+    dist = distance(x, X)
+
+    # Use gaussian to turn into array of weights
+    weight = gaussian(dist, bandwidth)
+    # Weighted sum (see next section for details)
+    return (weight[:, None] * X).sum(0) / weight.sum()
+
+
+def meanshift_iter(X, bandwidth=2.5):
+    return np.array([meanshift_inner(x, X, bandwidth) for x in X])
 
 
 X = meanshift_iter(data)
@@ -117,12 +129,15 @@ plot_data(centroids, X, n_samples)
 
 # By repeating this a few times, we can make the clusters more accurate.
 
-def meanshift(data):
-    X = np.copy(data)
-    # Loop through a few epochs
-    # A full implementation would automatically stop when clusters are stable
-    for it in range(5): X = meanshift_iter(X)
-    return X
+def meanshift(X, it=0, max_it=5, bandwidth=2.5, eps=0.000001):
+    # perform meanshift once
+    new_X = meanshift_iter(X, bandwidth=bandwidth)
+    # if we're above the max number of allowed iters
+    # or if our approximations have converged
+    if it >= max_it or abs(X - new_X).sum() / abs(X.sum()) < eps:
+        return new_X
+    else:
+        return meanshift(new_X, it + 1, max_it, bandwidth, eps)
 
 
 get_ipython().run_line_magic('time', 'X=meanshift(data)')
@@ -182,7 +197,8 @@ a + 1
 
 # It works with higher-dimensional arrays too, for instance 2d (matrices):
 
-m = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]]); m
+m = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+m
 
 
 m * 2
@@ -196,7 +212,8 @@ np.broadcast_to(2, m.shape)
 
 # We can use the same trick to broadcast a vector to a matrix:
 
-c = np.array([10, 20, 30]); c
+c = np.array([10, 20, 30])
+c
 
 
 m + c
@@ -210,7 +227,8 @@ np.broadcast_to(c, m.shape)
 # Interesting - we see that it has duplicated `c` across rows. What if `c` was a column vector, i.e. a 3x1 array?
 
 # Indexing an axis with None adds a unit axis in that location
-cc = c[:, None]; cc
+cc = c[:, None]
+cc
 
 
 m + cc
@@ -244,13 +262,15 @@ np.broadcast_to(cc, m.shape)
 
 a = array([2, 3])
 b = array([[1, 2], [2, 3], [-1, 1]])
-c = (a - b)**2; c
+c = (a - b)**2
+c
 
 
 b
 
 
-w = gaussian(sqrt(c.sum(1)), 2.5); w
+w = gaussian(sqrt(c.sum(1)), 2.5)
+w
 
 
 # ...and we can also now pull apart our weighted average:
@@ -286,15 +306,24 @@ from torch import exp, sqrt
 
 # And then we'll use the exact same code as before, but first convert our numpy array to a GPU PyTorch tensor.
 
-def meanshift(data):
-    X = torch.from_numpy(np.copy(data)).cuda()
-    for it in range(5): X = meanshift_iter(X)
-    return X
+
+def meanshift_iter_torch(X, bandwidth=2.5):
+    out = torch.stack([meanshift_inner(x, X, bandwidth) for x in X], 0)
+    return to_gpu(out.cuda())
+
+
+def meanshift_torch(X_torch, it=0, max_it=5, bandwidth=2.5, eps=0.000001):
+    new_X = meanshift_iter_torch(X_torch, bandwidth=bandwidth)
+    if it >= max_it or abs(X_torch - new_X).sum() / abs(X_torch.sum()) < eps:
+        return new_X
+    else:
+        return meanshift_torch(new_X, it + 1, max_it, bandwidth, eps)
 
 
 # Let's try it out...
 
-get_ipython().run_line_magic('time', 'X = meanshift(data).cpu().numpy()')
+X_torch = to_gpu(torch.from_numpy(X))
+get_ipython().run_line_magic('time', 'X = meanshift_torch(X_torch).cpu().numpy()')
 plot_data(centroids + 2, X, n_samples)
 
 
@@ -318,30 +347,24 @@ distance_b(b, a)
 #
 # Now that we have a suitable distance function, we can make some minor updates to our meanshift function to handle batches of data:
 
-def meanshift(data, bs=500):
-    n = len(data)
-    X = torch.from_numpy(np.copy(data)).cuda()
-    for it in range(5):
-        for i in range(0, n, bs):
-            s = slice(i, min(n, i + bs))
-            weight = gaussian(distance_b(X, X[s]), 2.5)
-            num = (weight[:, :, None] * X).sum(1)
-            X[s] = num / weight.sum(1)[:, None]
-    return X
+def meanshift_gpu(X, it=0, max_it=5, bandwidth=2.5, eps=0.000001):
+    weights = gaussian(distance_b(X, X), bandwidth)
+    num = (weights[:, :, None] * X).sum(1)
+    X_new = num / weights.sum(1)[:, None]
 
-
-data
-
-
-torch.from_numpy(np.copy(data)).cuda()
+    if it >= max_it or abs(X_new - X).sum() / abs(x.sum()) < eps:
+        return X_new
+    else:
+        return meanshift_gpu(X_new, it + 1, max_it, bandwidth, eps)
 
 
 # Although each iteration still has to launch a new cuda kernel, there are now fewer iterations, and the acceleration from updating a batch of points more than makes up for it.
 
-get_ipython().run_line_magic('time', 'X = meanshift(data).cpu().numpy()')
+X_torch = to_gpu(torch.from_numpy(data))
+get_ipython().run_line_magic('time', 'X = meanshift_gpu(X_torch).cpu().numpy()')
 
 
-# That's more like it! We've gone from 2000ms to 26ms, which is a speedup of over 7000%. Oh, and it even gives the right answer!
+# That's more like it! We've gone from 1660ms to 124ms, which is a speedup of 13.5! Oh, and it even gives the right answer!
 
 plot_data(centroids + 2, X, n_samples)
 
