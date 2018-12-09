@@ -131,7 +131,7 @@ learn.save('24x24_8')
 
 
 log_preds, y = learn.TTA()
-preds = np.mean(np.exp(log_preds), 0)metrics.log_loss(y, preds), accuracy(preds, y)
+preds = np.mean(np.exp(log_preds), 0), metrics.log_loss(y, preds), accuracy_np(preds, y)
 
 
 # ## 32x32
@@ -155,7 +155,7 @@ learn.fit(lr, 3, cycle_len=4, wds=wd)
 
 
 log_preds, y = learn.TTA()
-metrics.log_loss(y, np.exp(log_preds)), accuracy(log_preds, y)
+metrics.log_loss(y, np.exp(log_preds)), accuracy_np(log_preds, y)
 
 
 learn.save('32x32_8')

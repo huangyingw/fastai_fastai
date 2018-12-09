@@ -18,6 +18,7 @@ from fastai.nlp import *
 from fastai.lm_rnn import *
 
 import dill as pickle
+import random
 
 
 bs, bptt = 64, 70
@@ -27,10 +28,119 @@ bs, bptt = 64, 70
 
 # ### Data
 
-PATH = '/data2/datasets/part1/arxiv/'
+import os, requests, time
+# feedparser isn't a fastai dependency so you may need to install it.
+import feedparser
+import pandas as pd
 
+
+class GetArXiv(object):
+    def __init__(self, pickle_path, categories=list()):
+        """
+        :param pickle_path (str): path to pickle data file to save/load
+        :param pickle_name (str): file name to save pickle to path
+        :param categories (list): arXiv categories to query
+        """
+        if os.path.isdir(pickle_path):
+            pickle_path = f"{pickle_path}{'' if pickle_path[-1] == '/' else '/'}all_arxiv.pkl"
+        if len(categories) < 1:
+            categories = ['cs*', 'cond-mat.dis-nn', 'q-bio.NC', 'stat.CO', 'stat.ML']
+        # categories += ['cs.CV', 'cs.AI', 'cs.LG', 'cs.CL']
+
+        self.categories = categories
+        self.pickle_path = pickle_path
+        self.base_url = 'http://export.arxiv.org/api/query'
+
+    @staticmethod
+    def build_qs(categories):
+        """Build query string from categories"""
+        return '+OR+'.join(['cat:' + c for c in categories])
+
+    @staticmethod
+    def get_entry_dict(entry):
+        """Return a dictionary with the items we want from a feedparser entry"""
+        try:
+            return dict(title=entry['title'], authors=[a['name'] for a in entry['authors']],
+                        published=pd.Timestamp(entry['published']), summary=entry['summary'],
+                        link=entry['link'], category=entry['category'])
+        except KeyError:
+            print('Missing keys in row: {}'.format(entry))
+            return None
+
+    @staticmethod
+    def strip_version(link):
+        """Strip version number from arXiv paper link"""
+        return link[:-2]
+
+    def fetch_updated_data(self, max_retry=5, pg_offset=0, pg_size=1000, wait_time=15):
+        """
+        Get new papers from arXiv server
+        :param max_retry: max number of time to retry request
+        :param pg_offset: number of pages to offset
+        :param pg_size: num abstracts to fetch per request
+        :param wait_time: num seconds to wait between requests
+        """
+        i, retry = pg_offset, 0
+        df = pd.DataFrame()
+        past_links = []
+        if os.path.isfile(self.pickle_path):
+            df = pd.read_pickle(self.pickle_path)
+            df.reset_index()
+        if len(df) > 0: past_links = df.link.apply(self.strip_version)
+
+        while True:
+            params = dict(search_query=self.build_qs(self.categories),
+                          sortBy='submittedDate', start=pg_size * i, max_results=pg_size)
+            response = requests.get(self.base_url, params='&'.join([f'{k}={v}' for k, v in params.items()]))
+            entries = feedparser.parse(response.text).entries
+            if len(entries) < 1:
+                if retry < max_retry:
+                    retry += 1
+                    time.sleep(wait_time)
+                    continue
+                break
+
+            results_df = pd.DataFrame([self.get_entry_dict(e) for e in entries])
+            max_date = results_df.published.max().date()
+            new_links = ~results_df.link.apply(self.strip_version).isin(past_links)
+            print(f'{i}. Fetched {len(results_df)} abstracts published {max_date} and earlier')
+            if not new_links.any():
+                break
+
+            df = pd.concat((df, results_df.loc[new_links]), ignore_index=True)
+            i += 1
+            retry = 0
+            time.sleep(wait_time)
+
+        print(f'Downloaded {len(df)-len(past_links)} new abstracts')
+        df.sort_values('published', ascending=False).groupby('link').first().reset_index()
+        df.to_pickle(self.pickle_path)
+        return df
+
+    @classmethod
+    def load(cls, pickle_path):
+        """Load data from pickle and remove duplicates"""
+        return pd.read_pickle(cls(pickle_path).pickle_path)
+
+    @classmethod
+    def update(cls, pickle_path, categories=list(), **kwargs):
+        """
+        Update arXiv data pickle with the latest abstracts
+        """
+        cls(pickle_path, categories).fetch_updated_data(**kwargs)
+        return True
+
+
+PATH = 'data/arxiv/'
+
+ALL_ARXIV = f'{PATH}all_arxiv.pkl'
+
+# all_arxiv.pkl: if arxiv hasn't been downloaded yet, it'll take some time to get it - go get some coffee
+if not os.path.exists(ALL_ARXIV): GetArXiv.update(ALL_ARXIV)
+
+# arxiv.csv: see dl1/nlp-arxiv.ipynb to get this one
 df_mb = pd.read_csv(f'{PATH}arxiv.csv')
-df_all = pd.read_pickle(f'{PATH}all_arxiv.pickle')
+df_all = pd.read_pickle(ALL_ARXIV)
 
 
 def get_txt(df):
@@ -62,6 +172,9 @@ for (i, (_, r)) in enumerate(df_mb.iterrows()):
 
 from spacy.symbols import ORTH
 
+# install the 'en' model if the next line of code fails by running:
+#python -m spacy download en              # default English model (~50MB)
+#python -m spacy download en_core_web_md  # larger English model (~1GB)
 my_tok = spacy.load('en')
 
 my_tok.tokenizer.add_special_case('<SUMM>', [{ORTH: '<SUMM>'}])
@@ -75,7 +188,7 @@ def my_spacy_tok(x): return [tok.text for tok in my_tok.tokenizer(x)]
 
 TEXT = data.Field(lower=True, tokenize=my_spacy_tok)
 FILES = dict(train='trn', validation='val', test='val')
-md = LanguageModelData(f'{PATH}all/', TEXT, **FILES, bs=bs, bptt=bptt, min_freq=10)
+md = LanguageModelData.from_text_files(f'{PATH}all/', TEXT, **FILES, bs=bs, bptt=bptt, min_freq=10)
 pickle.dump(TEXT, open(f'{PATH}models/TEXT.pkl', 'wb'))
 
 
@@ -190,7 +303,9 @@ class ArxivDataset(torchtext.data.Dataset):
         fields = [('text', text_field), ('label', label_field)]
         examples = []
         for label in ['yes', 'no']:
-            for fname in glob(os.path.join(path, label, '*.txt')):
+            fnames = glob(os.path.join(path, label, '*.txt'));
+            assert fnames, f"can't find 'yes.txt' or 'no.txt' under {path}/{label}"
+            for fname in fnames:
                 with open(fname, 'r') as f: text = f.readline()
                 examples.append(data.Example.fromlist([text, label], fields))
         super().__init__(examples, fields, **kwargs)
@@ -232,8 +347,10 @@ m3.reg_fn = partial(seq2seq_reg, alpha=2, beta=1)
 m3.clip = 25.
 
 
+# this notebook has a mess of some things going under 'all/' others not, so a little hack here
+get_ipython().system('ln -sf ../all/models/adam3_20_enc.h5 {PATH}models/adam3_20_enc.h5')
 m3.load_encoder(f'adam3_20_enc')
-lrs = np.array([1e-4, 1e-3, 1e-2])
+lrs = np.array([1e-4, 1e-3, 1e-3, 1e-2, 3e-2])
 
 
 m3.freeze_to(-1)

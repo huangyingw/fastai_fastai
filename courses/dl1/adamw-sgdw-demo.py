@@ -39,7 +39,7 @@ import pickle
 def save_list(fname, l):
     with open(fname, "wb") as fp:
         pickle.dump(l, fp)
-
+        
 def read_list(fname):
     with open(fname, "rb") as fp:
         return pickle.load(fp)
@@ -60,36 +60,36 @@ def experiment(optimizer, PATH, lr=1e-3, find_lr=False, use_wd_sched=False, wds=
     cycle_mult = 2
     num_cycles = 4
     lr = lr
-
+    
     if wds is None:
         weight_decay = 0.025 # As used in the paper https://arxiv.org/abs/1711.05101
     else:
         weight_decay = wds
-
+    
     tfms = tfms_from_model(arch, sz, aug_tfms=transforms_side_on, max_zoom=1.1)
     data = ImageClassifierData.from_paths(PATH, tfms=tfms, bs=bs)
     learn = ConvLearner.pretrained(arch, data, precompute=True, xtra_fc=[1024, 512], opt_fn=optimizer)
-
+    
     if find_lr:
-        learn.lr_find()
+        lrf = learn.lr_find()
         learn.sched.plot()
         return
-
+    
     learn.fit(lr, 1, wds=weight_decay, use_wd_sched=use_wd_sched, norm_wds=norm_wds, wds_sched_mult=wds_sched_mult)
     print('Now with precompute as False')
     if do_unfreeze:
         learn.unfreeze()
-
+        
     learn.precompute = False
     learn.fit(lr, num_cycles, wds=weight_decay, use_wd_sched=use_wd_sched, cycle_len=cycle_len,
               cycle_mult=cycle_mult, norm_wds=norm_wds, wds_sched_mult=wds_sched_mult)
-
+    
     loss = learn.sched.losses
     fig = plt.figure(figsize=(10, 5))
     plt.plot(loss)
     plt.show()
     learn.sched.plot_lr()
-
+    
     return learn.sched.losses, learn
 
 
@@ -146,7 +146,7 @@ import time
 
 
 def check_overfitting(optimizer, PATH, sz, bs, lr, wds, use_wd_sched=True):
-
+    
     arch = resnet50
     cycle_len = 12
     cycle_mult = 2
