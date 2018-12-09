@@ -223,7 +223,7 @@ bs = 64
 # From here it's just like Dogs vs Cats!
 
 tfms = tfms_from_model(f_model, sz, aug_tfms=transforms_side_on, crop_type=CropType.NO)
-md = ImageClassifierData.from_csv(PATH, JPEGS, CSV, tfms=tfms)
+md = ImageClassifierData.from_csv(PATH, JPEGS, CSV, tfms=tfms, bs=bs)
 
 
 x, y = next(iter(md.val_dl))
@@ -383,7 +383,7 @@ augs = [RandomFlip(tfm_y=tfm_y),
         RandomLighting(0.05, 0.05, tfm_y=tfm_y)]
 
 tfms = tfms_from_model(f_model, sz, crop_type=CropType.NO, tfm_y=tfm_y, aug_tfms=augs)
-md = ImageClassifierData.from_csv(PATH, JPEGS, BB_CSV, tfms=tfms, continuous=True)
+md = ImageClassifierData.from_csv(PATH, JPEGS, BB_CSV, tfms=tfms, bs=bs, continuous=True)
 
 
 # fastai let's you use a `custom_head` to add your own module on top of a convnet, instead of the adaptive pooling and fully connected net which is added by default. In this case, we don't want to do any pooling, since we need to know the activations of each grid cell.
@@ -462,7 +462,7 @@ val_idxs = get_cv_idxs(len(trn_fns))
 
 tfms = tfms_from_model(f_model, sz, crop_type=CropType.NO, tfm_y=TfmType.COORD, aug_tfms=augs)
 md = ImageClassifierData.from_csv(PATH, JPEGS, BB_CSV, tfms=tfms,
-    continuous=True, val_idxs=val_idxs)
+   bs=bs, continuous=True, val_idxs=val_idxs)
 
 
 md2 = ImageClassifierData.from_csv(PATH, JPEGS, CSV, tfms=tfms_from_model(f_model, sz))

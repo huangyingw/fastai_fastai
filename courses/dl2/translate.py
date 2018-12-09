@@ -6,6 +6,15 @@ get_ipython().run_line_magic('reload_ext', 'autoreload')
 get_ipython().run_line_magic('autoreload', '2')
 
 
+# Please note that this notebook is most likely going to cause a stuck process. So if you are going to run it, please make sure to restart your jupyter notebook as soon as you completed running it.
+#
+# The bug happens inside the `fastText` library, which we have no control over. You can check the status of this issue: [here](https://github.com/fastai/fastai/issues/754) and [here](https://github.com/facebookresearch/fastText/issues/618#issuecomment-419554225).
+#
+# For the future, note that there're 3 separate implementations of fasttext, perhaps one of them works:
+# https://github.com/facebookresearch/fastText/tree/master/python
+# https://pypi.org/project/fasttext/
+# https://radimrehurek.com/gensim/models/fasttext.html#module-gensim.models.fasttext
+
 # ## Translation files
 
 from fastai.text import *
@@ -133,7 +142,7 @@ en_vecd = pickle.load(open(PATH / 'wiki.en.pkl', 'rb'))
 fr_vecd = pickle.load(open(PATH / 'wiki.fr.pkl', 'rb'))
 
 
-ft_words = ft_vecs.get_words(include_freq=True)
+ft_words = en_vecs.get_words(include_freq=True)
 ft_word_dict = {k: v for k, v in zip(*ft_words)}
 ft_words = sorted(ft_word_dict.keys(), key=lambda x: ft_word_dict[x])
 
@@ -430,7 +439,7 @@ class Seq2SeqAttnRNN(nn.Module):
         self.gru_dec = nn.GRU(em_sz_dec, em_sz_dec, num_layers=nl, dropout=0.1)
         self.emb_enc_drop = nn.Dropout(0.15)
         self.out_drop = nn.Dropout(0.35)
-        self.out = nn.Linear(em_sz_dec * 2, len(itos_dec))
+        self.out = nn.Linear(em_sz_dec, len(itos_dec))
         self.out.weight.data = self.emb_dec.weight.data
 
         self.W1 = rand_p(nh, em_sz_dec)

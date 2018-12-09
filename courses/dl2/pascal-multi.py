@@ -106,7 +106,7 @@ bs = 64
 
 
 tfms = tfms_from_model(f_model, sz, crop_type=CropType.NO)
-md = ImageClassifierData.from_csv(PATH, JPEGS, MC_CSV, tfms=tfms)
+md = ImageClassifierData.from_csv(PATH, JPEGS, MC_CSV, tfms=tfms, bs=bs)
 
 
 learn = ConvLearner.pretrained(f_model, md)
@@ -195,7 +195,7 @@ aug_tfms = [RandomRotate(3, p=0.5, tfm_y=TfmType.COORD),
             RandomLighting(0.05, 0.05, tfm_y=TfmType.COORD),
             RandomFlip(tfm_y=TfmType.COORD)]
 tfms = tfms_from_model(f_model, sz, crop_type=CropType.NO, tfm_y=TfmType.COORD, aug_tfms=aug_tfms)
-md = ImageClassifierData.from_csv(PATH, JPEGS, MBB_CSV, tfms=tfms, continuous=True, num_workers=4)
+md = ImageClassifierData.from_csv(PATH, JPEGS, MBB_CSV, tfms=tfms, bs=bs, continuous=True, num_workers=4)
 
 
 import matplotlib.cm as cmx
@@ -431,14 +431,15 @@ x, y = next(iter(md.val_dl))
 x, y = V(x), V(y)
 
 
-for i, o in enumerate(y): y[i] = o.cpu()
-learn.model.cpu()
+for i, o in enumerate(y): y[i] = o.cuda()
+learn.model.cuda()
 
 
 batch = learn.model(x)
 
 
-anchors = anchors.cpu(); grid_sizes = grid_sizes.cpu(); anchor_cnr = anchor_cnr.cpu()
+# uncomment to debug on cpu
+#anchors = anchors.cpu(); grid_sizes = grid_sizes.cpu(); anchor_cnr = anchor_cnr.cpu()
 
 
 ssd_loss(batch, y, True)
@@ -829,6 +830,9 @@ def show_nmf(idx):
         out1.append(scores[ids])
         out2.append(boxes.data[ids])
         cc.append([cl] * count)
+    if not cc:
+        print(f"{i}: empty array")
+        return
     cc = T(np.concatenate(cc))
     out1 = torch.cat(out1)
     out2 = torch.cat(out2)
