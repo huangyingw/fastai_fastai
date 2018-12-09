@@ -11,10 +11,27 @@ get_ipython().run_line_magic('autoreload', '2')
 # You can get the data via:
 #
 #     wget http://pjreddie.com/media/files/cifar.tgz
+# **Important:** Before proceeding, the student must reorganize the downloaded dataset files to match the expected directory structure, so that there is a dedicated folder for each class under 'test' and 'train', e.g.:
+#
+# ```
+# * test/airplane/airplane-1001.png
+# * test/bird/bird-1043.png
+#
+# * train/bird/bird-10018.png
+# * train/automobile/automobile-10000.png
+# ```
+#
+# The filename of the image doesn't have to include its class.
 
 from fastai.conv_learner import *
 PATH = "data/cifar10/"
 os.makedirs(PATH, exist_ok=True)
+
+get_ipython().system('ls {PATH}')
+
+if not os.path.exists(f"{PATH}/train/bird"):
+   raise Exception("expecting class subdirs under 'train/' and 'test/'")
+get_ipython().system('ls {PATH}/train')
 
 
 classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
@@ -327,7 +344,7 @@ log_preds, y = learn.TTA()
 preds = np.mean(np.exp(log_preds), 0)
 
 
-metrics.log_loss(y, preds), accuracy(preds, y)
+metrics.log_loss(y, preds), accuracy_np(preds, y)
 
 
 # ### End

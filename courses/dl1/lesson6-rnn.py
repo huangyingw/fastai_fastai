@@ -485,6 +485,10 @@ VAL_PATH = 'val/'
 TRN = f'{PATH}{TRN_PATH}'
 VAL = f'{PATH}{VAL_PATH}'
 
+# Note: The student needs to practice her shell skills and prepare her own dataset before proceeding:
+# - trn/trn.txt (first 80% of nietzsche.txt)
+# - val/val.txt (last 20% of nietzsche.txt)
+
 get_ipython().run_line_magic('ls', '{PATH}')
 
 

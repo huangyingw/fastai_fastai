@@ -14,6 +14,7 @@ from fastai.conv_learner import *
 from fastai.model import *
 from fastai.dataset import *
 from fastai.sgdr import *
+import skimage
 
 
 PATH = "data/dogscats/"
@@ -56,7 +57,7 @@ learn.fit(0.01, 1)
 learn.fit(0.01, 1, cycle_len=1)
 
 
-# ## CAM
+# ## Class Activation Maps (CAM)
 
 class SaveFeatures():
     features = None
@@ -105,7 +106,7 @@ f2
 
 
 plt.imshow(dx)
-plt.imshow(scipy.misc.imresize(f2, dx.shape), alpha=0.5, cmap='hot');
+plt.imshow(skimage.transform.resize(f2, dx.shape), alpha=0.5, cmap='hot');
 
 
 # ## Model
@@ -114,16 +115,21 @@ learn.unfreeze()
 learn.bn_freeze(True)
 
 
-lr = np.array([1e-6, 1e-4, 1e-2])
+# 12 layer groups call for 12 lrs
+lr = np.array([[1e-6] * 4, [1e-4] * 4, [1e-2] * 4]).flatten()
 
 
 learn.fit(lr, 2, cycle_len=1)
 
 
-accuracy(*learn.TTA())
+log_preds, y = learn.TTA()
+preds = np.mean(np.exp(log_preds), 0)
+accuracy_np(preds, y)
 
 
 learn.fit(lr, 2, cycle_len=1)
 
 
-accuracy(*learn.TTA())
+log_preds, y = learn.TTA()
+preds = np.mean(np.exp(log_preds), 0)
+accuracy_np(preds, y)
