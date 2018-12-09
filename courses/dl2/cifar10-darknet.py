@@ -39,7 +39,10 @@ class ResLayer(nn.Module):
         self.conv1 = conv_layer(ni, ni // 2, ks=1)
         self.conv2 = conv_layer(ni // 2, ni, ks=3)
         
-    def forward(self, x): return x.add_(self.conv2(self.conv1(x)))
+    def forward(self, x):
+        # changed to x.add, as x.add_ leads to error (happened on single GPU):
+        # one of the variables needed for gradient computation has been modified by an inplace operation
+        return x.add(self.conv2(self.conv1(x)))
 
 
 class Darknet(nn.Module):
@@ -60,7 +63,9 @@ class Darknet(nn.Module):
 
 
 m = Darknet([1, 2, 4, 6, 3], num_classes=10, nf=32)
-m = nn.DataParallel(m, [1, 2, 3])
+m = nn.DataParallel(m, device_ids=None)
+# if you have several GPUs for true parallel processing enable
+# m = nn.DataParallel(m, device_ids=[1, 2, 3])
 
 
 lr = 1.3

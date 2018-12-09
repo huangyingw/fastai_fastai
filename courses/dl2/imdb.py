@@ -14,6 +14,12 @@ import html
 # We need to download the IMDB large movie reviews from this site: http://ai.stanford.edu/~amaas/data/sentiment/
 # Direct link : [Link](http://ai.stanford.edu/~amaas/data/sentiment/aclImdb_v1.tar.gz) and untar it into the PATH location. We use pathlib which makes directory traveral a breeze.
 
+DATA_PATH = Path('data/')
+DATA_PATH.mkdir(exist_ok=True)
+#! curl -O http://ai.stanford.edu/~amaas/data/sentiment/aclImdb_v1.tar.gz
+#! tar -xzfv aclImdb_v1.tar.gz -C {DATA_PATH}
+
+
 BOS = 'xbos'  # beginning-of-sentence tag
 FLD = 'xfld'  # data field tag
 
@@ -41,7 +47,7 @@ def get_texts(path):
     texts, labels = [], []
     for idx, label in enumerate(CLASSES):
         for fname in (path / label).glob('*.*'):
-            texts.append(fname.open('r').read())
+            texts.append(fname.open('r', encoding='utf-8').read())
             labels.append(idx)
     return np.array(texts), np.array(labels)
 
@@ -78,7 +84,7 @@ df_val = pd.DataFrame({'text': val_texts, 'labels': val_labels}, columns=col_nam
 df_trn[df_trn['labels'] != 2].to_csv(CLAS_PATH / 'train.csv', header=False, index=False)
 df_val.to_csv(CLAS_PATH / 'test.csv', header=False, index=False)
 
-(CLAS_PATH / 'classes.txt').open('w').writelines(f'{o}\n' for o in CLASSES)
+(CLAS_PATH / 'classes.txt').open('w', encoding='utf-8').writelines(f'{o}\n' for o in CLASSES)
 
 
 # We start by creating the data for the Language Model(LM). The LM's goal is to learn the structure of the english language. It learns language by trying to predict the next word given a set of previous words(ngrams). Since the LM does not classify reviews, the labels can be ignored.
@@ -129,7 +135,7 @@ def get_texts(df, n_lbls=1):
     labels = df.iloc[:, range(n_lbls)].values.astype(np.int64)
     texts = f'\n{BOS} {FLD} 1 ' + df[n_lbls].astype(str)
     for i in range(n_lbls + 1, len(df.columns)): texts += f' {FLD} {i-n_lbls} ' + df[i].astype(str)
-    texts = texts.apply(fixup).values.astype(str)
+    texts = list(texts.apply(fixup).values)
 
     tok = Tokenizer().proc_all_mp(partition_by_cores(texts))
     return tok, list(labels)
@@ -294,7 +300,7 @@ learner = md.get_model(opt_fn, em_sz, nh, nl,
     dropouti=drops[0], dropout=drops[1], wdrop=drops[2], dropoute=drops[3], dropouth=drops[4])
 
 learner.metrics = [accuracy]
-learner.unfreeze()
+learner.freeze_to(-1)
 
 
 learner.model.load_state_dict(wgts)
@@ -424,7 +430,7 @@ dps = np.array([0.4, 0.5, 0.05, 0.3, 0.1])
 dps = np.array([0.4, 0.5, 0.05, 0.3, 0.4]) * 0.5
 
 
-m = get_rnn_classifer(bptt, 20 * 70, c, vs, emb_sz=em_sz, n_hid=nh, n_layers=nl, pad_token=1,
+m = get_rnn_classifier(bptt, 20 * 70, c, vs, emb_sz=em_sz, n_hid=nh, n_layers=nl, pad_token=1,
           layers=[em_sz * 3, 50, c], drops=[dps[4], 0.1],
           dropouti=dps[0], wdrop=dps[1], dropoute=dps[2], dropouth=dps[3])
 
@@ -434,7 +440,7 @@ opt_fn = partial(optim.Adam, betas=(0.7, 0.99))
 
 learn = RNN_Learner(md, TextModel(to_gpu(m)), opt_fn=opt_fn)
 learn.reg_fn = partial(seq2seq_reg, alpha=2, beta=1)
-learn.clip = 25.
+learn.clip = .25
 learn.metrics = [accuracy]
 
 
@@ -448,7 +454,7 @@ lrs = np.array([1e-4, 1e-4, 1e-4, 1e-3, 1e-2])
 
 wd = 1e-7
 wd = 0
-learn.load_encoder('lm2_enc')
+learn.load_encoder('lm1_enc')
 
 
 learn.freeze_to(-1)
