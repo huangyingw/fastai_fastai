@@ -67,7 +67,7 @@ table_names = ['train', 'store', 'store_states', 'state_names',
 tables = [pd.read_csv(f'{PATH}{fname}.csv', low_memory=False) for fname in table_names]
 
 
-from IPython.display import HTML
+from IPython.display import HTML, display
 
 
 # We can use `head()` to get a quick look at the contents of each table:
@@ -140,7 +140,7 @@ add_datepart(train, "Date", drop=False)
 add_datepart(test, "Date", drop=False)
 
 
-# The Google trends data has a special category for the whole of the Germany - we'll pull that out so we can use it explicitly.
+# The Google trends data has a special category for the whole of Germany - we'll pull that out so we can use it explicitly.
 
 trend_de = googletrend[googletrend.file == 'Rossmann_DE']
 
@@ -266,10 +266,8 @@ def get_elapsed(fld, pre):
 columns = ["Date", "Store", "Promo", "StateHoliday", "SchoolHoliday"]
 
 
-df = train[columns]
-
-
-df = test[columns]
+#df = train[columns]
+df = train[columns].append(test[columns])
 
 
 # Let's walk through an example.
@@ -437,8 +435,8 @@ apply_cats(joined_test, joined)
 
 
 for v in contin_vars:
-    joined[v] = joined[v].astype('float32')
-    joined_test[v] = joined_test[v].astype('float32')
+    joined[v] = joined[v].fillna(0).astype('float32')
+    joined_test[v] = joined_test[v].fillna(0).astype('float32')
 
 
 # We're going to run on a sample.
@@ -533,9 +531,10 @@ emb_szs
 
 m = md.get_learner(emb_szs, len(df.columns) - len(cat_vars),
                    0.04, 1, [1000, 500], [0.001, 0.01], y_range=y_range)
+m.summary()
+
+
 lr = 1e-3
-
-
 m.lr_find()
 
 

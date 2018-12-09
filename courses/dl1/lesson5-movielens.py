@@ -211,7 +211,7 @@ class EmbeddingDot(nn.Module):
     def forward(self, cats, conts):
         users, movies = cats[:, 0], cats[:, 1]
         u, m = self.u(users), self.m(movies)
-        return (u * m).sum(1)
+        return (u * m).sum(1).view(-1, 1)
 
 
 x = ratings.drop(['rating', 'timestamp'], axis=1)
@@ -258,7 +258,7 @@ class EmbeddingDotBias(nn.Module):
         um = (self.u(users) * self.m(movies)).sum(1)
         res = um + self.ub(users).squeeze() + self.mb(movies).squeeze()
         res = F.sigmoid(res) * (max_rating - min_rating) + min_rating
-        return res
+        return res.view(-1, 1)
 
 
 wd = 2e-4

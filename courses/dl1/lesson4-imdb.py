@@ -58,22 +58,32 @@ subprocess.getoutput(u"find {VAL} -name '*.txt' | xargs cat | wc -w")
 
 # Before we can analyze text, we must first *tokenize* it. This refers to the process of splitting a sentence into an array of words (or more generally, into an array of *tokens*).
 
-' '.join(spacy_tok(review[0]))
+# *Note:* If you get an error like:
+#
+#     Can't find model 'en'. It doesn't seem to be a shortcut link, a Python package or a valid path to a data directory.
+#
+# then you need to install the Spacy language model by running this command on the command-line:
+#
+#     $ python -m spacy download en
+
+spacy_tok = spacy.load('en')
+
+
+' '.join([sent.string.strip() for sent in spacy_tok(review[0])])
 
 
 # We use Pytorch's [torchtext](https://github.com/pytorch/text) library to preprocess our data, telling it to use the wonderful [spacy](https://spacy.io/) library to handle tokenization.
 #
 # First, we create a torchtext *field*, which describes how to preprocess a piece of text - in this case, we tell torchtext to make everything lowercase, and tokenize it with spacy.
 
-TEXT = data.Field(lower=True, tokenize=spacy_tok)
+TEXT = data.Field(lower=True, tokenize="spacy")
 
 
 # fastai works closely with torchtext. We create a ModelData object for language modeling by taking advantage of `LanguageModelData`, passing it our torchtext field object, and the paths to our training, test, and validation sets. In this case, we don't have a separate test set, so we'll just use `VAL_PATH` for that too.
 #
-# As well as the usual `bs` (batch size) parameter, we also not have `bptt`; this define how many words are processing at a time in each row of the mini-batch. More importantly, it defines how many 'layers' we will backprop through. Making this number higher will increase time and memory requirements, but will improve the model's ability to handle long sentences.
+# As well as the usual `bs` (batch size) parameter, we also now have `bptt`; this define how many words are processing at a time in each row of the mini-batch. More importantly, it defines how many 'layers' we will backprop through. Making this number higher will increase time and memory requirements, but will improve the model's ability to handle long sentences.
 
-bs = 64
-bptt = 70
+bs = 64; bptt = 70
 
 
 FILES = dict(train=TRN_PATH, validation=VAL_PATH, test=VAL_PATH)
@@ -154,21 +164,15 @@ learner.save_encoder('adam1_enc')
 learner.load_encoder('adam1_enc')
 
 
-learner.load_cycle('adam3_10', 2)
-
-
-learner.fit(3e-3, 1, wds=1e-6, cycle_len=10, saved_model_name='lesson4-imdb-2')
-
-
-learner.save_encoder('adam3_10_enc')
+learner.fit(3e-3, 1, wds=1e-6, cycle_len=10)
 
 
 # In the sentiment analysis section, we'll just need half of the language model - the *encoder*, so we save that part.
 
-learner.save_encoder('adam3_20_enc')
+learner.save_encoder('adam3_10_enc')
 
 
-learner.load_encoder('adam3_20_enc')
+learner.load_encoder('adam3_10_enc')
 
 
 # Language modeling accuracy is generally measured using the metric *perplexity*, which is simply `exp()` of the loss function we used.
@@ -185,7 +189,7 @@ pickle.dump(TEXT, open(f'{PATH}models/TEXT.pkl', 'wb'))
 
 m = learner.model
 ss = """. So, it wasn't quite was I was expecting, but I really liked it anyway! The best"""
-s = [spacy_tok(ss)]
+s = [TEXT.preprocess(ss)]
 t = TEXT.numericalize(s)
 ' '.join(s[0])
 
@@ -250,7 +254,7 @@ md2 = TextData.from_splits(PATH, splits, bs)
 m3 = md2.get_model(opt_fn, 1500, bptt, emb_sz=em_sz, n_hid=nh, n_layers=nl,
                    dropout=0.1, dropouti=0.4, wdrop=0.5, dropoute=0.05, dropouth=0.3)
 m3.reg_fn = partial(seq2seq_reg, alpha=2, beta=1)
-m3.load_encoder(f'adam3_20_enc')
+m3.load_encoder(f'adam3_10_enc')
 
 
 # Because we're fine-tuning a pretrained model, we'll use differential learning rates, and also increase the max gradient for clipping, to allow the SGDR to work better.
