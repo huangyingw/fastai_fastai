@@ -43,7 +43,7 @@ show_doc(TextClasDataBunch.show_batch)
 show_doc(TextDataBunch, title_level=3, doc_string=False)
 
 
-# Create a [`DataBunch`](/basic_data.html#DataBunch) with the raw texts. This is only going to work if they all ahve the same lengths.
+# Create a [`DataBunch`](/basic_data.html#DataBunch) with the raw texts. This is only going to work if they all have the same lengths.
 
 # ### Factory methods (TextDataBunch)
 
