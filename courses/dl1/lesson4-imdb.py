@@ -1,19 +1,26 @@
-from fastai.lm_rnn import seq2seq_reg
-from fastai.metrics import accuracy_np
-from fastai.nlp import LanguageModelData
-from fastai.text import spacy_tok
-from functools import partial
-from torchtext import data
-import dill as pickle
-import numpy as np
-import os
-import os.path
-import subprocess
-import torch
-import torch.optim as optim
+
+# coding: utf-8
+
+# get_ipython().run_line_magic('reload_ext', 'autoreload')
+# get_ipython().run_line_magic('autoreload', '2')
+# get_ipython().run_line_magic('matplotlib', 'inline')
+
+from fastai.learner import *
+
 import torchtext
+from torchtext import data
+
+from fastai.rnn_reg import *
+from fastai.rnn_train import *
+from fastai.nlp import *
+from fastai.lm_rnn import *
+
+import dill as pickle
+import spacy
+
 
 # ## Language modeling
+
 # ### Data
 
 # The [large movie view dataset](http://ai.stanford.edu/~amaas/data/sentiment/) contains a collection of 50,000 reviews from IMDB. The dataset contains an even number of positive and negative reviews. The authors considered only highly polarized reviews. A negative review has a score ≤ 4 out of 10, and a positive review has a score ≥ 7 out of 10. Neutral reviews are not included in the dataset. The dataset is divided into training and test sets. The training set is the same 25,000 labeled reviews.
@@ -34,26 +41,29 @@ VAL_PATH = 'test/all/'
 TRN = f'{PATH}{TRN_PATH}'
 VAL = f'{PATH}{VAL_PATH}'
 
+# get_ipython().run_line_magic('ls', '{PATH}')
+
+
 # Let's look inside the training folder...
 
-trn_files = subprocess.getoutput(u'ls {TRN}')
-print('trn_files[:10] --> ' + trn_files[:10])
+trn_files = get_ipython().getoutput('ls {TRN}')
+trn_files[:10]
 
 
 # ...and at an example review.
 
-review = subprocess.getoutput(u'cat {TRN}{trn_files[6]}')
-print('review[0] --> ' + review[0])
+review = get_ipython().getoutput('cat {TRN}{trn_files[6]}')
+review[0]
 
 
 # Sounds like I'd really enjoy *Zombiegeddon*...
 #
 # Now we'll check how many words are in the dataset.
 
-subprocess.getoutput(u"find {TRN} -name '*.txt' | xargs cat | wc -w")
+# get_ipython().system("find {TRN} -name '*.txt' | xargs cat | wc -w")
 
 
-subprocess.getoutput(u"find {VAL} -name '*.txt' | xargs cat | wc -w")
+# get_ipython().system("find {VAL} -name '*.txt' | xargs cat | wc -w")
 
 
 # Before we can analyze text, we must first *tokenize* it. This refers to the process of splitting a sentence into an array of words (or more generally, into an array of *tokens*).
@@ -148,14 +158,14 @@ opt_fn = partial(optim.Adam, betas=(0.7, 0.99))
 # However, the other parameters (`alpha`, `beta`, and `clip`) shouldn't generally need tuning.
 
 learner = md.get_model(opt_fn, em_sz, nh, nl,
-                       dropouti=0.05, dropout=0.05, wdrop=0.1, dropoute=0.02, dropouth=0.05)
+               dropouti=0.05, dropout=0.05, wdrop=0.1, dropoute=0.02, dropouth=0.05)
 learner.reg_fn = partial(seq2seq_reg, alpha=2, beta=1)
 learner.clip = 0.3
 
 
 # As you can see below, I gradually tuned the language model in a few stages. I possibly could have trained it further (it wasn't yet overfitting), but I didn't have time to experiment more. Maybe you can see if you can train it to a better accuracy! (I used `lr_find` to find a good learning rate, but didn't save the output in this notebook. Feel free to try running it yourself now.)
 
-learner.fit(3e-3, 4, wds=1e-6, cycle_len=1, cycle_mult=2, saved_model_name='lesson4-imdb-1')
+learner.fit(3e-3, 4, wds=1e-6, cycle_len=1, cycle_mult=2)
 
 
 learner.save_encoder('adam1_enc')
@@ -252,7 +262,7 @@ md2 = TextData.from_splits(PATH, splits, bs)
 
 
 m3 = md2.get_model(opt_fn, 1500, bptt, emb_sz=em_sz, n_hid=nh, n_layers=nl,
-                   dropout=0.1, dropouti=0.4, wdrop=0.5, dropoute=0.05, dropouth=0.3)
+           dropout=0.1, dropouti=0.4, wdrop=0.5, dropoute=0.05, dropouth=0.3)
 m3.reg_fn = partial(seq2seq_reg, alpha=2, beta=1)
 m3.load_encoder(f'adam3_10_enc')
 
@@ -264,12 +274,12 @@ lrs = np.array([1e-4, 1e-4, 1e-4, 1e-3, 1e-2])
 
 
 m3.freeze_to(-1)
-m3.fit(lrs / 2, 1, metrics=[accuracy], saved_model_name='lesson4-imdb-3')
+m3.fit(lrs / 2, 1, metrics=[accuracy])
 m3.unfreeze()
-m3.fit(lrs, 1, metrics=[accuracy], cycle_len=1, saved_model_name='lesson4-imdb-4')
+m3.fit(lrs, 1, metrics=[accuracy], cycle_len=1)
 
 
-m3.fit(lrs, 7, metrics=[accuracy], cycle_len=2, cycle_save_name='imdb2', saved_model_name='lesson4-imdb-5')
+m3.fit(lrs, 7, metrics=[accuracy], cycle_len=2, cycle_save_name='imdb2')
 
 
 m3.load_cycle('imdb2', 4)
