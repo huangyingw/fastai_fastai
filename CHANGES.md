@@ -13,16 +13,20 @@ of that change.
 
 
 
-
-
 ## 1.0.37.dev0 (Work In Progress)
 
 ### New:
 
+- `SequentialEx`, `MergeLayer`, and `res_block` to more easily create resnet and densenet architectures
+
 ### Changed:
+
+- Experimental cross-connection from raw input plus extra resblock at end of unet
+- Add an execution-time check for a specific version of fastprogress (`git pull` fastai updates)
 
 ### Fixed:
 
+- `sigmoid` argument for unet output activation function
 
 
 ## 1.0.36 (2018-12-08)
@@ -80,7 +84,6 @@ of that change.
 
 ### New:
 
-- `SequentialResBlock` to easily create resnet blocks
 - `ImageCleaner` with duplicates=True to use as a duplicate detector
 - `DatasetFormatter.from_similars()` to feed the most similar indexes into `ImageCleaner`
 - `chunks` to separate a Collection into smaller iterables
