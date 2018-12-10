@@ -12,10 +12,11 @@ from fastai.basic_train import *
 
 # The fastai library simplifies training fast and accurate neural nets using modern best practices. It's based on research in to deep learning best practices undertaken at [fast.ai](http://www.fast.ai), including "out of the box" support for [`vision`](/vision.html#vision), [`text`](/text.html#text), [`tabular`](/tabular.html#tabular), and [`collab`](/collab.html#collab) (collaborative filtering) models. If you're looking for the source code, head over to the [fastai repo](https://github.com/fastai/fastai) on GitHub. For brief examples, see the [examples](https://github.com/fastai/fastai/tree/master/examples) folder; detailed examples are provided in the full documentation (see the sidebar). For example, here's how to train an MNIST model using [resnet18](https://arxiv.org/abs/1512.03385) (from the [vision example](https://github.com/fastai/fastai/blob/master/examples/vision.ipynb)):
 
+os.chdir(os.path.dirname(os.path.realpath(__file__)))
 path = untar_data(URLs.MNIST_SAMPLE)
 data = ImageDataBunch.from_folder(path)
 learn = create_cnn(data, models.resnet18, metrics=accuracy)
-learn.fit(1)
+learn.fit(1, saved_model_name='index_1')
 
 
 jekyll_note("""This documentation is all built from notebooks;
@@ -31,7 +32,7 @@ is the notebook source of what you're reading now.""")
 # To install or update fastai, we recommend `conda`:
 #
 # ```
-# conda install -c pytorch -c fastai fastai pytorch-nightly cuda92
+# conda install -c pytorch -c fastai fastai pytorch
 # ```
 # For troubleshooting, and alternative installations (including pip and CPU-only options) see the [fastai readme](https://github.com/fastai/fastai/blob/master/README.md).
 
