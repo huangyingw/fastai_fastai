@@ -1,57 +1,59 @@
-from PIL import Image
-from fastai.conv_learner import ConvLearner
-from fastai.core import to_np
-from fastai.dataset import ImageClassifierData, get_cv_idxs
-from fastai.metrics import accuracy_np
-from fastai.plots import plot_confusion_matrix, plots_from_files
-from fastai.transforms import tfms_from_model, transforms_side_on, transforms_top_down
-from glob import glob, iglob
-from planet import f2
-from sklearn.metrics import confusion_matrix
-from torchvision.models import resnet34
-import matplotlib.pyplot as plt
-import numpy as np
-import os
-import os.path
-import pprint
-import subprocess
-import torch
+
+# coding: utf-8
+
+# ## Multi-label classification
+
+# get_ipython().run_line_magic('reload_ext', 'autoreload')
+# get_ipython().run_line_magic('autoreload', '2')
+# get_ipython().run_line_magic('matplotlib', 'inline')
+
+
+from fastai.conv_learner import *
+
 
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 PATH = 'data/planet/'
 
 
 # Data preparation steps if you are using Crestle:
-#
-# os.makedirs('data/planet/models', exist_ok=True)
-# os.makedirs('/cache/planet/tmp', exist_ok=True)
-#
-# get_ipython().system(u'ln -s /datasets/kaggle/planet-understanding-the-amazon-from-space/train-jpg {PATH}')
-# get_ipython().system(u'ln -s /datasets/kaggle/planet-understanding-the-amazon-from-space/train_v2.csv {PATH}')
-# get_ipython().system(u'ln -s /cache/planet/tmp {PATH}')
-# ls {PATH}
+
+os.makedirs('data/planet/models', exist_ok=True)
+os.makedirs('/cache/planet/tmp', exist_ok=True)
+
+# get_ipython().system('ln -s /datasets/kaggle/planet-understanding-the-amazon-from-space/train-jpg {PATH}')
+# get_ipython().system('ln -s /datasets/kaggle/planet-understanding-the-amazon-from-space/test-jpg {PATH}')
+# get_ipython().system('ln -s /datasets/kaggle/planet-understanding-the-amazon-from-space/train_v2.csv {PATH}')
+# get_ipython().system('ln -s /cache/planet/tmp {PATH}')
+
+
+ls {PATH}
 
 
 # ## Multi-label versus single-label classification
+
+from fastai.plots import *
+
 
 def get_1st(path): return glob(f'{path}/*.*')[0]
 
 
 dc_path = "data/dogscats/valid/"
 list_paths = [get_1st(f"{dc_path}cats"), get_1st(f"{dc_path}dogs")]
-#plots_from_files(list_paths, titles=["cat", "dog"], maintitle="Single-label classification")
+plots_from_files(list_paths, titles=["cat", "dog"], maintitle="Single-label classification")
 
 
 # In single-label classification each sample belongs to one class. In the previous example, each image is either a *dog* or a *cat*.
 
 list_paths = [f"{PATH}train-jpg/train_0.jpg", f"{PATH}train-jpg/train_1.jpg"]
 titles = ["haze primary", "agriculture clear primary water"]
-#plots_from_files(list_paths, titles=titles, maintitle="Multi-label classification")
+plots_from_files(list_paths, titles=titles, maintitle="Multi-label classification")
 
 
-# In multi-label classification each sample can belong to one or more clases. In the previous example, the first images belongs to two clases: *haze* and *primary*. The second image belongs to four clases: *agriculture*, *clear*, *primary* and  *water*.
+# In multi-label classification each sample can belong to one or more classes. In the previous example, the first image belongs to two classes: *haze* and *primary*. The second image belongs to four classes: *agriculture*, *clear*, *primary* and  *water*.
+
 # ## Multi-label models for Planet dataset
 
+from planet import f2
 
 metrics = [f2]
 f_model = resnet34
@@ -67,43 +69,83 @@ val_idxs = get_cv_idxs(n)
 def get_data(sz):
     tfms = tfms_from_model(f_model, sz, aug_tfms=transforms_top_down, max_zoom=1.05)
     return ImageClassifierData.from_csv(PATH, 'train-jpg', label_csv, tfms=tfms,
-                                        suffix='.jpg', val_idxs=val_idxs, test_name='test-jpg')
+                    suffix='.jpg', val_idxs=val_idxs, test_name='test-jpg')
 
 
 data = get_data(256)
+
+
 x, y = next(iter(data.val_dl))
+
+
 y
+
+
 list(zip(data.classes, y[0]))
-#plt.imshow(data.val_ds.denorm(to_np(x))[0] * 1.4)
-#plt.show()
+
+
+plt.imshow(data.val_ds.denorm(to_np(x))[0] * 1.4);
+
+
 sz = 64
+
+
 data = get_data(sz)
+
+
 data = data.resize(int(sz * 1.3), 'tmp')
+
+
 learn = ConvLearner.pretrained(f_model, data, metrics=metrics)
+
+
 lrf = learn.lr_find()
-#learn.sched.plot()
+learn.sched.plot()
+
+
 lr = 0.2
+
+
 learn.fit(lr, 3, cycle_len=1, cycle_mult=2, saved_model_name='lesson2-image_models_1')
 
+
 lrs = np.array([lr / 9, lr / 3, lr])
+
+
 learn.unfreeze()
 learn.fit(lrs, 3, cycle_len=1, cycle_mult=2, saved_model_name='lesson2-image_models_2')
+
+
+learn.save(f'{sz}')
+
+
 learn.sched.plot_loss()
 
+
 sz = 128
+
+
 learn.set_data(get_data(sz))
 learn.freeze()
 learn.fit(lr, 3, cycle_len=1, cycle_mult=2, saved_model_name='lesson2-image_models_3')
+
+
 learn.unfreeze()
 learn.fit(lrs, 3, cycle_len=1, cycle_mult=2, saved_model_name='lesson2-image_models_4')
+learn.save(f'{sz}')
+
 
 sz = 256
+
+
 learn.set_data(get_data(sz))
 learn.freeze()
 learn.fit(lr, 3, cycle_len=1, cycle_mult=2, saved_model_name='lesson2-image_models_5')
 
+
 learn.unfreeze()
 learn.fit(lrs, 3, cycle_len=1, cycle_mult=2, saved_model_name='lesson2-image_models_6')
+learn.save(f'{sz}')
 
 
 multi_preds, y = learn.TTA()
@@ -111,3 +153,6 @@ preds = np.mean(multi_preds, 0)
 
 
 f2(preds, y)
+
+
+# ### End
