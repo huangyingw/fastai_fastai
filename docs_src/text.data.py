@@ -7,6 +7,7 @@ from fastai.gen_doc.nbdoc import *
 from fastai.text import *
 from fastai.gen_doc.nbdoc import *
 from fastai import *
+os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 
 # This module contains the [`TextDataset`](/text.data.html#TextDataset) class, which is the main dataset you should use for your NLP tasks. It automatically does the preprocessing steps described in [`text.transform`](/text.transform.html#text.transform). It also contains all the functions to quickly get a [`TextDataBunch`](/text.data.html#TextDataBunch) ready.
