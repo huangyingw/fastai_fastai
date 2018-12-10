@@ -8,6 +8,7 @@
 from fastai.gen_doc.nbdoc import *
 from fastai.vision import *
 from fastai import *
+os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 
 # ## Transfer learning
@@ -23,7 +24,7 @@ from fastai import *
 show_doc(create_cnn, doc_string=False)
 
 
-# This method creates a [`Learner`](/basic_train.html#Learner) object from the [`data`](/vision.data.html#vision.data) object and model inferred from it with the backbone given in `arch`. Specifically, it will cut the model defined by `arch` (randomly initialized if `pretrained` is False) at the last convolutional layer by default (or as defined in `cut`, see below) and add:
+# This method creates a [`Learner`](/basic_train.html#Learner) object from the [`data`](/data.html#data) object and model inferred from it with the backbone given in `arch`. Specifically, it will cut the model defined by `arch` (randomly initialized if `pretrained` is False) at the last convolutional layer by default (or as defined in `cut`, see below) and add:
 # - an [`AdaptiveConcatPool2d`](/layers.html#AdaptiveConcatPool2d) layer,
 # - a [`Flatten`](/layers.html#Flatten) layer,
 # - blocks of \[[`nn.BatchNorm1d`](https://pytorch.org/docs/stable/nn.html#torch.nn.BatchNorm1d), [`nn.Dropout`](https://pytorch.org/docs/stable/nn.html#torch.nn.Dropout), [`nn.Linear`](https://pytorch.org/docs/stable/nn.html#torch.nn.Linear), [`nn.ReLU`](https://pytorch.org/docs/stable/nn.html#torch.nn.ReLU)\] layers.
@@ -89,10 +90,10 @@ show_doc(create_head, doc_string=False)
 show_doc(ClassificationInterpretation, title_level=3)
 
 
-# This provides a confusion matrix and visualization of the most incorrect images. Pass in your [`data`](/vision.data.html#vision.data), calculated `preds`, actual `y`, and your `losses`, and then use the methods below to view the model interpretation results. For instance:
+# This provides a confusion matrix and visualization of the most incorrect images. Pass in your [`data`](/data.html#data), calculated `preds`, actual `y`, and your `losses`, and then use the methods below to view the model interpretation results. For instance:
 
 learn = create_cnn(data, models.resnet18)
-learn.fit(1)
+learn.fit(1, saved_model_name='vision.learner')
 preds, y, losses = learn.get_preds(with_loss=True)
 interp = ClassificationInterpretation(data, preds, y, losses)
 
@@ -146,7 +147,7 @@ show_doc(ClassificationInterpretation.most_confused)
 
 # When working with large datasets, memory problems can arise when computing the confusion matrix. For example, an error can look like this:
 #
-#     RuntimeError: $ Torch: not enough memory: you tried to allocate 64GB. Buy new RAM! at /opt/conda/conda-bld/pytorch-nightly_1540719301766/work/aten/src/TH/THGeneral.cpp:204
+#     RuntimeError: $ Torch: not enough memory: you tried to allocate 64GB. Buy new RAM!
 #
 # In this case it is possible to force [`ClassificationInterpretation`](/vision.learner.html#ClassificationInterpretation) to compute the confusion matrix for data slices and then aggregate the result by specifying slice_size parameter.
 
@@ -159,30 +160,6 @@ interp.plot_confusion_matrix(slice_size=10)
 interp.most_confused(slice_size=10)
 
 
-# ## GANs
-
-show_doc(gan_learner)
-
-
-# If `noise_size` is set, the GAN will generate fakes from a noise of this size, otherwise it'll use the inputs in data. If `wgan` is set to `True`, overrides the loss functions for a WGAN. `loss_funcD` and `loss_funcG` are used for discriminator and the generator. `kwargs` are passed to the [`Learner`](/basic_train.html#Learner) init.
-
-show_doc(GANLearner, title_level=3, doc_string=False)
-
-
-# Subclass of [`Learner`](/basic_train.html#Learner) to deal with `predict` and `show_results` for GANs.
-
 # ## Undocumented Methods - Methods moved below this line will intentionally be hidden
-
-show_doc(GANLearner)
-
-
-show_doc(GANLearner.show_results)
-
-
-show_doc(GANLearner.add_gan_trainer)
-
-
-show_doc(GANLearner.predict)
-
 
 # ## New Methods - Please document or move to the undocumented section
