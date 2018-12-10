@@ -5,19 +5,19 @@
 
 from fastai import *
 from fastai.gen_doc.nbdoc import *
+os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 
 # In this tutorial, we'll see how the same API allows you to create an empty [`DataBunch`](/basic_data.html#DataBunch) for a [`Learner`](/basic_train.html#Learner) at inference time (once you have trained your model) and how to call the `predict` method to get the predictions on a single item.
 
-jekyll_note("""As usual, this page is generated from a notebook that you can find in the docs_srs folder of the
-[fastai repo](https://github.com/fastai/fastai). We use the saved models from [this tutorial](/tutorial.data.html) to
-have this notebook run fast.
-""")
+jekyll_note("""As usual, this page is generated from a notebook that you can find in the <code>docs_src</code> folder of the
+<a href="https://github.com/fastai/fastai">fastai repo</a>. We use the saved models from <a href="/tutorial.data.html">this tutorial</a> to
+have this notebook run quickly.""")
 
 
 # ## Vision
 
-# To quickly get acces to all the vision functions inside fastai, we use the usual import statements.
+# To quickly get acces to all the vision functionality inside fastai, we use the usual import statements.
 
 from fastai import *
 from fastai.vision import *
@@ -47,12 +47,14 @@ data.export()
 
 
 # To create the [`DataBunch`](/basic_data.html#DataBunch) for inference, you'll need to use the `load_empty` method. Note that for now, transforms and normalization aren't saved inside the export file. This is going to be integrated in a future version of the library. For now, we pass the transforms we applied on the validation set, along with all relevant `kwargs`, and we normalize with the same statistics as during training.
-#
+
+sd = LabelLists.load_empty(mnist / 'export.pkl', tfms=tfms, size=32)
+empty_data = sd.databunch().normalize(imagenet_stats)
+
+
 # Then, we use it to create a [`Learner`](/basic_train.html#Learner) and load the model we trained before.
 
-empty_data = ImageDataBunch.load_empty(mnist, tfms=tfms, size=32).normalize(imagenet_stats)
-learn = create_cnn(empty_data, models.resnet18)
-learn.load('mini_train');
+learn = create_cnn(empty_data, models.resnet18).load('mini_train')
 
 
 # You can now get the predictions on any image via `learn.predict`.
@@ -61,7 +63,20 @@ img = data.train_ds[0][0]
 learn.predict(img)
 
 
-# It returns a tuple of three things: the object predicted (with the class in this instance), the underlying data (here the corresponding index) and the raw probabilities.
+# It returns a tuple of three things: the object predicted (with the class in this instance), the underlying data (here the corresponding index) and the raw probabilities. You can also do inference on a larger set of data by adding a *test set*. Simply use the exact same steps as before, but add a test set to your [`LabelLists`](/data_block.html#LabelLists):
+
+sd = LabelLists.load_empty(mnist / 'export.pkl', tfms=tfms, size=32).add_test_folder('test')
+empty_data = sd.databunch().normalize(imagenet_stats)
+
+
+# Now you can use [`Learner.get_preds`](/basic_train.html#Learner.get_preds) in the usual way.
+
+learn = create_cnn(empty_data, models.resnet18).load('mini_train')
+
+
+preds, y = learn.get_preds(ds_type=DatasetType.Test)
+preds[:5]
+
 
 # ### A multi-label problem
 
@@ -285,7 +300,7 @@ data = (TabularList.from_df(df, path=adult, cat_names=cat_names, cont_names=cont
 # We define a [`Learner`](/basic_train.html#Learner) object that we fit and then save the model.
 
 learn = tabular_learner(data, layers=[200, 100], metrics=accuracy)
-learn.fit(1, 1e-2)
+learn.fit(1, 1e-2, saved_model_name='tutorial.inference_1')
 learn.save('mini_train')
 
 
