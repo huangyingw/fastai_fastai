@@ -32,7 +32,7 @@ from fastai.plots import *
 # `PATH` is the path to your data - if you use the recommended setup approaches from the lesson, you won't need to change this. `sz` is the size that the images will be resized to in order to ensure that the training runs quickly. We'll be talking about this parameter a lot during the course. Leave it at `224` for now.
 
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
-PATH = "../../../data/dogscats/"
+PATH = "./data/dogscats/"
 sz = 224
 
 
