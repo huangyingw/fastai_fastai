@@ -84,7 +84,7 @@ def fit(epochs:int, model:nn.Module, loss_func:LossFunction, opt:optim.Optimizer
                 loss = loss_batch(model, xb, yb, loss_func, opt, cb_handler)
                 if cb_handler.on_batch_end(loss): break
 
-            if hasattr(data,'valid_dl') and data.valid_dl is not None and data.valid_ds is not None:
+            if hasattr(data,'valid_dl') and data.valid_dl is not None and len(data.valid_ds.items) > 0:
                 val_loss = validate(model, data.valid_dl, loss_func=loss_func,
                                        cb_handler=cb_handler, pbar=pbar)
             else: val_loss=None
@@ -94,7 +94,7 @@ def fit(epochs:int, model:nn.Module, loss_func:LossFunction, opt:optim.Optimizer
         raise e
     finally: cb_handler.on_train_end(exception)
 
-loss_func_name2activ = {'cross_entropy_loss': partial(F.softmax, dim=-1), 'nll_loss': torch.exp, 'poisson_nll_loss': torch.exp,
+loss_func_name2activ = {'cross_entropy_loss': partial(F.softmax, dim=1), 'nll_loss': torch.exp, 'poisson_nll_loss': torch.exp,
     'kl_div_loss': torch.exp, 'bce_with_logits_loss': torch.sigmoid, 'cross_entropy': partial(F.softmax, dim=1),
     'kl_div': torch.exp, 'binary_cross_entropy_with_logits': torch.sigmoid,
 }
@@ -229,14 +229,18 @@ class Learner():
         return get_preds(self.model, self.dl(ds_type), cb_handler=CallbackHandler(self.callbacks),
                          activ=_loss_func2activ(self.loss_func), loss_func=lf, n_batch=n_batch, pbar=pbar)
 
-    def pred_batch(self, ds_type:DatasetType=DatasetType.Valid, batch:Tuple=None) -> List[Tensor]:
+    def pred_batch(self, ds_type:DatasetType=DatasetType.Valid, batch:Tuple=None, reconstruct:bool=False) -> List[Tensor]:
         "Return output of the model on one batch from `ds_type` dataset."
-        if batch: xb,yb = batch
+        if batch is not None: xb,yb = batch
         else: xb,yb = self.data.one_batch(ds_type, detach=False, denorm=False)
         cb_handler = CallbackHandler(self.callbacks)
         cb_handler.on_batch_begin(xb,yb, train=False)
         preds = loss_batch(self.model.eval(), xb, yb, cb_handler=cb_handler)
-        return _loss_func2activ(self.loss_func)(preds[0])
+        res = _loss_func2activ(self.loss_func)(preds[0])
+        if not reconstruct: return res
+        res = res.detach()
+        ds = self.dl(ds_type).dataset
+        return [ds.reconstruct(o) for o in res]
 
     def backward(self, item):
         "Pass `item` through the model and computes the gradient. Useful if `backward_hooks` are attached."

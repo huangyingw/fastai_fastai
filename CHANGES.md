@@ -11,22 +11,30 @@ Github. Parentheses after an item show the name or github id of the contributor
 of that change.
 
 
-
-
 ## 1.0.37.dev0 (Work In Progress)
 
 ### New:
 
 - `SequentialEx`, `MergeLayer`, and `res_block` to more easily create resnet and densenet architectures
+- `no_split` method in the data block API
+- `sigmoid_range` function to scale sigmoid to given range
 
 ### Changed:
 
 - Experimental cross-connection from raw input plus extra resblock at end of unet
 - Add an execution-time check for a specific version of fastprogress (`git pull` fastai updates)
+- `DataBunch.export` now serializes everything (transforms and normalization included)
+- `DataBunch` now has `fix_dl` attr, which is same data as `train_dl` but without shuffle or train tfms
+- `pred_batch` now has `reconstruct` param, which will reconstruct each prediction into an object
 
 ### Fixed:
 
+- Windows fixes, including:
+  - Most transforms can now be used in Windows with `num_workers`>0
+  - Avoid recusion error with data blocks API
+  - Try to avoid default `np.int32` creation where possible
 - `sigmoid` argument for unet output activation function
+- `Image.apply_tfms` doesn't accept any kwargs anymore.
 
 
 ## 1.0.36 (2018-12-08)
