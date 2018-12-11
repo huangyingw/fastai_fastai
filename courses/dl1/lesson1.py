@@ -31,7 +31,7 @@ os.listdir(f'{PATH}valid')
 files = os.listdir(f'{PATH}valid/cats')[:5]
 files
 img = plt.imread(f'{PATH}valid/cats/{files[0]}')
-plt.imshow(img);
+plt.imshow(img)
 # Here is how the raw data looks like
 img.shape
 img[:4, :4]
@@ -65,31 +65,50 @@ log_preds.shape
 log_preds[:10]
 preds = np.argmax(log_preds, axis=1)  # from log probabilities to 0 or 1
 probs = np.exp(log_preds[:, 1])        # pr(dog)
+
+
 def rand_by_mask(mask): return np.random.choice(np.where(mask)[0], min(len(preds), 4), replace=False)
+
+
 def rand_by_correct(is_correct): return rand_by_mask((preds == data.val_y) == is_correct)
+
+
 def plots(ims, figsize=(12, 6), rows=1, titles=None):
     f = plt.figure(figsize=figsize)
     for i in range(len(ims)):
         sp = f.add_subplot(rows, len(ims) // rows, i + 1)
         sp.axis('Off')
-        if titles is not None: sp.set_title(titles[i], fontsize=16)
+        if titles is not None:
+            sp.set_title(titles[i], fontsize=16)
         plt.imshow(ims[i])
+
+
 def load_img_id(ds, idx): return np.array(PIL.Image.open(PATH + ds.fnames[idx]))
+
+
 def plot_val_with_title(idxs, title):
     imgs = [load_img_id(data.val_ds, x) for x in idxs]
     title_probs = [probs[x] for x in idxs]
     print(title)
     return plots(imgs, rows=1, titles=title_probs, figsize=(16, 8)) if len(imgs) > 0 else print('Not Found.')
+
+
 # 1. A few correct labels at random
 plot_val_with_title(rand_by_correct(True), "Correctly classified")
 # 2. A few incorrect labels at random
 plot_val_with_title(rand_by_correct(False), "Incorrectly classified")
+
+
 def most_by_mask(mask, mult):
     idxs = np.where(mask)[0]
     return idxs[np.argsort(mult * probs[idxs])[:4]]
+
+
 def most_by_correct(y, is_correct):
     mult = -1 if (y == 1) == is_correct else 1
     return most_by_mask(((preds == data.val_y) == is_correct) & (data.val_y == y), mult)
+
+
 plot_val_with_title(most_by_correct(0, True), "Most correct cats")
 plot_val_with_title(most_by_correct(1, True), "Most correct dogs")
 plot_val_with_title(most_by_correct(0, False), "Most incorrect cats")
@@ -118,10 +137,14 @@ learn.sched.plot()
 #
 # We can do this by passing `aug_tfms` (*augmentation transforms*) to `tfms_from_model`, with a list of functions to apply that randomly change the image however we wish. For photos that are largely taken from the side (e.g. most photos of dogs and cats, as opposed to photos taken from the top down, such as satellite imagery) we can use the pre-defined list of functions `transforms_side_on`. We can also specify random zooming of images up to specified scale by adding the `max_zoom` parameter.
 tfms = tfms_from_model(resnet34, sz, aug_tfms=transforms_side_on, max_zoom=1.1)
+
+
 def get_augs():
     data = ImageClassifierData.from_paths(PATH, bs=2, tfms=tfms, num_workers=1)
     x, _ = next(iter(data.aug_dl))
     return data.trn_ds.denorm(x)[1]
+
+
 ims = np.stack([get_augs() for i in range(6)])
 plots(ims, rows=2)
 # Let's create a new `data` object that includes this augmentation in the transforms.
@@ -213,8 +236,12 @@ learn.fit(1e-2, 1, saved_model_name='learn4')
 # The loss associated with one example in binary classification is given by:
 # `-(y * log(p) + (1-y) * log (1-p))`
 # where `y` is the true label of `x` and `p` is the probability predicted by our model that the label is 1.
+
+
 def binary_loss(y, p):
     return np.mean(-(y * np.log(p) + (1 - y) * np.log(1 - p)))
+
+
 acts = np.array([1, 0, 0, 1])
 preds = np.array([0.9, 0.1, 0.2, 0.8])
 binary_loss(acts, preds)
