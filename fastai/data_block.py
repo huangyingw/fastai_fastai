@@ -38,14 +38,15 @@ class PreProcessor():
     def process(self, ds:Collection):        ds.items = array([self.process_one(item) for item in ds.items])
 
 class ItemList():
+    "A collection of items with `__len__` and `__getitem__` with `ndarray` indexing semantics."
     _bunch,_processor,_label_cls,_square_show = DataBunch,None,None,False
 
-    "A collection of items with `__len__` and `__getitem__` with `ndarray` indexing semantics."
     def __init__(self, items:Iterator, path:PathOrStr='.',
                  label_cls:Callable=None, xtra:Any=None, processor:PreProcessor=None, x:'ItemList'=None, **kwargs):
         self.path = Path(path)
         self.num_parts = len(self.path.parts)
-        self.items,self.x = array(items, dtype=object),x
+        self.items,self.x = items,x
+        if not isinstance(self.items,np.ndarray): self.items = array(self.items, dtype=object)
         self.label_cls,self.xtra,self.processor = ifnone(label_cls,self._label_cls),xtra,processor
         self._label_list,self._split = LabelList,ItemLists
         self.copy_new = ['x', 'label_cls', 'path']
@@ -89,7 +90,8 @@ class ItemList():
         return self.__class__(items=items, processor=processor, **copy_d, **kwargs)
 
     def __getitem__(self,idxs:int)->Any:
-        if isinstance(try_int(idxs), int): return self.get(idxs)
+        idxs = try_int(idxs)
+        if isinstance(idxs, numbers.Integral): return self.get(idxs)
         else: return self.new(self.items[idxs], xtra=index_row(self.xtra, idxs))
 
     @classmethod
@@ -186,7 +188,8 @@ class ItemList():
 
     def split_by_files(self, valid_names:'ItemList')->'ItemLists':
         "Split the data by using the names in `valid_names` for validation."
-        return self.split_by_valid_func(lambda o: o.name in valid_names)
+        if isinstance(self.items[0], Path): return self.split_by_valid_func(lambda o: o.name in valid_names)
+        else: return self.split_by_valid_func(lambda o: os.path.basename(o) in valid_names)
 
     def split_by_fname_file(self, fname:PathOrStr, path:PathOrStr=None)->'ItemLists':
         "Split the data by using the names in `fname` for the validation set. `path` will override `self.path`."
@@ -206,7 +209,7 @@ class ItemList():
         it = index_row(labels,0)
         if sep is not None:                     return MultiCategoryList
         if isinstance(it, (float, np.float32)): return FloatList
-        if isinstance(try_int(it), (str,int)):  return CategoryList
+        if isinstance(try_int(it), (str,numbers.Integral)):  return CategoryList
         if isinstance(it, Collection):          return MultiCategoryList
         return self.__class__
 
@@ -257,7 +260,7 @@ class EmptyLabelList(ItemList):
         return self.x.reconstruct(t,x) if has_arg(self.x.reconstruct, 'x') else self.x.reconstruct(t)
 
 class CategoryProcessor(PreProcessor):
-    "Processor that create `classes` from `ds.items` and handle the mapping."
+    "`PreProcessor` that create `classes` from `ds.items` and handle the mapping."
     def __init__(self, ds:ItemList): self.create_classes(ds.classes)
 
     def create_classes(self, classes):
@@ -312,7 +315,7 @@ class CategoryList(CategoryListBase):
         return Category(t, self.classes[t])
 
 class MultiCategoryProcessor(CategoryProcessor):
-    "Processor that create `classes` from `ds.items` and handle the mapping."
+    "`PreProcessor` that create `classes` from `ds.items` and handle the mapping."
     def process_one(self,item): return [self.c2i.get(o,None) for o in item]
 
     def generate_classes(self, items):
@@ -344,7 +347,7 @@ class MultiCategoryList(CategoryListBase):
         return MultiCategory(t, [self.classes[p] for p in o], o)
 
 class FloatList(ItemList):
-    "`ItemList` suitable for storing the floats in items for regression. Will add a `log` if True"
+    "`ItemList` suitable for storing the floats in items for regression. Will add a `log` if thif flag is `True`."
     def __init__(self, items:Iterator, log:bool=False, **kwargs):
         super().__init__(np.array(items, dtype=np.float32), **kwargs)
         self.log = log
@@ -375,6 +378,7 @@ class ItemLists():
         def _inner(*args, **kwargs):
             self.train = ft(*args, **kwargs)
             assert isinstance(self.train, LabelList)
+            kwargs['label_cls'] = self.train.y.__class__
             self.valid = fv(*args, **kwargs)
             self.__class__ = LabelLists
             self.process()
@@ -454,6 +458,7 @@ class LabelLists(ItemLists):
 
     @classmethod
     def load_empty(cls, path:PathOrStr, fn:PathOrStr='export.pkl'):
+        "Create a `LabelLists` with empty sets from the serialzed file in `path/fn`."
         path = Path(path)
         train_ds = LabelList.load_empty(path/fn)
         valid_ds = LabelList.load_empty(path/fn)
@@ -471,7 +476,7 @@ class LabelList(Dataset):
 
     @contextmanager
     def set_item(self,item):
-        "For inference, will replace the dataset with one that only contains `item`."
+        "For inference, will briefly replace the dataset with one that only contains `item`."
         self.item = self.x.process_one(item)
         yield None
         self.item = None
@@ -493,13 +498,17 @@ class LabelList(Dataset):
             return self.new(self.x.new(x, **kwargs), self.y.new(y, **kwargs)).process()
 
     def __getattr__(self,k:str)->Any:
-        if hasattr(self,'x'):
-            res = getattr(self.x, k, None)
-            if res is not None: return res
-        if hasattr(self,'y'): return getattr(self.y, k)
+        x = super().__getattribute__('x')
+        res = getattr(x, k, None)
+        if res is not None: return res
+        y = super().__getattribute__('y')
+        res = getattr(y, k, None)
+        if res is not None: return res
+        raise AttributeError(k)
 
     def __getitem__(self,idxs:Union[int,np.ndarray])->'LabelList':
-        if isinstance(try_int(idxs), int):
+        idxs = try_int(idxs)
+        if isinstance(idxs, numbers.Integral):
             if self.item is None: x,y = self.x[idxs],self.y[idxs]
             else:                 x,y = self.item   ,0
             if self.tfms:

@@ -17,7 +17,9 @@ of that change.
 
 - `SequentialEx`, `MergeLayer`, and `res_block` to more easily create resnet and densenet architectures
 - `no_split` method in the data block API
-- `sigmoid_range` function to scale sigmoid to given range
+- `sigmoid_range` function to scale sigmoid to given range, along with `SigmoidRange` layer
+- `DataBunch` performs a sanity check after its initialization and will throw a warning if something is wrong with the data.
+- More GAN stuff: `gan_critic`, `AdaptiveLoss`, `accuracy_thresh_expand`, and `GANDiscriminativeLR`
 
 ### Changed:
 
@@ -33,8 +35,9 @@ of that change.
   - Most transforms can now be used in Windows with `num_workers`>0
   - Avoid recusion error with data blocks API
   - Try to avoid default `np.int32` creation where possible
-- `sigmoid` argument for unet output activation function
-- `Image.apply_tfms` doesn't accept any kwargs anymore.
+- `y_range` for unet output activation
+- `Image.apply_tfms` doesn't accept any kwargs anymore
+- `split_from_files` works with `from_df`/`from_csv`
 
 
 ## 1.0.36 (2018-12-08)

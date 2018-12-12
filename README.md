@@ -25,7 +25,7 @@ If you are using `fastai` for any [course.fast.ai](http://course.fast.ai) course
 
 ## Installation
 
-**NB:** *fastai v1 currently supports Linux only, and requires **PyTorch v1** and **Python 3.6** or later. We are working to support Windows as soon as possible. Since Macs don't currently have good Nvidia GPU support, we do not currently prioritize Mac development.*
+**NB:** *fastai v1 currently supports Linux only, and requires **PyTorch v1** and **Python 3.6** or later. Windows support is at an experimental stage: it should work fine but we haven't thoroughly tested it. Since Macs don't currently have good Nvidia GPU support, we do not currently prioritize Mac development.*
 
 `fastai-1.x` can be installed with either `conda` or `pip` package managers and also from source. At the moment you can't just run *install*, since you first need to get the correct `pytorch` version installed - thus to get `fastai-1.x` installed choose one of the installation recipes below using your favourite python package manager. Note that **PyTorch v1** and **Python 3.6** are the minimal version requirements.
 
@@ -46,10 +46,11 @@ conda install -c pytorch -c fastai fastai
 Note that JPEG decoding can be a bottleneck, particularly if you have a fast GPU. You can optionally install an optimized JPEG decoder as follows (Linux):
 
 ```bash
-conda uninstall --force jpeg libtiff -y
+conda uninstall --force jpeg -y
 conda install -c conda-forge libjpeg-turbo
 CC="cc -mavx2" pip install --no-cache-dir -U --force-reinstall pillow-simd
 ```
+For the full story see [Pillow-SIMD](https://docs.fast.ai/performance.html#installation).
 
 ### PyPI Install
 
@@ -156,13 +157,22 @@ conda install conda
     | CUDA Toolkit | NVIDIA (Linux x86_64) |
     |--------------|-----------------------|
     | CUDA 10.0    | >= 410.00             |
-    | CUDA 9.2     | >= 396.26             |
     | CUDA 9.0     | >= 384.81             |
     | CUDA 8.0     | >= 367.48             |
 
    So if your NVIDIA driver is less than 384, then you can only use `cuda80`. Of course, you can upgrade your drivers to more recent ones if your card supports it.
+
    You can find a complete table with all variations [here](https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html).
 
+   If you use NVIDIA driver 410+, you most likely want to install the `cuda100` pytorch variant, via:
+   ```bash
+   conda install -c pytorch pytorch cuda100
+   ```
+   or if you need a lower version (`cuda90` is installed by default), use:
+   ```bash
+   conda install -c pytorch pytorch cuda80
+   ```
+   For other options refer to the complete list of [the available pytorch variants](https://pytorch.org/get-started/locally/).
 
 ## Updates
 

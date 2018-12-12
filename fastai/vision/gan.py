@@ -4,9 +4,11 @@ from ..callback import *
 from ..basic_data import *
 from ..basic_train import Learner, LearnerCallback
 from .image import Image
+from .data import ImageItemList
 
 __all__ = ['basic_critic', 'basic_generator', 'GANModule', 'GANLoss', 'GANTrainer', 'FixedGANSwitcher', 'AdaptiveGANSwitcher',
-           'GANLearner']
+           'GANLearner', 'NoisyItem', 'GANItemList', 'gan_critic', 'AdaptiveLoss', 'accuracy_thresh_expand',
+           'GANDiscriminativeLR']
 
 def AvgFlatten():
     "Takes the average of the input."
@@ -129,10 +131,15 @@ class GANTrainer(LearnerCallback):
     def on_epoch_end(self, pbar, epoch, **kwargs):
         "Put the various losses in the recorder and show a sample image."
         self.recorder.add_metrics([getattr(self.smoothenerG,'smooth',None),getattr(self.smoothenerC,'smooth',None)])
-        if hasattr(self, 'last_gen') and self.show_img:
-            self.imgs.append(Image(self.last_gen[0]/2 + 0.5))
-            self.titles.append(f'Epoch {epoch}')
-            pbar.show_imgs(self.imgs, self.titles)
+        if not hasattr(self, 'last_gen') or not self.show_img: return
+        data = self.learn.data
+        img = self.last_gen[0]
+        norm = getattr(data,'norm',False)
+        if norm and norm.keywords.get('do_y',False): img = self.data.denorm(img)
+        img = data.reconstruct(img)
+        self.imgs.append(img)
+        self.titles.append(f'Epoch {epoch}')
+        pbar.show_imgs(self.imgs, self.titles)
 
     def switch(self, gen_mode:bool=None):
         "Switch the model, if `gen_mode` is provided, in the desired mode."
@@ -218,4 +225,75 @@ class GANLearner(Learner):
     def wgan(cls, data:DataBunch, generator:nn.Module, critic:nn.Module, switcher:Callback=None, clip:float=0.01, **kwargs):
         "Create a WGAN from `data`, `generator` and `critic`."
         return cls(data, generator, critic, NoopLoss(), WassersteinLoss(), switcher=switcher, clip=clip, **kwargs)
+
+class NoisyItem(ItemBase):
+    "An random `ItemBase` of size `noise_sz`."
+    def __init__(self, noise_sz): self.obj,self.data = noise_sz,torch.randn(noise_sz, 1, 1)
+    def __str__(self):  return ''
+    def apply_tfms(self, tfms, **kwargs): return self
+
+class GANItemList(ImageItemList):
+    "`ItemList` suitable for GANs."
+    _label_cls = ImageItemList
+    
+    def __init__(self, items, noise_sz:int=100, **kwargs):
+        super().__init__(items, **kwargs)
+        self.noise_sz = noise_sz
+        self.copy_new.append('noise_sz')
+    
+    def get(self, i): return NoisyItem(self.noise_sz)
+    def reconstruct(self, t): return NoisyItem(t.size(0))
+    
+    def show_xys(self, xs, ys, imgsize:int=4, figsize:Optional[Tuple[int,int]]=None, **kwargs):
+        super().show_xys(ys, xs, imgsize=imgsize, figsize=figsize, **kwargs)
+        
+    def show_xyzs(self, xs, ys, zs, imgsize:int=4, figsize:Optional[Tuple[int,int]]=None, **kwargs):
+        super().show_xys(zs, xs, imgsize=imgsize, figsize=figsize, **kwargs)
+
+_conv_args = dict(leaky=0.2, norm_type=NormType.Spectral)
+
+def _conv(ni:int, nf:int, ks:int=3, stride:int=1, **kwargs):
+    return conv_layer(ni, nf, ks=ks, stride=stride, **_conv_args, **kwargs)
+
+def gan_critic(n_channels:int=3, nf:int=128, n_blocks:int=3, p:int=0.15):
+    layers = [
+        _conv(n_channels, nf, ks=4, stride=2),
+        nn.Dropout2d(p/2),
+        res_block(nf, dense=True,**_conv_args)]
+    nf *= 2 # after dense block
+    for i in range(n_blocks):
+        layers += [
+            nn.Dropout2d(p),
+            _conv(nf, nf*2, ks=4, stride=2, self_attention=(i==0))]
+        nf *= 2
+    layers += [
+        _conv(nf, 1, ks=4, bias=False, padding=0, use_activ=False),
+        Flatten()]
+    return nn.Sequential(*layers)
+
+@dataclass
+class GANDiscriminativeLR(LearnerCallback):
+    "`Callback` that handles multiplying the learning rate by `mult_lr` for the critic."
+    mult_lr:float = 5.
+
+    def on_batch_begin(self, train, **kwargs):
+        "Multiply the current lr if necessary."
+        if not self.learn.gan_trainer.gen_mode and train: self.learn.opt.lr *= self.mult_lr
+
+    def on_step_end(self, **kwargs):
+        "Put the LR back to its value if necessary."
+        if not self.learn.gan_trainer.gen_mode: self.learn.opt.lr /= self.mult_lr
+
+class AdaptiveLoss(nn.Module):
+    def __init__(self, crit):
+        super().__init__()
+        self.crit = crit
+
+    def forward(self, output, target):
+        return self.crit(output, target[:,None].expand_as(output).float())
+
+def accuracy_thresh_expand(y_pred:Tensor, y_true:Tensor, thresh:float=0.5, sigmoid:bool=True)->Rank0Tensor:
+    "Compute accuracy when `y_pred` and `y_true` are the same size."
+    if sigmoid: y_pred = y_pred.sigmoid()
+    return ((y_pred>thresh)==y_true[:,None].expand_as(y_pred).byte()).float().mean()
 
