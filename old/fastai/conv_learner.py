@@ -1,7 +1,7 @@
 from .core import *
+from .initializers import *
 from .layers import *
 from .learner import *
-from .initializers import *
 from torchvision.models import resnet101, resnet152, resnet18, resnet34, resnet50
 import torch.nn.functional as F
 
