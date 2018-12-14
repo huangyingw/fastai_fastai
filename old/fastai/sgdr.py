@@ -3,6 +3,7 @@ from .layer_optimizer import *
 from enum import IntEnum
 from timeit import default_timer as timer
 import math
+import torch.optim as optim
 
 
 class Callback:
@@ -84,7 +85,7 @@ class LossRecorder(Callback):
         self.save_path, self.record_mom, self.metrics = save_path, record_mom, metrics
 
     def on_train_begin(self):
-        self.losses,self.lrs,self.iterations,self.epochs,self.times = [],[],[],[],[]
+        self.losses, self.lrs, self.iterations, self.epochs, self.times = [], [], [], [], []
         self.start_at = timer()
         self.val_losses, self.rec_metrics = [], []
         if self.record_mom:
@@ -297,7 +298,7 @@ class CosAnneal(LR_Updater):
 
 class CircularLR(LR_Updater):
     '''
-    A learning rate updater that implements the CircularLearningRate (CLR) scheme. 
+    A learning rate updater that implements the CircularLearningRate (CLR) scheme.
     Learning rate is increased then decreased linearly.
     '''
 
