@@ -11,7 +11,23 @@ Github. Parentheses after an item show the name or github id of the contributor
 of that change.
 
 
-## 1.0.37.dev0 (Work In Progress)
+
+
+
+
+## 1.0.38.dev0 (Work In Progress)
+
+### New:
+
+- `check_perf` - performance improvement recommendations
+
+### Changed:
+
+### Fixed:
+
+
+
+## 1.0.37 (2018-12-13)
 
 ### New:
 
@@ -20,6 +36,8 @@ of that change.
 - `sigmoid_range` function to scale sigmoid to given range, along with `SigmoidRange` layer
 - `DataBunch` performs a sanity check after its initialization and will throw a warning if something is wrong with the data.
 - More GAN stuff: `gan_critic`, `AdaptiveLoss`, `accuracy_thresh_expand`, and `GANDiscriminativeLR`
+- Support for one-hot encoded labels in multiclassification problems
+- Add `Dataset.Fix` (same as train but with `shuffle=False`, `drop_last=False` and valid transforms)
 
 ### Changed:
 
@@ -28,6 +46,7 @@ of that change.
 - `DataBunch.export` now serializes everything (transforms and normalization included)
 - `DataBunch` now has `fix_dl` attr, which is same data as `train_dl` but without shuffle or train tfms
 - `pred_batch` now has `reconstruct` param, which will reconstruct each prediction into an object
+- `Learner.show_results` gives a better output for image classification tasks
 
 ### Fixed:
 

@@ -135,8 +135,8 @@ class GANTrainer(LearnerCallback):
         data = self.learn.data
         img = self.last_gen[0]
         norm = getattr(data,'norm',False)
-        if norm and norm.keywords.get('do_y',False): img = self.data.denorm(img)
-        img = data.reconstruct(img)
+        if norm and norm.keywords.get('do_y',False): img = data.denorm(img)
+        img = data.train_ds.y.reconstruct(img)
         self.imgs.append(img)
         self.titles.append(f'Epoch {epoch}')
         pbar.show_imgs(self.imgs, self.titles)
@@ -245,9 +245,11 @@ class GANItemList(ImageItemList):
     def reconstruct(self, t): return NoisyItem(t.size(0))
     
     def show_xys(self, xs, ys, imgsize:int=4, figsize:Optional[Tuple[int,int]]=None, **kwargs):
+        "Shows `ys` (target images) on a figure of `figsize`."
         super().show_xys(ys, xs, imgsize=imgsize, figsize=figsize, **kwargs)
         
     def show_xyzs(self, xs, ys, zs, imgsize:int=4, figsize:Optional[Tuple[int,int]]=None, **kwargs):
+        "Shows `zs` (generated images) on a figure of `figsize`."
         super().show_xys(zs, xs, imgsize=imgsize, figsize=figsize, **kwargs)
 
 _conv_args = dict(leaky=0.2, norm_type=NormType.Spectral)
@@ -256,6 +258,7 @@ def _conv(ni:int, nf:int, ks:int=3, stride:int=1, **kwargs):
     return conv_layer(ni, nf, ks=ks, stride=stride, **_conv_args, **kwargs)
 
 def gan_critic(n_channels:int=3, nf:int=128, n_blocks:int=3, p:int=0.15):
+    "Critic to train a `GAN`."
     layers = [
         _conv(n_channels, nf, ks=4, stride=2),
         nn.Dropout2d(p/2),
@@ -285,6 +288,7 @@ class GANDiscriminativeLR(LearnerCallback):
         if not self.learn.gan_trainer.gen_mode: self.learn.opt.lr /= self.mult_lr
 
 class AdaptiveLoss(nn.Module):
+    "Expand the `target` to match the `output` size before applying `crit`."
     def __init__(self, crit):
         super().__init__()
         self.crit = crit
@@ -293,7 +297,7 @@ class AdaptiveLoss(nn.Module):
         return self.crit(output, target[:,None].expand_as(output).float())
 
 def accuracy_thresh_expand(y_pred:Tensor, y_true:Tensor, thresh:float=0.5, sigmoid:bool=True)->Rank0Tensor:
-    "Compute accuracy when `y_pred` and `y_true` are the same size."
+    "Compute accuracy after expanding `y_true` to the size of `y_pred`."
     if sigmoid: y_pred = y_pred.sigmoid()
     return ((y_pred>thresh)==y_true[:,None].expand_as(y_pred).byte()).float().mean()
 

@@ -210,7 +210,7 @@ def df_names_to_idx(names:IntsOrStrs, df:DataFrame):
 def one_hot(x:Collection[int], c:int):
     "One-hot encode `x` with `c` classes."
     res = np.zeros((c,), np.float32)
-    res[x] = 1.
+    res[listify(x)] = 1.
     return res
 
 def index_row(a:Union[Collection,pd.DataFrame,pd.Series], idxs:Collection[int])->Any:
@@ -236,12 +236,6 @@ def split_kwargs_by_func(kwargs, func):
     args = func_args(func)
     func_kwargs = {a:kwargs.pop(a) for a in args if a in kwargs}
     return func_kwargs, kwargs
-
-def try_int(o:Any)->Any:
-    "Try to convert `o` to int, default to `o` if not possible."
-    if isinstance(o, collections.Sized) or getattr(o,'__array_interface__',False): return o
-    try: return int(o)
-    except: return o
 
 def array(a, dtype:type=None, **kwargs)->np.ndarray:
     "Same as `np.array` but also handles generators"
