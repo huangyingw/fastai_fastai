@@ -1,8 +1,10 @@
-from fastai.conv_learner import ConvLearner
-from fastai.dataset import ImageClassifierData
-from fastai.transforms import tfms_from_model, transforms_side_on
-from torchvision.models import resnet34
-import matplotlib.pyplot as plt
+from fastai.conv_learner import *
+from fastai.dataset import *
+from fastai.imports import *
+from fastai.model import *
+from fastai.plots import *
+from fastai.sgdr import *
+from fastai.transforms import *
 import os
 import os.path
 import subprocess
@@ -39,7 +41,10 @@ tfms = tfms_from_model(
 def learn1():
     data = ImageClassifierData.from_paths(PATH, tfms=tfms)
     learn = ConvLearner.pretrained(arch, data, precompute=True)
-    learn.fit(1e-2, 1, saved_model_name='save_restore')
+    learn.lr_find()
     learn.sched.plot_lr()
+    learn.sched.plot()
+    #learn.fit(1e-2, 1, saved_model_name='save_restore')
+    #learn.sched.plot_lr()
 
 learn1()
