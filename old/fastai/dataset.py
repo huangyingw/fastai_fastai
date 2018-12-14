@@ -1,4 +1,4 @@
-from PIL.ImageFile import ImageFile
+from torch.utils.data import DataLoader, Dataset
 from .dataloader import DataLoader
 from .transforms import *
 
@@ -69,7 +69,7 @@ def resize_imgs(fnames, targ, path, new_path, resume=True, fn=None):
             already_resized_fnames.update(set(files))
         original_fnames = set(fnames)
         fnames = list(original_fnames - already_resized_fnames)
-    
+
     errors = {}
     def safely_process(fname):
         try:
@@ -162,7 +162,7 @@ def parse_csv_labels(fn, skip_header=True, cat_separator=' '):
     return fnames, list(df.to_dict().values())[0]
 
 def nhot_labels(label2idx, csv_labels, fnames, c):
-			    
+
     all_idx = {k: n_hot([label2idx[o] for o in ([] if type(v) == float else v)], c)
                for k, v in csv_labels.items()}
     return np.stack([all_idx[o] for o in fnames])
@@ -307,7 +307,7 @@ class FilesDataset(BaseDataset):
     def resize_imgs(self, targ, new_path, resume=True, fn=None):
         """
         resize all images in the dataset and save them to `new_path`
-        
+
         Arguments:
         targ (int): the target size
         new_path (string): the new folder to save the images
@@ -556,7 +556,7 @@ class ImageClassifierData(ImageData):
             suffix: suffix to add to image names in CSV file (sometimes CSV only contains the file name without file
                     extension e.g. '.jpg' - in which case, you can set suffix as '.jpg')
             test_name: a name of the folder which contains test images.
-            continuous: if True, the data set is used to train regression models. If False, it is used 
+            continuous: if True, the data set is used to train regression models. If False, it is used
                 to train classification models.
             skip_header: skip the first row of the CSV file.
             num_workers: number of workers

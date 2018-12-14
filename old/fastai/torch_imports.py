@@ -5,13 +5,10 @@ from .models.resnext_101_64x4d import resnext_101_64x4d
 from .models.resnext_50_32x4d import resnext_50_32x4d
 from .models.wrn_50_2f import wrn_50_2f
 from distutils.version import LooseVersion
-from torch.autograd import Variable
 from torchvision.models import densenet121, densenet161, densenet169, densenet201
 from torchvision.models import vgg16_bn, vgg19_bn
 import os
 import torch
-import torch.nn as nn
-import torch.optim as optim
 import warnings
 
 warnings.filterwarnings('ignore', message='Implicit dimension choice', category=UserWarning)
