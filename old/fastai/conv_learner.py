@@ -2,6 +2,7 @@ from .core import *
 from .initializers import *
 from .layers import *
 from .learner import *
+from torch.nn.init import kaiming_normal
 from torchvision.models import resnet101, resnet152, resnet18, resnet34, resnet50
 import torch.nn.functional as F
 
@@ -51,7 +52,7 @@ class ConvnetBuilder():
         else: fc_layers = self.get_fc_layers()
         self.n_fc = len(fc_layers)
         self.fc_model = to_gpu(nn.Sequential(*fc_layers))
-        if not custom_head: apply_init(self.fc_model, nn.init.kaiming_normal)
+        if not custom_head: apply_init(self.fc_model, kaiming_normal)
         self.model = to_gpu(nn.Sequential(*(layers + fc_layers)))
 
     @property
