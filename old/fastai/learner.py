@@ -26,7 +26,7 @@ class Learner():
         metrics(list): array of functions for evaluating a desired metric. Eg. accuracy.
         clip(float): gradient clip chosen to limit the change in the gradient to prevent exploding gradients Eg. .3
         """
-        self.data_,self.models,self.metrics,self.clip = data,models,metrics,clip
+        self.data_, self.models, self.metrics, self.clip = data, models, metrics, clip
         self.sched = None
         self.wd_sched = None
         self.opt_fn = opt_fn or SGD_Momentum(0.9)
@@ -55,7 +55,7 @@ class Learner():
     @property
     def data(self): return self.data_
 
-    def summary(self): return model_summary(self.model, [torch.rand(3, 3, self.data.sz,self.data.sz)])
+    def summary(self): return model_summary(self.model, [torch.rand(3, 3, self.data.sz, self.data.sz)])
 
     def __repr__(self): return self.model.__repr__()
 
@@ -80,13 +80,13 @@ class Learner():
         c = self.get_layer_groups()
         for l in c: set_trainable(l, False)
         set_trainable(c[n], True)
-        
+
     def freeze_groups(self, groups):
         c = self.get_layer_groups()
         self.unfreeze()
         for g in groups:
             set_trainable(c[g], False)
-            
+
     def unfreeze_groups(self, groups):
         c = self.get_layer_groups()
         for g in groups:
