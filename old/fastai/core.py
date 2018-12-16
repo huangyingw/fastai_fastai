@@ -1,5 +1,8 @@
 from .imports import *
 from .torch_imports import *
+from torch.autograd import Variable
+import torch.nn as nn
+import torch.optim as optim
 
 def sum_geom(a, r, n): return a * n if r == 1 else math.ceil(a * (1 - r**n) / (1 - r))
 

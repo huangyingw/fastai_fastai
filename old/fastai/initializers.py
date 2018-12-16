@@ -1,5 +1,4 @@
-from .imports import *
-from .torch_imports import *
+import torch.nn as nn
 
 def cond_init(m, init_fn):
     if not isinstance(m, (nn.BatchNorm1d,nn.BatchNorm2d,nn.BatchNorm3d)):
@@ -8,5 +7,3 @@ def cond_init(m, init_fn):
 
 def apply_init(m, init_fn):
     m.apply(lambda x: cond_init(x, init_fn))
-
-

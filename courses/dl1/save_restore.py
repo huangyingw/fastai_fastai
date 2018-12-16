@@ -42,8 +42,8 @@ def learn1():
     data = ImageClassifierData.from_paths(PATH, tfms=tfms)
     learn = ConvLearner.pretrained(arch, data, precompute=True)
     learn.lr_find()
-    learn.sched.plot_lr()
-    learn.sched.plot()
+    #learn.sched.plot_lr()
+    #learn.sched.plot()
     #learn.fit(1e-2, 1, saved_model_name='save_restore')
     #learn.sched.plot_lr()
 
