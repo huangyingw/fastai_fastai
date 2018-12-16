@@ -436,7 +436,6 @@
 "./files.proj"
 "./includefile.conf"
 "./install_fastai.sh"
-"./learner.py"
 "./old/.travis.yml"
 "./old/LICENSE"
 "./old/MANIFEST"
