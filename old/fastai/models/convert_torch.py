@@ -137,6 +137,7 @@ def lua_recursive_source(module):
     s = []
     for m in module.modules:
         name = type(m).__name__
+        real = m
         if name == 'TorchObject':
             name = m._typename.replace('cudnn.', '')
             m = m._obj
@@ -193,7 +194,7 @@ def lua_recursive_source(module):
         elif name == 'CAddTable':
             s += ['LambdaReduce(lambda x,y: x+y), # CAddTable']
         elif name == 'Concat':
-            m.dimension
+            dim = m.dimension
             s += ['LambdaReduce(lambda x,y,dim={}: torch.cat((x,y),dim), # Concat'.format(m.dimension)]
             s += lua_recursive_source(m)
             s += [')']
