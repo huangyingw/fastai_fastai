@@ -20,6 +20,7 @@
 "./builds/custom-conda-builds/README.md"
 "./builds/custom-conda-builds/dataclasses/meta.yaml"
 "./builds/custom-conda-builds/nvidia-ml-py3/meta.yaml"
+"./builds/custom-conda-builds/plac/meta.yaml"
 "./builds/custom-conda-builds/torchvision-cpu/meta.yaml"
 "./builds/custom-conda-builds/torchvision/meta.yaml"
 "./builds/custom-pip-builds/torchvision/README.md"
