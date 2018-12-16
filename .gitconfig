@@ -72,9 +72,12 @@
     ignore = deploy.list
     ignore = deploy.sh
     ignore = docs/expand_adoc_templ.py
+    ignore = docs_src/*.py
+    ignore = examples/*.py
     ignore = excludeFile
     ignore = gme.default
     ignore = install_fastai.sh
+    ignore = old/docs/*.py
     ignore = old/tutorials/linalg_pytorch.py
     ignore = old/tutorials/meanshift.py
     ignore = python.tpl
