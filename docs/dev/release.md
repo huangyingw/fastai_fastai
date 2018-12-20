@@ -52,8 +52,11 @@ You can skip this step if you have done it once already on the system you're mak
 
     You don't really need it, as the anaconda client cashes your credentials so you need to login only infrequently.
 
+4. Install upload clients
 
-
+   ```
+   conda install anaconda-client twine
+   ```
 
 
 ## Quick Release Process
@@ -1208,8 +1211,8 @@ platform are shown):
 * To find out why a particular package is installed (i.e. which package requires it):
 
     ```
-    conda create -n c43 conda=4.3
-    conda activate c43
+    conda create -n conda-4.3 conda=4.3
+    conda activate conda-4.3
     python -m conda search --reverse-dependency --full-name pillow
     ```
 
