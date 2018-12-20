@@ -79,9 +79,6 @@
 # - Momentum and LR annealing
 #
 # ## Imports
-get_ipython().run_line_magic('load_ext', 'autoreload')
-get_ipython().run_line_magic('autoreload', '2')
-get_ipython().run_line_magic('matplotlib', 'inline')
 from fastai.imports import *
 from fastai.structured import *
 from sklearn.ensemble import RandomForestRegressor
