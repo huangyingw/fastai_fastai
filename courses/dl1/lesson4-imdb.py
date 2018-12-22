@@ -8,8 +8,8 @@
 from fastai.learner import *
 
 import torchtext
-from torchtext import data
-
+from torchtext import vocab, data
+from torchtext.datasets import language_modeling
 from fastai.rnn_reg import *
 from fastai.rnn_train import *
 from fastai.nlp import *
