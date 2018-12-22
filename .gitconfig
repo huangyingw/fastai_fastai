@@ -69,6 +69,7 @@
     ignore = courses/dl1/lesson1_notes.pdf
     ignore = courses/dl2/*.py
     ignore = courses/ml1/*.py
+    ignore = data/*
     ignore = deploy.list
     ignore = deploy.sh
     ignore = docs/expand_adoc_templ.py
