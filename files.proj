@@ -148,7 +148,6 @@
 "./courses/ml1/lesson3-rf_foundations.py"
 "./courses/ml1/lesson4-mnist_sgd.py"
 "./courses/ml1/lesson5-nlp.py"
-"./data/.gitignore"
 "./deploy.list"
 "./deploy.sh"
 "./docs/.gitignore"
