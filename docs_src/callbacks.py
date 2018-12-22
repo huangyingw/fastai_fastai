@@ -1,22 +1,20 @@
-
 # coding: utf-8
-
 # # List of callbacks
-
 from fastai.gen_doc.nbdoc import *
 from fastai.callbacks import *
 from fastai.basic_train import *
 from fastai.train import *
 from fastai import callbacks
-
-
 # fastai's training loop is highly extensible, with a rich *callback* system. See the [`callback`](/callback.html#callback) docs if you're interested in writing your own callback. See below for a list of callbacks that are provided with fastai, grouped by the module they're defined in.
 #
 # Every callback that is passed to [`Learner`](/basic_train.html#Learner) with the `callback_fns` parameter will be automatically stored as an attribute. The attribute name is snake-cased, so for instance [`ActivationStats`](/callbacks.hooks.html#ActivationStats) will appear as `learn.activation_stats` (assuming your object is named `learn`).
-
 # ## [`Callback`](/callback.html#Callback)
 #
 # This sub-package contains more sophisticated callbacks that each are in their own module. They are (click the link for more details):
+#
+# ### [`CSVLogger`](/callbacks.csv_logger.html#CSVLogger)
+#
+# Log the results of training in a csv file.
 #
 # ### [`OneCycleScheduler`](/callbacks.one_cycle.html#OneCycleScheduler)
 #
@@ -41,7 +39,26 @@ from fastai import callbacks
 # ### [`HookCallback`](/callbacks.hooks.html#HookCallback)
 #
 # Convenient wrapper for registering and automatically deregistering [PyTorch hooks](https://pytorch.org/tutorials/beginner/former_torchies/nn_tutorial.html#forward-and-backward-function-hooks). Also contains pre-defined hook callback: [`ActivationStats`](/callbacks.hooks.html#ActivationStats).
-
+#
+# ### [`RNNTrainer`](/callbacks.rnn.html#RNNTrainer)
+#
+# Callback taking care of all the tweaks to train an RNN.
+#
+# ### [`TerminateOnNaNCallback`](/callbacks.tracker.html#TerminateOnNaNCallback)
+#
+# Stop training if the loss reaches NaN.
+#
+# ### [`EarlyStoppingCallback`](/callbacks.tracker.html#EarlyStoppingCallback)
+#
+# Stop training if a given metric/validation loss doesn't improve.
+#
+# ### [`SaveModelCallback`](/callbacks.tracker.html#SaveModelCallback)
+#
+# Save the model at every epoch, or the best model for a given metric/validation loss.
+#
+# ### [`ReduceLROnPlateauCallback`](/callbacks.tracker.html#ReduceLROnPlateauCallback)
+#
+# Reduce the learning rate each time a given metric/validation loss doesn't improve by a certain factor.
 # ## [`train`](/train.html#train) and [`basic_train`](/basic_train.html#basic_train)
 #
 # ### [`Recorder`](/basic_train.html#Recorder)

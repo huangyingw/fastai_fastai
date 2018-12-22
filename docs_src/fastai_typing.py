@@ -1,12 +1,7 @@
-
 # coding: utf-8
-
 # # Type abbreviations
-
 # The code and docs sometimes use *type abbreviations* to avoid type signatures getting unwieldy. Here's a list of all abbreviations for composite types for convenient access.
-
 # ## From [`core`](/core.html#core)
-
 # - `AnnealFunc` = `Callable`\[\[`Number`,`Number`,`float`], `Number`]
 # - `ArgStar` = `Collection`\[`Any`]
 # - `BatchSamples` = `Collection`\[`Tuple`\[`Collection`\[`int`], `int`]]
@@ -37,9 +32,7 @@
 # - `StrList` = `Collection`\[`str`]
 # - `Tokens` = `Collection`\[`Collection`\[`str`]]
 # - `OptStrList` = `Optional`\[`StrList`]
-
 # ## From [`torch_core`](/torch_core.html#torch_core)
-
 # - `BoolOrTensor` = `Union`\[`bool`,`Tensor`]
 # - `FloatOrTensor` = `Union`\[`float`,`Tensor`]
 # - `IntOrTensor` = `Union`\[`int`,`Tensor`]
