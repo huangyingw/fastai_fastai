@@ -1025,6 +1025,45 @@ If something found to be wrong in the last release, yet the HEAD is unstable to 
 
 ## Release Making Related Topics
 
+### Install The Locally Build Packages
+
+If you want to install the package directly from your filesystem, e.g. to test before uploading, run:
+
+```
+make dist-conda
+make install-conda-local
+```
+
+
+
+
+### Speeding Up Build Time
+
+When experimenting with different builds (in particular custom conda builds) the following are useful:
+
+* use all or several CPU cores:
+
+   ```
+   MAKEFLAGS="-j" conda-build ...
+   ```
+
+* skip the testing stage:
+
+   ```
+   conda-build ...  --no-test
+   ```
+   This could speed up the build time x5 times! But of course, the final build to be uploaded, shouldn't skip this stage.
+
+
+* if just needing to check that the build is successful (e.g. for packages requiring compiling code:
+
+   ```
+   conda-build ... --build-only
+   ```
+
+
+
+
 ### Run Install Tests In A Fresh Environment
 
 While CI builds now do exactly this, it might be still useful to be able to do it manually, since CI builds are very slow to tweak and experiment with. So here is a quick copy-n-paste recipe to build one and clean it up.
