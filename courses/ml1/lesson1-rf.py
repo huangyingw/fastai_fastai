@@ -84,7 +84,6 @@ from fastai.structured import *
 from sklearn.ensemble import RandomForestRegressor
 from IPython.display import display
 from sklearn import metrics
-os.chdir(os.path.dirname(os.path.realpath(__file__)))
 PATH = "data/bulldozers/"
 # get_ipython().system('ls {PATH}')
 # # Introduction to *Blue Book for Bulldozers*
