@@ -1,14 +1,8 @@
-
 # coding: utf-8
-
 import sys
 import re
-
-
 f = open("transforms.md", "r")
 contents = f.read()
-
-
 t = "hello {{method Jeremy}} there {{method close}}"
 
 
