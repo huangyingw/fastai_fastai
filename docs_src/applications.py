@@ -1,11 +1,6 @@
-
 # coding: utf-8
-
 # # Application fields
-
 from fastai.gen_doc.nbdoc import *
-
-
 # The fastai library allows you to train a [`Model`](https://pytorch.org/docs/stable/nn.html#torch.nn.Module) on a certain [`DataBunch`](/basic_data.html#DataBunch) very easily by binding them together inside a [`Learner`](/basic_train.html#Learner) object. This module regroups the tools the library provides to help you preprocess and group your data in this format.
 #
 # ## [`collab`](/collab.html#collab)
@@ -32,11 +27,11 @@ from fastai.gen_doc.nbdoc import *
 #
 # This sub-module deals with the pre-processing (data augmentation for images, cleaning for tabular data, tokenizing and numericalizing for text).
 #
-# ### [`data`](/tabular.data.html#tabular.data)
+# ### [`data`](/data.html#data)
 #
 # This sub-module defines the dataset class(es) to deal with this kind of data.
 #
-# ### [`models`](/tabular.models.html#tabular.models)
+# ### [`models`](/models.html#models)
 #
 # This sub-module defines the specific models used for this kind of data.
 #
