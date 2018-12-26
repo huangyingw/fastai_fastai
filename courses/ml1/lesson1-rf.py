@@ -79,11 +79,12 @@
 # - Momentum and LR annealing
 #
 # ## Imports
+from IPython.display import display
 from fastai.imports import *
 from fastai.structured import *
-from sklearn.ensemble import RandomForestRegressor
-from IPython.display import display
 from sklearn import metrics
+from sklearn.ensemble import RandomForestRegressor
+import feather
 PATH = "data/bulldozers/"
 # get_ipython().system('ls {PATH}')
 # # Introduction to *Blue Book for Bulldozers*
@@ -148,7 +149,7 @@ df_raw.SalePrice = np.log(df_raw.SalePrice)
 # ### Initial processing
 m = RandomForestRegressor(n_jobs=-1)
 # The following code is supposed to fail due to string values in the input data
-m.fit(df_raw.drop('SalePrice', axis=1), df_raw.SalePrice)
+# m.fit(df_raw.drop('SalePrice', axis=1), df_raw.SalePrice)
 # This dataset contains a mix of **continuous** and **categorical** variables.
 #
 # The following method extracts particular date fields from a complete datetime for the purpose of constructing categoricals.  You should always consider this feature extraction step when working with date-time. Without expanding your date-time into these additional fields, you can't capture any trend/cyclical behavior as a function of time at any of these granularities.
@@ -168,7 +169,7 @@ os.makedirs('tmp', exist_ok=True)
 df_raw.to_feather('tmp/bulldozers-raw')
 # ### Pre-processing
 # In the future we can simply read it from this fast format.
-df_raw = pd.read_feather('tmp/bulldozers-raw')
+df_raw = feather.read_dataframe('tmp/bulldozers-raw')
 # We'll replace categories with their numeric codes, handle missing continuous values, and split the dependent variable into a separate variable.
 df, y, nas = proc_df(df_raw, 'SalePrice')
 # We now have something we can pass to a random forest!
