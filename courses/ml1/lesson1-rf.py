@@ -1,84 +1,3 @@
-# coding: utf-8
-# # Intro to Random Forests
-# ## About this course
-# ### Teaching approach
-# This course is being taught by Jeremy Howard, and was developed by Jeremy along with Rachel Thomas. Rachel has been dealing with a life-threatening illness so will not be teaching as originally planned this year.
-#
-# Jeremy has worked in a number of different areas - feel free to ask about anything that he might be able to help you with at any time, even if not directly related to the current topic:
-#
-# - Management consultant (McKinsey; AT Kearney)
-# - Self-funded startup entrepreneur (Fastmail: first consumer synchronized email; Optimal Decisions: first optimized insurance pricing)
-# - VC-funded startup entrepreneur: (Kaggle; Enlitic: first deep-learning medical company)
-# I'll be using a *top-down* teaching method, which is different from how most math courses operate.  Typically, in a *bottom-up* approach, you first learn all the separate components you will be using, and then you gradually build them up into more complex structures.  The problems with this are that students often lose motivation, don't have a sense of the "big picture", and don't know what they'll need.
-#
-# If you took the fast.ai deep learning course, that is what we used.  You can hear more about my teaching philosophy [in this blog post](http://www.fast.ai/2016/10/08/teaching-philosophy/) or [in this talk](https://vimeo.com/214233053).
-#
-# Harvard Professor David Perkins has a book, [Making Learning Whole](https://www.amazon.com/Making-Learning-Whole-Principles-Transform/dp/0470633719) in which he uses baseball as an analogy.  We don't require kids to memorize all the rules of baseball and understand all the technical details before we let them play the game.  Rather, they start playing with a just general sense of it, and then gradually learn more rules/details as time goes on.
-#
-# All that to say, don't worry if you don't understand everything at first!  You're not supposed to.  We will start using some "black boxes" such as random forests that haven't yet been explained in detail, and then we'll dig into the lower level details later.
-#
-# To start, focus on what things DO, not what they ARE.
-# ### Your practice
-# People learn by:
-# 1. **doing** (coding and building)
-# 2. **explaining** what they've learned (by writing or helping others)
-#
-# Therefore, we suggest that you practice these skills on Kaggle by:
-# 1. Entering competitions (*doing*)
-# 2. Creating Kaggle kernels (*explaining*)
-#
-# It's OK if you don't get good competition ranks or any kernel votes at first - that's totally normal! Just try to keep improving every day, and you'll see the results over time.
-# To get better at technical writing, study the top ranked Kaggle kernels from past competitions, and read posts from well-regarded technical bloggers. Some good role models include:
-#
-# - [Peter Norvig](http://nbviewer.jupyter.org/url/norvig.com/ipython/ProbabilityParadox.ipynb) (more [here](http://norvig.com/ipython/))
-# - [Stephen Merity](https://smerity.com/articles/2017/deepcoder_and_ai_hype.html)
-# - [Julia Evans](https://codewords.recurse.com/issues/five/why-do-neural-networks-think-a-panda-is-a-vulture) (more [here](https://jvns.ca/blog/2014/08/12/what-happens-if-you-write-a-tcp-stack-in-python/))
-# - [Julia Ferraioli](http://blog.juliaferraioli.com/2016/02/exploring-world-using-vision-twilio.html)
-# - [Edwin Chen](http://blog.echen.me/2014/10/07/moving-beyond-ctr-better-recommendations-through-human-evaluation/)
-# - [Slav Ivanov](https://blog.slavv.com/picking-an-optimizer-for-style-transfer-86e7b8cba84b) (fast.ai student)
-# - [Brad Kenstler](https://hackernoon.com/non-artistic-style-transfer-or-how-to-draw-kanye-using-captain-picards-face-c4a50256b814) (fast.ai and USF MSAN student)
-# ### Books
-# The more familiarity you have with numeric programming in Python, the better. If you're looking to improve in this area, we strongly suggest Wes McKinney's [Python for Data Analysis, 2nd ed](https://www.amazon.com/Python-Data-Analysis-Wrangling-IPython/dp/1491957662/ref=asap_bc?ie=UTF8).
-#
-# For machine learning with Python, we recommend:
-#
-# - [Introduction to Machine Learning with Python](https://www.amazon.com/Introduction-Machine-Learning-Andreas-Mueller/dp/1449369413): From one of the scikit-learn authors, which is the main library we'll be using
-# - [Python Machine Learning: Machine Learning and Deep Learning with Python, scikit-learn, and TensorFlow, 2nd Edition](https://www.amazon.com/Python-Machine-Learning-scikit-learn-TensorFlow/dp/1787125939/ref=dp_ob_title_bk): New version of a very successful book. A lot of the new material however covers deep learning in Tensorflow, which isn't relevant to this course
-# - [Hands-On Machine Learning with Scikit-Learn and TensorFlow](https://www.amazon.com/Hands-Machine-Learning-Scikit-Learn-TensorFlow/dp/1491962291/ref=pd_lpo_sbs_14_t_0?_encoding=UTF8&psc=1&refRID=MBV2QMFH3EZ6B3YBY40K)
-#
-# ### Syllabus in brief
-# Depending on time and class interests, we'll cover something like (not necessarily in this order):
-#
-# - Train vs test
-#   - Effective validation set construction
-# - Trees and ensembles
-#   - Creating random forests
-#   - Interpreting random forests
-# - What is ML?  Why do we use it?
-#   - What makes a good ML project?
-#   - Structured vs unstructured data
-#   - Examples of failures/mistakes
-# - Feature engineering
-#   - Domain specific - dates, URLs, text
-#   - Embeddings / latent factors
-# - Regularized models trained with SGD
-#   - GLMs, Elasticnet, etc (NB: see what James covered)
-# - Basic neural nets
-#   - PyTorch
-#   - Broadcasting, Matrix Multiplication
-#   - Training loop, backpropagation
-# - KNN
-# - CV / bootstrap (Diabetes data set?)
-# - Ethical considerations
-# Skip:
-#
-# - Dimensionality reduction
-# - Interactions
-# - Monitoring training
-# - Collaborative filtering
-# - Momentum and LR annealing
-#
-# ## Imports
 from IPython.display import display
 from fastai.imports import *
 from fastai.structured import *
@@ -86,14 +5,6 @@ from sklearn import metrics
 from sklearn.ensemble import RandomForestRegressor
 import feather
 PATH = "data/bulldozers/"
-# get_ipython().system('ls {PATH}')
-# # Introduction to *Blue Book for Bulldozers*
-# ## About...
-# ### ...our teaching
-# At fast.ai we have a distinctive [teaching philosophy](http://www.fast.ai/2016/10/08/teaching-philosophy/) of ["the whole game"](https://www.amazon.com/Making-Learning-Whole-Principles-Transform/dp/0470633719/ref=sr_1_1?ie=UTF8&qid=1505094653).  This is different from how most traditional math & technical courses are taught, where you have to learn all the individual elements before you can combine them (Harvard professor David Perkins call this *elementitis*), but it is similar to how topics like *driving* and *baseball* are taught.  That is, you can start driving without [knowing how an internal combustion engine works](https://medium.com/towards-data-science/thoughts-after-taking-the-deeplearning-ai-courses-8568f132153), and children begin playing baseball before they learn all the formal rules.
-# ### ...our approach to machine learning
-# Most machine learning courses will throw at you dozens of different algorithms, with a brief technical description of the math behind them, and maybe a toy example. You're left confused by the enormous range of techniques shown and have little practical understanding of how to apply them.
-#
 # The good news is that modern machine learning can be distilled down to a couple of key techniques that are of very wide applicability. Recent studies have shown that the vast majority of datasets can be best modeled with just two methods:
 #
 # - *Ensembles of decision trees* (i.e. Random Forests and Gradient Boosting Machines), mainly for structured data (such as you might find in a database table at most companies)
@@ -129,9 +40,6 @@ PATH = "data/bulldozers/"
 # - MachineID: the unique identifier of a machine.  A machine can be sold multiple times
 # - saleprice: what the machine sold for at auction (only provided in train.csv)
 # - saledate: the date of the sale
-# *Question*
-#
-# What stands out to you from the above description?  What needs to be true of our training and validation sets?
 df_raw = pd.read_csv(f'{PATH}Train.csv', low_memory=False,
                      parse_dates=["saledate"])
 # In any sort of data science work, it's **important to look at your data**, to make sure you understand the format, how it's stored, what type of values it holds, etc. Even if you've read descriptions about your data, the actual data may not be what you expect.
@@ -139,7 +47,7 @@ df_raw = pd.read_csv(f'{PATH}Train.csv', low_memory=False,
 
 def display_all(df):
     with pd.option_context("display.max_rows", 1000, "display.max_columns", 1000):
-        display(df)
+        print(df)
 
 
 display_all(df_raw.tail().T)
@@ -180,11 +88,6 @@ m.score(df, y)
 # Wow, an r^2 of 0.98 - that's great, right? Well, perhaps not...
 #
 # Possibly **the most important idea** in machine learning is that of having separate training & validation data sets. As motivation, suppose you don't divide up your data, but instead use all of it.  And suppose you have lots of parameters:
-#
-# <img src="images/overfitting2.png" alt="" style="width: 70%"/>
-# <center>
-# [Underfitting and Overfitting](https://datascience.stackexchange.com/questions/361/when-is-a-model-underfitted)
-# </center>
 #
 # The error for the pictured data points is lowest for the model on the far right (the blue curve passes through the red points almost perfectly), yet it's not the best choice.  Why is that?  If you were to gather some new data points, they most likely would not be on that curve in the graph on the right, but would be closer to the curve in the middle graph.
 #
@@ -248,6 +151,7 @@ preds = np.stack([t.predict(X_valid) for t in m.estimators_])
 preds[:, 0], np.mean(preds[:, 0]), y_valid[0]
 preds.shape
 plt.plot([metrics.r2_score(y_valid, np.mean(preds[:i + 1], axis=0)) for i in range(10)])
+plt.show()
 # The shape of this curve suggests that adding more trees isn't going to help us much. Let's check. (Compare this to our original model on a sample)
 m = RandomForestRegressor(n_estimators=20, n_jobs=-1)
 m.fit(X_train, y_train)
