@@ -566,8 +566,6 @@
 "./python.tpl"
 "./requirements.txt"
 "./run.rsh"
-"./running.lck"
-"./running.time"
 "./setup.cfg"
 "./setup.py"
 "./srts/Lesson_10__Cutting_Edge_Deep_Learning_for_Coders.srt"
