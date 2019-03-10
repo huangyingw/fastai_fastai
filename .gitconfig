@@ -30,7 +30,6 @@
     required = true
 [diff "ipynb-code"]
     textconv = tools/fastai-nbstripout -t
-
 # docs notebooks strip out
 [filter "fastai-nbstripout-docs"]
     clean = tools/fastai-nbstripout -d
@@ -38,18 +37,11 @@
     required = true
 [diff "ipynb-docs"]
     textconv = tools/fastai-nbstripout -dt
-
-[remote "origin"]
-    url = https://github.com/fastai/fastai.git
-    fetch = +refs/heads/*:refs/remotes/origin/*
 [remote "github"]
     url = git@github.com:huangyingw/fastai.git
     fetch = +refs/heads/*:refs/remotes/github/*
 [push]
     remote = github
-[gsync]
-    remote = origin
-    branch = master
 [commit]
     message = n
 [vrun]
@@ -58,9 +50,9 @@
 [deploy]
     host = server
     path = ~/myproject/git/AI/fastai/fastai
-[branch "dev"]
+[branch "demo"]
     remote = github
-    merge = refs/heads/dev
+    merge = refs/heads/demo
 [gdif]
     ignore = .gitmodules
     ignore = convert.sh
