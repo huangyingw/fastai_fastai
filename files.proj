@@ -539,7 +539,7 @@
 "./python.tpl"
 "./requirements.txt"
 "./rsyncFiles.lck"
-"./run.rsh"
+"./run.sh"
 "./setup.cfg"
 "./setup.py"
 "./srts/Lesson_10__Cutting_Edge_Deep_Learning_for_Coders.srt"
