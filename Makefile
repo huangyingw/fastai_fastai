@@ -3,7 +3,9 @@ SHELL := /bin/bash
 
 SRC = $(wildcard nbs/*.ipynb)
 
-all: fastai docs
+all: fastai 
+
+both: fastai docs
 
 help:
 	cat Makefile
@@ -20,14 +22,12 @@ docs_serve: docs
 	cd docs && bundle exec jekyll serve
 
 docs: $(SRC)
+	rsync -a docs_src/ docs
 	nbdev_build_docs
-	cd docs
-	git commit -am docs && git push
-	cd -
 	touch docs
 
 test:
-	nbdev_test_nbs
+	nbdev_test_nbs --pause 0.5 --flags ''
 
 release: pypi
 	nbdev_conda_package --upload_user fastai --build_args '-c pytorch -c fastai'
