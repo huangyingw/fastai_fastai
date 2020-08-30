@@ -7,8 +7,11 @@ git submodule init
 git submodule sync --recursive
 git submodule update --recursive
 
-pip install -e "fastai[dev]"
+conda install -c fastai -c pytorch -c anaconda fastai gh anaconda
+pip install -e ".[dev]"
+#pip install -e "fastai[dev]"
 
 conda install -c conda-forge \
+    graphviz \
     jupytext \
     neovim
