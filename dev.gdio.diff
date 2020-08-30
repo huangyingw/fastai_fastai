@@ -1,0 +1,20 @@
+diff --git a/install_fastai.sh b/install_fastai.sh
+new file mode 100755
+index 00000000..51c8074d
+--- /dev/null
++++ ./install_fastai.sh
+@@ -0,0 +1,14 @@
++#!/bin/bash -
++SCRIPT=$(realpath "$0")
++SCRIPTPATH=$(dirname "$SCRIPT")
++cd "$SCRIPTPATH"
++
++git submodule init
++git submodule sync --recursive
++git submodule update --recursive
++
++pip install -e "fastai[dev]"
++
++conda install -c conda-forge \
++    jupytext \
++    neovim
