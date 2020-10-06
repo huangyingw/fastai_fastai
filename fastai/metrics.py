@@ -28,7 +28,7 @@ class AccumMetric(Metric):
     "Stores predictions and targets on CPU in accumulate to perform final calculations with `func`."
     def __init__(self, func, dim_argmax=None, activation=ActivationType.No, thresh=None, to_np=False,
                  invert_arg=False, flatten=True, **kwargs):
-        store_attr(self,'func,dim_argmax,activation,thresh,flatten')
+        store_attr('func,dim_argmax,activation,thresh,flatten')
         self.to_np,self.invert_args,self.kwargs = to_np,invert_arg,kwargs
 
     def reset(self):
@@ -44,11 +44,12 @@ class AccumMetric(Metric):
         elif self.activation == ActivationType.Sigmoid: pred = torch.sigmoid(pred)
         elif self.dim_argmax: pred = pred.argmax(dim=self.dim_argmax)
         if self.thresh:  pred = (pred >= self.thresh)
-        self.accum_values(pred,learn.y)
+        self.accum_values(pred,learn.y,learn)
 
-    def accum_values(self, preds, targs):
+    def accum_values(self, preds, targs,learn=None):
         "Store targs and preds"
-        preds,targs = to_detach(preds),to_detach(targs)
+        to_d = learn.to_detach if learn is not None else to_detach
+        preds,targs = to_d(preds),to_d(targs)
         if self.flatten: preds,targs = flatten_check(preds,targs)
         self.preds.append(preds)
         self.targs.append(targs)
@@ -411,10 +412,10 @@ class CorpusBLEUMetric(Metric):
 # Cell
 class LossMetric(AvgMetric):
     "Create a metric from `loss_func.attr` named `nm`"
-    def __init__(self, attr, nm=None): store_attr(self, 'attr,nm')
+    def __init__(self, attr, nm=None): store_attr('attr,nm')
     def accumulate(self, learn):
         bs = find_bs(learn.yb)
-        self.total += to_detach(getattr(learn.loss_func, self.attr, 0))*bs
+        self.total += learn.to_detach(getattr(learn.loss_func, self.attr, 0))*bs
         self.count += bs
 
     @property

@@ -6,8 +6,6 @@ __all__ = ['fa_collate', 'fa_convert', 'SkipItemException', 'DataLoader']
 from ..torch_basics import *
 
 from torch.utils.data.dataloader import _MultiProcessingDataLoaderIter,_SingleProcessDataLoaderIter,_DatasetKind
-
-# Cell
 _loaders = (_MultiProcessingDataLoaderIter,_SingleProcessDataLoaderIter)
 
 # Cell
@@ -15,16 +13,17 @@ def _wif(worker_id):
     set_num_threads(1)
     info = get_worker_info()
     ds = info.dataset.d
-    ds.nw,ds.offs = info.num_workers,info.id
+    ds.num_workers,ds.offs = info.num_workers,info.id
     set_seed(info.seed)
     ds.wif()
 
 class _FakeLoader:
-    _IterableDataset_len_called,_auto_collation,collate_fn,drop_last,dataset_kind,_dataset_kind,_index_sampler,generator,prefetch_factor = (
-        None,False,noops,False,_DatasetKind.Iterable,_DatasetKind.Iterable,Inf.count,None,2)
+    _IterableDataset_len_called,_auto_collation,collate_fn,drop_last = None,False,noops,False
+    _index_sampler,generator,prefetch_factor = Inf.count,None,2
+    dataset_kind = _dataset_kind = _DatasetKind.Iterable
     def __init__(self, d, pin_memory, num_workers, timeout):
         self.dataset,self.default,self.worker_init_fn = self,d,_wif
-        store_attr(self, 'd,pin_memory,num_workers,timeout')
+        store_attr('d,pin_memory,num_workers,timeout')
 
     def __iter__(self): return iter(self.d.create_batches(self.d.sample()))
 
@@ -33,11 +32,11 @@ class _FakeLoader:
 
     @contextmanager
     def no_multiproc(self):
-        old_nw = self.num_workers
+        old_num_workers = self.num_workers
         try:
             self.num_workers = 0
             yield self.d
-        finally: self.num_workers = old_nw
+        finally: self.num_workers = old_num_workers
 
 _collate_types = (ndarray, Tensor, typing.Mapping, str)
 
@@ -78,8 +77,8 @@ class DataLoader(GetAttr):
         if n is None:
             try: n = len(dataset)
             except TypeError: pass
-        store_attr(self, 'dataset,bs,shuffle,drop_last,indexed,n,pin_memory,timeout,device')
-        self.rng,self.nw,self.offs = random.Random(random.randint(0,2**32-1)),1,0
+        store_attr('dataset,bs,shuffle,drop_last,indexed,n,pin_memory,timeout,device')
+        self.rng,self.num_workers,self.offs = random.Random(random.randint(0,2**32-1)),1,0
         self.fake_l = _FakeLoader(self, pin_memory, num_workers, timeout)
 
     def __len__(self):
@@ -94,17 +93,17 @@ class DataLoader(GetAttr):
         return idxs
 
     def sample(self):
-        idxs = self.get_idxs()
-        return (b for i,b in enumerate(idxs) if i//(self.bs or 1)%self.nw==self.offs)
+        return (b for i,b in enumerate(self.__idxs) if i//(self.bs or 1)%self.num_workers==self.offs)
 
     def __iter__(self):
         self.randomize()
         self.before_iter()
+        self.__idxs=self.get_idxs() # called in context of main process (not workers/subprocesses)
         for b in _loaders[self.fake_l.num_workers==0](self.fake_l):
             if self.device is not None: b = to_device(b, self.device)
             yield self.after_batch(b)
         self.after_iter()
-        if hasattr(self, 'it'): delattr(self, 'it')
+        if hasattr(self, 'it'): del(self.it)
 
     def create_batches(self, samps):
         self.it = iter(self.dataset) if self.dataset is not None else None
@@ -147,7 +146,7 @@ add_docs(DataLoader, "API compatible with PyTorch DataLoader, with a lot more ca
          prebatched     = "Check if `bs` is None.",
          do_item        = "Combines `after_item` and `create_item` to get an item from dataset by providing index as input.",
          chunkify       = "Used by `create_batches` to turn generator of items (`b`) into batches.",
-         shuffle_fn     = "Returns a random permutation of `idxs`. Use python's `random` functionality to implement it.",
+         shuffle_fn     = "Returns a random permutation of `idxs`.",
          randomize      = "Set's `DataLoader` random number generator state.",
          retain         = "Cast each item of `res` to type of matching item in `b` if its a superclass.",
          create_item    = "Return a subset of the dataset containing the index values of the sample if there are samples, else return the next iterator.",

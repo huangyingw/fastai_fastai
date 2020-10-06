@@ -61,6 +61,7 @@ class TrainEvalCallback(Callback):
     run_valid = False
     def before_fit(self):
         "Set the iter and epoch counters to 0, put the model and the right device"
+        self.learn.epoch,self.learn.loss = 0,tensor(0.)
         self.learn.train_iter,self.learn.pct_train = 0,0.
         if hasattr(self.dls, 'device'): self.model.to(self.dls.device)
         if hasattr(self.model, 'reset'): self.model.reset()
@@ -89,10 +90,10 @@ if not hasattr(defaults, 'callbacks'): defaults.callbacks = [TrainEvalCallback]
 class GatherPredsCallback(Callback):
     "`Callback` that saves the predictions and targets, optionally `with_loss`"
     def __init__(self, with_input=False, with_loss=False, save_preds=None, save_targs=None, concat_dim=0):
-        store_attr(self, "with_input,with_loss,save_preds,save_targs,concat_dim")
+        store_attr("with_input,with_loss,save_preds,save_targs,concat_dim")
 
     def before_batch(self):
-        if self.with_input: self.inputs.append((to_detach(self.xb)))
+        if self.with_input: self.inputs.append((self.learn.to_detach(self.xb)))
 
     def before_validate(self):
         "Initialize containers"
@@ -103,7 +104,7 @@ class GatherPredsCallback(Callback):
     def after_batch(self):
         "Save predictions, targets and potentially losses"
         if not hasattr(self, 'pred'): return
-        preds,targs = to_detach(self.pred),to_detach(self.yb)
+        preds,targs = self.learn.to_detach(self.pred),self.learn.to_detach(self.yb)
         if self.save_preds is None: self.preds.append(preds)
         else: (self.save_preds/str(self.iter)).save_array(preds)
         if self.save_targs is None: self.targets.append(targs)
@@ -111,7 +112,7 @@ class GatherPredsCallback(Callback):
         if self.with_loss:
             bs = find_bs(self.yb)
             loss = self.loss if self.loss.numel() == bs else self.loss.view(bs,-1).mean(1)
-            self.losses.append(to_detach(loss))
+            self.losses.append(self.learn.to_detach(loss))
 
     def after_validate(self):
         "Concatenate all recorded tensors"
@@ -133,7 +134,7 @@ class FetchPredsCallback(Callback):
     remove_on_fetch = True
     def __init__(self, ds_idx=1, dl=None, with_input=False, with_decoded=False, cbs=None, reorder=True):
         self.cbs = L(cbs)
-        store_attr(self, 'ds_idx,dl,with_input,with_decoded,reorder')
+        store_attr('ds_idx,dl,with_input,with_decoded,reorder')
 
     def after_validate(self):
         to_rm = L(cb for cb in self.learn.cbs if getattr(cb, 'remove_on_fetch', False))
