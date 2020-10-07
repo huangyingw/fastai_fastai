@@ -13,7 +13,6 @@ help:
 fastai: $(SRC)
 	nbdev_clean_nbs
 	nbdev_build_lib
-	touch fastai
 
 update_lib:
 	pip install nbdev --upgrade
@@ -24,13 +23,17 @@ docs_serve: docs
 docs: $(SRC)
 	rsync -a docs_src/ docs
 	nbdev_build_docs
-	touch docs
 
 test:
 	nbdev_test_nbs --pause 0.5 --flags ''
 
 release: pypi
-	nbdev_conda_package --upload_user fastai --build_args '-c pytorch -c fastai'
+	sleep 3
+	fastrelease_conda_package --upload_user fastai
+	nbdev_bump_version
+
+conda_release:
+	fastrelease_conda_package --upload_user fastai
 	nbdev_bump_version
 
 pypi: dist
