@@ -14,3 +14,5 @@
 [branch "dev"]
     remote = origin
     merge = refs/heads/dev
+[gdif]
+    ignore = install_fastai.sh
