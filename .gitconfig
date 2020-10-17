@@ -1,0 +1,18 @@
+[remote "fastai"]
+    url = git@github.com:fastai/fastai.git
+    fetch = +refs/heads/*:refs/remotes/fastai/*
+[remote "origin"]
+    url = git@github.com:huangyingw/fastai_fastai.git
+    fetch = +refs/heads/*:refs/remotes/origin/*
+[push]
+    remote = origin
+[gsync]
+    remote = fastai
+    branch = master
+[merge]
+    allow = true
+[branch "dev"]
+    remote = origin
+    merge = refs/heads/dev
+[gdif]
+    ignore = install_fastai.sh
