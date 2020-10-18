@@ -9,8 +9,6 @@
 [gsync]
     remote = fastai
     branch = master
-[merge]
-    allow = true
 [branch "dev"]
     remote = origin
     merge = refs/heads/dev
