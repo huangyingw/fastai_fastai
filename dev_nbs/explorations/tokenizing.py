@@ -33,6 +33,8 @@ ss[0]
 # We'll start with the simplest approach:
 
 def delim_tok(s, delim=' '): return L(s.split(delim))
+
+
 s = ss[0]
 delim_tok(s)
 
@@ -110,7 +112,9 @@ t = np.char.split(sarr)
 
 # +
 
+
 def conv_sp(doc): return L(doc).map(str)
+
 
 class SpTok:
     def __init__(self):
@@ -129,6 +133,8 @@ SpTok()
 
 nlp = English()
 sp_tokenizer = nlp.Defaults.create_tokenizer(nlp)
+
+
 def spacy_tok(s): return L(sp_tokenizer(str(s))).map(str)
 
 
@@ -184,7 +190,6 @@ test_eq(chunked(range(9), n_chunks=3), [[0, 1, 2], [3, 4, 5], [6, 7, 8]])
 # %%timeit -r 3
 global t
 t = parallel_chunks(f, ss, n_workers=8, progress=False)
-
 
 
 def array_split(arr, n): return chunked(arr, math.floor(len(arr) / n))

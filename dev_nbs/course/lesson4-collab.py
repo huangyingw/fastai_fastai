@@ -94,7 +94,9 @@ movie_bias.shape
 mean_ratings = rating_movie.groupby('title')['rating'].mean()
 movie_ratings = [(b, i, mean_ratings.loc[i]) for i, b in zip(top_movies, movie_bias)]
 
+
 def item0(o): return o[0]
+
 
 sorted(movie_ratings, key=item0)[:15]
 

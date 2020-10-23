@@ -49,9 +49,11 @@ def convert_biwi(coords):
     c2 = coords[1] * cal[1][1] / coords[2] + cal[1][2]
     return tensor([c1, c2])
 
+
 def get_ctr(f):
     ctr = np.genfromtxt(img2txt_name(f), skip_header=3)
     return convert_biwi(ctr)
+
 
 def get_ip(img, pts): return TensorPoint.create(pts, img_size=img.size)
 

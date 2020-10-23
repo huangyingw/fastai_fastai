@@ -42,7 +42,9 @@ img_f = fnames[0]
 img = PILImage.create(img_f)
 img.show(figsize=(5, 5))
 
+
 def get_y_fn(x): return path_lbl / f'{x.stem}_P{x.suffix}'
+
 
 mask = PILMask.create(get_y_fn(img_f))
 mask.show(figsize=(5, 5), alpha=1)
@@ -93,6 +95,7 @@ dls.show_batch(max_n=4, figsize=(20, 14))
 # +
 name2id = {v: k for k, v in enumerate(codes)}
 void_code = name2id['Void']
+
 
 def acc_camvid(input, target):
     target = target.squeeze(1)
@@ -176,7 +179,6 @@ learn.save('stage-2-big')
 learn.load('stage-2-big')
 
 learn.show_results(max_n=1, figsize=(20, 10), vmin=1, vmax=30)
-
 
 
 # ## fin

@@ -180,6 +180,7 @@ learn_gen = create_gen_learner().load('gen-pre2')
 
 class GANDiscriminativeLR(Callback):
     "`Callback` that handles multiplying the learning rate by `mult_lr` for the critic."
+
     def __init__(self, mult_lr=5.): self.mult_lr = mult_lr
 
     def before_batch(self):
