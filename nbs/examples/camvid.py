@@ -61,6 +61,7 @@ dls.vocab = codes
 name2id = {v: k for k, v in enumerate(codes)}
 void_code = name2id['Void']
 
+
 def acc_camvid(input, target):
     target = target.squeeze(1)
     mask = target != void_code

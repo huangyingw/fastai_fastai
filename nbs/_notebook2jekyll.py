@@ -24,9 +24,6 @@ from nbdev.export2html import *
 ! [-e / content] & & pip install - Uqq fastai  # upgrade fastai on colab
 
 
-
-
-
 class NBConvertor:
 
     def _exporter():
@@ -43,6 +40,7 @@ class NBConvertor:
     def process_output(c, s, o):
         if c[cell_type] != code or o is None:
             return s, o
+
         def _f(x):
             if text not in x:
                 return x

@@ -46,6 +46,7 @@ from fastai.basics import *
 @log_args(but_as=Learner.__init__)
 class TabularLearner(Learner):
     "`Learner` for tabular data"
+
     def predict(self, row):
         "Predict on a Pandas Series"
         dl = self.dls.test_dl(row.to_frame().T)

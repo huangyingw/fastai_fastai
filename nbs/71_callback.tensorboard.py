@@ -119,6 +119,7 @@ from fastai.basics import *
 # export
 class TensorBoardBaseCallback(Callback):
     "Base class for tensorboard callbacks"
+
     def __init__(self):
         self.run_projector = False
 
@@ -155,6 +156,7 @@ class TensorBoardBaseCallback(Callback):
 # export
 class TensorBoardCallback(TensorBoardBaseCallback):
     "Saves model topology, losses & metrics for tensorboard and tensorboard projector during training"
+
     def __init__(self, log_dir=None, trace_model=True, log_preds=True, n_preds=9, projector=False, layer=None):
         super().__init__()
         store_attr()
@@ -196,6 +198,7 @@ class TensorBoardCallback(TensorBoardBaseCallback):
 # export
 class TensorBoardProjectorCallback(TensorBoardBaseCallback):
     "Extracts and exports image featuers for tensorboard projector during inference"
+
     def __init__(self, log_dir=None, layer=None):
         super().__init__()
         store_attr()

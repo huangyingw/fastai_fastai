@@ -41,6 +41,7 @@ class CutMix(Callback):
     "Implementation of `https://arxiv.org/abs/1905.04899`"
     run_after, run_valid = [Normalize], False
     def __init__(self, alpha=1.): self.distrib = Beta(tensor(alpha), tensor(alpha))
+
     def before_fit(self):
         self.stack_y = getattr(self.learn.loss_func, 'y_int', False)
         if self.stack_y:

@@ -106,6 +106,7 @@ class PILDicom(PILBase):
         im = im._new(im.im)
         return cls(im.convert(mode) if mode else im)
 
+
 PILDicom._tensor_cls = TensorDicom
 
 
@@ -563,6 +564,8 @@ with tempfile.TemporaryDirectory() as f:
 def set_pixels(self: DcmDataset, px):
     self.PixelData = px.tobytes()
     self.Rows, self.Columns = px.shape
+
+
 DcmDataset.pixel_array = property(DcmDataset.pixel_array.fget, set_pixels)
 
 
@@ -624,6 +627,7 @@ def _cast_dicom_special(x):
         return x
     return cls.__base__(x)
 
+
 def _split_elem(res, k, v):
     if not isinstance(v, DcmMultiValue):
         return
@@ -675,6 +679,8 @@ def _dcm2dict(fn, **kwargs): return fn.dcmread().as_dict(**kwargs)
 @delegates(parallel)
 def _from_dicoms(cls, fns, n_workers=0, **kwargs):
     return pd.DataFrame(parallel(_dcm2dict, fns, n_workers=n_workers, **kwargs))
+
+
 pd.DataFrame.from_dicoms = classmethod(_from_dicoms)
 
 # Creating a dataframe of the values within the `header` of the dicom

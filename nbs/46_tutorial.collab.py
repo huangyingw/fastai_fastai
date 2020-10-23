@@ -94,7 +94,10 @@ movie_ratings = [(b, i, mean_ratings.loc[i]) for i, b in zip(top_movies, movie_b
 
 # Now let's have a look at the movies with the worst bias:
 
+
 def item0(o): return o[0]
+
+
 sorted(movie_ratings, key=item0)[:15]
 
 # Or the ones with the best bias:

@@ -223,7 +223,10 @@ path.ls()
 
 images, lbl_bbox = get_annotations(path / 'train.json')
 img2bbox = dict(zip(images, lbl_bbox))
+
+
 def _pascal_lbl(o): return BBox.create(img2bbox[o.name])
+
 
 items = [path / 'train' / fn for fn in images]
 
@@ -273,7 +276,6 @@ tdl.show_batch(ctxs=axs.flatten())
 #learn = cnn_learner(xresnet18, dls, LabelSmoothingCrossEntropy(), opt_func=opt_func, c_in=3, c_out=10, lr=1e-2, metrics=accuracy)
 # learn.fit_one_cycle(1)
 # -
-
 
 
 # ## Export -

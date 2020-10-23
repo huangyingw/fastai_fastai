@@ -67,6 +67,7 @@ def get_emb_sz(to, sz_dict=None):
 # export
 class TabularModel(Module):
     "Basic model for tabular data."
+
     def __init__(self, emb_szs, n_cont, out_sz, layers, ps=None, embed_p=0.,
                  y_range=None, use_bn=True, bn_final=False, bn_cont=True, act_cls=nn.ReLU(inplace=True)):
         ps = ifnone(ps, [0] * len(layers))

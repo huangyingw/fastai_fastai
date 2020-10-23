@@ -62,6 +62,8 @@ class TabularGPU(Tabular):
 
 # export
 def _to_str(c): return c if c.dtype == "object" else c.astype("str")
+
+
 def _remove_none(c):
     if None in c:
         c.remove(None)
@@ -75,9 +77,11 @@ def setups(self, to: TabularGPU):
     self.lbls = {n: nvcategory.from_strings(_to_str(to.iloc[:, n]).data).keys() for n in to.all_cat_names}
     self.classes = {n: CategoryMap(_remove_none(c.to_host()), add_na=(n in to.cat_names)) for n, c in self.lbls.items()}
 
+
 @patch
 def _apply_cats_gpu(self: Categorify, c):
     return cudf.Series(nvcategory.from_strings(_to_str(c).data).set_keys(self.lbls[c.name]).values()).add(add)
+
 
 @Categorify
 def encodes(self, to: TabularGPU):
@@ -126,6 +130,7 @@ test_eq(to.a.to_array(), np.array([1, 2, 3, 0, 3]))
 def setups(self, to: TabularGPU):
     self.means = {n: to.iloc[:, n].mean() for n in to.cont_names}
     self.stds = {n: to.iloc[:, n].std(ddof=0) + 1e-7 for n in to.cont_names}
+
 
 @Normalize
 def encodes(self, to: TabularGPU):
@@ -194,6 +199,7 @@ def setups(self, to: TabularGPU):
         col = to.iloc[:, n]
         if col.isnull().any():
             self.na_dict[n] = self.fill_strategy(col, self.fill_vals[n])
+
 
 @FillMissing
 def encodes(self, to: TabularGPU):
@@ -290,6 +296,7 @@ test_eq(to.c.to_array(), [1, 0, 0, 0, 1, 0, 1])
 
 # +
 # export
+
 
 @ReadTabBatch
 def encodes(self, to: TabularGPU):

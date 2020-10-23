@@ -68,6 +68,7 @@ def synth_learner(n_trn=10, n_val=2, cuda=False, lr=1e-3, data=None, model=None,
 # export
 class VerboseCallback(Callback):
     "Callback that prints the name of each event called"
+
     def __call__(self, event_name):
         print(event_name)
         super().__call__(event_name)
@@ -156,7 +157,6 @@ def show_install(show_nvidia_smi: bool=False):
                 gpu_total_mem = [int(x) for x in output.strip().split('\n')]
                 nvidia_gpu_cnt = len(gpu_total_mem)
 
-
     if nvidia_gpu_cnt:
         rep.append(["nvidia gpus", nvidia_gpu_cnt])
 
@@ -171,7 +171,6 @@ def show_install(show_nvidia_smi: bool=False):
             rep.append([f"Have {nvidia_gpu_cnt} GPU(s), but torch can't use them (check nvidia driver)", None])
         else:
             rep.append([f"No GPUs available", None])
-
 
     rep.append(["\n=== Environment ===", None])
 
@@ -214,6 +213,7 @@ def show_install(show_nvidia_smi: bool=False):
         print("Optional package(s) to enhance the diagnostics can be installed with:")
         print(f"pip install {' '.join(opt_mods)}")
         print("Once installed, re-run this utility to get the additional information")
+
 
 # hide
 show_install()

@@ -68,6 +68,7 @@ class CollabDataLoaders(DataLoaders):
         "Create a `DataLoaders` suitable for collaborative filtering from `csv`."
         return cls.from_df(pd.read_csv(csv), **kwargs)
 
+
 CollabDataLoaders.from_csv = delegates(to=CollabDataLoaders.from_df)(CollabDataLoaders.from_csv)
 # -
 
@@ -106,6 +107,7 @@ dls = CollabDataLoaders.from_csv(path / 'ratings.csv', bs=64)
 # export
 class EmbeddingDotBias(Module):
     "Base dot model for collaborative filtering."
+
     def __init__(self, n_factors, n_users, n_items, y_range=None):
         self.y_range = y_range
         (self.u_weight, self.i_weight, self.u_bias, self.i_bias) = [Embedding(*o) for o in [

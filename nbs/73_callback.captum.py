@@ -59,9 +59,12 @@ import tempfile
 # export
 # Dirty hack as json_clean doesn't support CategoryMap type
 _json_clean = jsonutil.json_clean
+
+
 def json_clean(o):
     o = list(o.items) if isinstance(o, CategoryMap) else o
     return _json_clean(o)
+
 
 jsonutil.json_clean = json_clean
 
@@ -76,7 +79,11 @@ jsonutil.json_clean = json_clean
 
 path = untar_data(URLs.PETS) / 'images'
 fnames = get_image_files(path)
+
+
 def is_cat(x): return x[0].isupper()
+
+
 dls = ImageDataLoaders.from_name_func(
     path, fnames, valid_pct=0.2, seed=42,
     label_func=is_cat, item_tfms=Resize(128))
@@ -93,13 +100,13 @@ learn.fine_tune(1)
 # export
 class CaptumInterpretation():
     "Captum Interpretation for Resnet"
+
     def __init__(self, learn, cmap_name='custom blue', colors=None, N=256, methods=['original_image', 'heat_map'], signs=["all", "positive"], outlier_perc=1):
         store_attr('learn,cmap_name,colors,N,methods,signs,outlier_perc')
         self.colors = [(0, '#ffffff'), (0.25, '#000000'), (1, '#000000')] if self.colors is None else self.colors
         self.dls = learn.dls
         self.model = self.learn.model
         self.supported_metrics = ['IG', 'NT', 'Occl']
-
 
     def get_baseline_img(self, img_tensor, baseline_type):
         baseline_img = None
@@ -136,13 +143,10 @@ class CaptumInterpretation():
                                               signs=self.signs,
                                               outlier_perc=self.outlier_perc, titles=[f'Original Image - ({dec_data[1]})', metric])
 
-
-
     def _get_enc_dec_data(self, inp_data):
         dec_data = self.dls.after_item(inp_data)
         enc_data = dls.after_batch(to_device(self.dls.before_batch(dec_data), self.dls.device))
         return(enc_data, dec_data)
-
 
     def _get_attributions(self, enc_data, metric, n_steps, nt_type, baseline_type, strides, sliding_window_shapes):
         # Get Baseline
@@ -164,6 +168,7 @@ class CaptumInterpretation():
                                              baselines=baseline)
 
 # ## Interpretation
+
 
 captum = CaptumInterpretation(learn)
 idx = randint(0, len(fnames))

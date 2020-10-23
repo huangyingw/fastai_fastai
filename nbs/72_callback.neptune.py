@@ -92,6 +92,7 @@ import tempfile
 # export
 class NeptuneCallback(Callback):
     "Log losses, metrics, model weights, model architecture summary to neptune"
+
     def __init__(self, log_model_weights=True, keep_experiment_running=False):
         self.log_model_weights = log_model_weights
         self.keep_experiment_running = keep_experiment_running

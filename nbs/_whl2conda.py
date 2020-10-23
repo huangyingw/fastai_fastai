@@ -48,7 +48,6 @@ from fastai.torch_basics import *
 # - paths: files with sha256 and size
 
 
-
 path = Path('~/git/spacy_conda/cymem').expanduser()
 pkg = path / 'pkg/cymem-2.0.2-py37_0.tar.bz2'
 whl = path / 'whl/cymem-2.0.2-cp37-cp37m-manylinux1_x86_64.whl'

@@ -282,6 +282,8 @@ dls.show_batch()
 # +
 def _pascal_items(x): return (
     f'{pascal_source}/train/' + x.fname, x.labels.str.split())
+
+
 valid_idx = df[df['is_valid']].index.values
 
 pascal = DataBlock.from_columns(blocks=(ImageBlock, MultiCategoryBlock),

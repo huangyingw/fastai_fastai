@@ -69,6 +69,7 @@ class TabularDataLoaders(DataLoaders):
             to.process()
         return self.valid.new(to, **kwargs)
 
+
 Tabular._dbunch_type = TabularDataLoaders
 TabularDataLoaders.from_csv = delegates(to=TabularDataLoaders.from_df)(TabularDataLoaders.from_csv)
 # -
