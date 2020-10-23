@@ -286,7 +286,9 @@ print(f"Memory usage: {df.memory_usage().sum()} --> {new_df.memory_usage().sum()
 # export
 class _TabIloc:
     "Get/set rows by iloc and cols by name"
+
     def __init__(self, to): self.to = to
+
     def __getitem__(self, idxs):
         df = self.to.items
         if isinstance(idxs, tuple):
@@ -302,6 +304,7 @@ class _TabIloc:
 class Tabular(CollBase, GetAttr, FilteredBase):
     "A `DataFrame` wrapper that knows which cols are cont/cat/y, and returns rows in `__getitem__`"
     _default, with_cont = 'procs', True
+
     def __init__(self, df, procs=None, cat_names=None, cont_names=None, y_names=None, y_block=None, splits=None,
                  do_setup=True, device=None, inplace=False, reduce_memory=True):
         if inplace and splits is not None and pd.options.mode.chained_assignment is not None:
@@ -351,6 +354,7 @@ class Tabular(CollBase, GetAttr, FilteredBase):
     def n_subsets(self): return 2
     def y(self): return self[self.y_names[0]]
     def new_empty(self): return self.new(pd.DataFrame({}, columns=self.items.columns))
+
     def to_device(self, d=None):
         self.device = d
         return self
@@ -358,6 +362,7 @@ class Tabular(CollBase, GetAttr, FilteredBase):
     def all_col_names(self):
         ys = [n for n in self.y_names if n in self.items.columns]
         return self.x_names + self.y_names if len(ys) == len(self.y_names) else self.x_names
+
 
 properties(Tabular, 'loc', 'iloc', 'targ', 'all_col_names', 'n_subsets', 'x_names', 'y')
 
@@ -379,6 +384,7 @@ properties(Tabular, 'loc', 'iloc', 'targ', 'all_col_names', 'n_subsets', 'x_name
 # export
 class TabularPandas(Tabular):
     "A `Tabular` object with transforms"
+
     def transform(self, cols, f, all_col=True):
         if not all_col:
             cols = [c for c in cols if c in self.items.columns]
@@ -395,6 +401,7 @@ def _add_prop(cls, nm):
     def fset(o, v): o[getattr(o, nm + '_names')] = v
     setattr(cls, nm + 's', f)
     setattr(cls, nm + 's', fset)
+
 
 _add_prop(Tabular, 'cat')
 _add_prop(Tabular, 'cont')
@@ -413,6 +420,7 @@ test_eq(to.all_cols, to[['a']])
 # export
 class TabularProc(InplaceTransform):
     "Base class to write a non-lazy tabular processor for dataframes"
+
     def setup(self, items=None, train_setup=False):  # TODO: properly deal with train_setup
         super().setup(getattr(items, 'train', items), train_setup=False)
         # Procs are called as soon as data is available
@@ -427,6 +435,8 @@ def _apply_cats(voc, add, c):
     if not is_categorical_dtype(c):
         return pd.Categorical(c, categories=voc[c.name][add:]).codes + add
     return c.cat.codes + add  # if is_categorical_dtype(c) else c.map(voc[c.name].o2i)
+
+
 def _decode_cats(voc, c): return c.map(dict(enumerate(voc[c.name].items)))
 
 
@@ -434,6 +444,7 @@ def _decode_cats(voc, c): return c.map(dict(enumerate(voc[c.name].items)))
 class Categorify(TabularProc):
     "Transform the categorical variables to something similar to `pd.Categorical`"
     order = 1
+
     def setups(self, to):
         store_attr(classes={n: CategoryMap(to.iloc[:, n].items, add_na=(n in to.cat_names)) for n in to.cat_names})
 
@@ -454,10 +465,12 @@ def setups(self, to: Tabular):
         self.c = len(self.vocab)
     return self(to)
 
+
 @Categorize
 def encodes(self, to: Tabular):
     to.transform(to.y_names, partial(_apply_cats, {n: self.vocab for n in to.y_names}, 0), all_col=False)
     return to
+
 
 @Categorize
 def decodes(self, to: Tabular):
@@ -531,10 +544,12 @@ def setups(self, to: Tabular):
                stds=dict(getattr(to, 'train', to).conts.std(ddof=0) + 1e-7))
     return self(to)
 
+
 @Normalize
 def encodes(self, to: Tabular):
     to.conts = (to.conts - self.means) / self.stds
     return to
+
 
 @Normalize
 def decodes(self, to: Tabular):
@@ -583,6 +598,7 @@ class FillStrategy:
 # export
 class FillMissing(TabularProc):
     "Fill the missing values in continuous columns."
+
     def __init__(self, fill_strategy=FillStrategy.median, add_col=True, fill_vals=None):
         if fill_vals is None:
             fill_vals = defaultdict(int)
@@ -729,7 +745,6 @@ def show_batch(x: Tabular, y, its, max_n=10, ctxs=None):
     x.show()
 
 
-
 _loaders = (_MultiProcessingDataLoaderIter, _SingleProcessDataLoaderIter)
 
 
@@ -739,12 +754,14 @@ _loaders = (_MultiProcessingDataLoaderIter, _SingleProcessDataLoaderIter)
 class TabDataLoader(TfmdDL):
     "A transformed `DataLoader` for Tabular data"
     do_item = noops
+
     def __init__(self, dataset, bs=16, shuffle=False, after_batch=None, num_workers=0, **kwargs):
         if after_batch is None:
             after_batch = L(TransformBlock().batch_tfms) + ReadTabBatch(dataset)
         super().__init__(dataset, bs=bs, shuffle=shuffle, after_batch=after_batch, num_workers=num_workers, **kwargs)
 
     def create_batch(self, b): return self.dataset.iloc[b]
+
 
 TabularPandas._dl_type = TabDataLoader
 # -
@@ -817,8 +834,10 @@ def setups(self, to: Tabular):
     self.c = len(self.vocab)
     return self(to)
 
+
 @EncodedMultiCategorize
 def encodes(self, to: Tabular): return to
+
 
 @EncodedMultiCategorize
 def decodes(self, to: Tabular):
@@ -871,6 +890,7 @@ def encodes(self, to: Tabular):
     #to.transform(to.y_names, partial(_apply_cats, {n: self.vocab for n in to.y_names}, 0))
     return to
 
+
 @MultiCategorize
 def decodes(self, to: Tabular):
     #to.transform(to.y_names, partial(_decode_cats, {n: self.vocab for n in to.y_names}))
@@ -900,8 +920,10 @@ def setups(self, to: Tabular):
     self.c = len(to.y_names)
     return to
 
+
 @RegressionSetup
 def encodes(self, to: Tabular): return to
+
 
 @RegressionSetup
 def decodes(self, to: Tabular): return to
@@ -938,9 +960,12 @@ class TensorTabular(fastuple):
 
     def display(self, ctxs): display_df(pd.DataFrame(ctxs))
 
+
 class TabularLine(pd.Series):
     "A line of a dataframe that knows how to show itself"
+
     def show(self, ctx=None, **kwargs): return self if ctx is None else ctx.append(self)
+
 
 class ReadTabLine(ItemTransform):
     def __init__(self, proc): self.proc = proc
@@ -953,6 +978,7 @@ class ReadTabLine(ItemTransform):
         to = TabularPandas(o, self.proc.cat_names, self.proc.cont_names, self.proc.y_names)
         to = self.proc.decode(to)
         return TabularLine(pd.Series({c: v for v, c in zip(to.items[0] + to.items[1], self.proc.cat_names + self.proc.cont_names)}))
+
 
 class ReadTabTarget(ItemTransform):
     def __init__(self, proc): self.proc = proc

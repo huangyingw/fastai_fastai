@@ -55,6 +55,7 @@ _all_ = ["UNK", "PAD", "BOS", "EOS", "FLD", "TK_REP", "TK_WREP", "TK_UP", "TK_MA
 # export
 _re_spec = re.compile(r'([/#\\])')
 
+
 def spec_add_spaces(t):
     "Add spaces around / and #"
     return _re_spec.sub(r' \1 ', t)
@@ -70,6 +71,7 @@ test_eq(spec_add_spaces('\\fastai'), ' \\ fastai')
 # export
 _re_space = re.compile(' {2,}')
 
+
 def rm_useless_spaces(t):
     "Remove multiple spaces"
     return _re_space.sub(' ', t)
@@ -82,6 +84,7 @@ test_eq(rm_useless_spaces('a  b   c'), 'a b c')
 # +
 # export
 _re_rep = re.compile(r'(\S)(\1{2,})')
+
 
 def replace_rep(t):
     "Replace repetitions at the character level: cccc -- TK_REP 4 c"
@@ -226,6 +229,7 @@ defaults.text_postproc_rules = [replace_space]
 # export
 class BaseTokenizer():
     "Basic tokenizer that just splits on spaces"
+
     def __init__(self, split_char=' ', **kwargs): self.split_char = split_char
     def __call__(self, items): return (t.split(self.split_char) for t in items)
 
@@ -239,6 +243,7 @@ test_eq(tok(["This is a text"]), [["This is a te", "t"]])
 # export
 class SpacyTokenizer():
     "Spacy tokenizer for `lang`"
+
     def __init__(self, lang='en', special_toks=None, buf_sz=5000):
         self.special_toks = ifnone(special_toks, defaults.text_spec_tok)
         nlp = spacy.blank(lang, disable=["parser", "tagger", "ner"])
@@ -261,6 +266,7 @@ test_eq(L(tok([inp, inp])), [exp, exp])
 # export
 class TokenizeWithRules:
     "A wrapper around `tok` which applies `rules`, then tokenizes, then applies `post_rules`"
+
     def __init__(self, tok, rules=None, post_rules=None):
         self.rules = L(ifnone(rules, defaults.text_proc_rules))
         self.post_f = compose(*L(ifnone(post_rules, defaults.text_postproc_rules)))
@@ -373,6 +379,7 @@ def tokenize_files(files, path, output_dir, output_names=None, **kwargs):
     "Tokenize text `files` in parallel using `n_workers`"
     if output_names is None:
         output_names = L(output_dir / f.relative_to(path) for f in files)
+
     def _f(i, output_dir): return output_dir / output_names[i]
     return _tokenize_files(_f, files, path, output_dir=output_dir, **kwargs)
 
@@ -531,6 +538,7 @@ with tempfile.TemporaryDirectory() as tmp_d:
 class Tokenizer(Transform):
     "Provides a consistent `Transform` interface to tokenizers operating on `DataFrame`s and folders"
     input_types = (str, list, L, tuple, Path)
+
     def __init__(self, tok, rules=None, counter=None, lengths=None, mode=None, sep=' '):
         if isinstance(tok, type):
             tok = tok()
@@ -618,6 +626,7 @@ eu_langs = ["bg", "cs", "da", "de", "el", "en", "es", "et", "fi", "fr", "ga", "h
 # export
 class SentencePieceTokenizer():  # TODO: pass the special tokens symbol to sp
     "SentencePiece tokenizer for `lang`"
+
     def __init__(self, lang='en', special_toks=None, sp_model=None, vocab_sz=None, max_vocab_sz=30000,
                  model_type='unigram', char_coverage=None, cache_dir='tmp'):
         try:

@@ -72,7 +72,6 @@ class LinearDecoder(Module):
         return self.decoder(dp_inp), input, dp_inp
 
 
-
 # +
 enc = AWD_LSTM(100, 20, 10, 2)
 x = torch.randint(0, 100, (10, 5))
@@ -93,6 +92,7 @@ test_eq(tst.decoder.weight, enc.encoder.weight)
 # export
 class SequentialRNN(nn.Sequential):
     "A sequential module that passes the reset call to its children."
+
     def reset(self):
         for c in self.children():
             getattr(c, 'reset', noop)()
@@ -101,6 +101,7 @@ class SequentialRNN(nn.Sequential):
 # +
 class _TstMod(Module):
     def reset(self): print('reset')
+
 
 tst = SequentialRNN(_TstMod(), _TstMod())
 test_stdout(tst.reset, 'reset\nreset')
@@ -163,6 +164,7 @@ def _pad_tensor(t, bs):
 # export
 class SentenceEncoder(Module):
     "Create an encoder over `module` that can process a full sentence."
+
     def __init__(self, bptt, module, pad_idx=1, max_len=None): store_attr('bptt,module,pad_idx,max_len')
     def reset(self): getattr(self.module, 'reset', noop)()
 
@@ -235,6 +237,7 @@ test_eq(x, x1)
 # export
 class PoolingLinearClassifier(Module):
     "Create a linear classifier with pooling"
+
     def __init__(self, dims, ps, bptt, y_range=None):
         if len(ps) != len(dims) - 1:
             raise ValueError("Number of layers and dropout values do not match.")

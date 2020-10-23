@@ -64,6 +64,7 @@ from fastai.basics import *
 # export
 class GANModule(Module):
     "Wrapper around a `generator` and a `critic` to create a GAN."
+
     def __init__(self, generator=None, critic=None, gen_mode=False):
         if generator is not None:
             self.generator = generator
@@ -105,6 +106,7 @@ def basic_critic(in_size, n_channels, n_features=64, n_extra_layers=0, norm_type
 # export
 class AddChannels(Module):
     "Add `n_dim` channels at the end of the input."
+
     def __init__(self, n_dim): self.n_dim = n_dim
     def forward(self, x): return x.view(*(list(x.shape) + [1] * self.n_dim))
 
@@ -149,6 +151,7 @@ test_eq(fake_p.shape, [2, 1])
 # export
 _conv_args = dict(act_cls=partial(nn.LeakyReLU, negative_slope=0.2), norm_type=NormType.Spectral)
 
+
 def _conv(ni, nf, ks=3, stride=1, self_attention=False, **kwargs):
     if self_attention:
         kwargs['xtra'] = SelfAttention(nf)
@@ -188,6 +191,7 @@ def gan_critic(n_channels=3, nf=128, n_blocks=3, p=0.15):
 # export
 class GANLoss(GANModule):
     "Wrapper around `crit_loss_func` and `gen_loss_func`"
+
     def __init__(self, gen_loss_func, crit_loss_func, gan_model):
         super().__init__()
         store_attr('gen_loss_func,crit_loss_func,gan_model')
@@ -221,7 +225,9 @@ class GANLoss(GANModule):
 # export
 class AdaptiveLoss(Module):
     "Expand the `target` to match the `output` size before applying `crit`."
+
     def __init__(self, crit): self.crit = crit
+
     def forward(self, output, target):
         return self.crit(output, target[:, None].expand_as(output).float())
 
@@ -246,6 +252,7 @@ def set_freeze_model(m, rg):
 class GANTrainer(Callback):
     "Handles GAN Training."
     run_after = TrainEvalCallback
+
     def __init__(self, switch_eval=False, clip=None, beta=0.98, gen_first=False, show_img=True):
         store_attr('switch_eval,clip,gen_first,show_img')
         self.gen_loss, self.crit_loss = AvgSmoothLoss(beta=beta), AvgSmoothLoss(beta=beta)
@@ -349,6 +356,7 @@ class FixedGANSwitcher(Callback):
 class AdaptiveGANSwitcher(Callback):
     "Switcher that goes back to generator/critic when the loss goes below `gen_thresh`/`crit_thresh`."
     run_after = GANTrainer
+
     def __init__(self, gen_thresh=None, critic_thresh=None):
         store_attr('gen_thresh,critic_thresh')
 
@@ -447,6 +455,8 @@ def gan_loss_from_func(loss_gen, loss_crit, weights_gen=None):
 
 # export
 def _tk_mean(fake_pred, output, target): return fake_pred.mean()
+
+
 def _tk_diff(real_pred, fake_pred): return real_pred.mean() - fake_pred.mean()
 
 
@@ -455,6 +465,7 @@ def _tk_diff(real_pred, fake_pred): return real_pred.mean() - fake_pred.mean()
 @delegates()
 class GANLearner(Learner):
     "A `Learner` suitable for GANs."
+
     def __init__(self, dls, generator, critic, gen_loss_func, crit_loss_func, switcher=None, gen_first=False,
                  switch_eval=True, show_img=True, clip=None, cbs=None, metrics=None, **kwargs):
         gan = GANModule(generator, critic)
@@ -476,6 +487,7 @@ class GANLearner(Learner):
     def wgan(cls, dls, generator, critic, switcher=None, clip=0.01, switch_eval=False, **kwargs):
         "Create a WGAN from `data`, `generator` and `critic`."
         return cls(dls, generator, critic, _tk_mean, _tk_diff, switcher=switcher, clip=clip, switch_eval=switch_eval, **kwargs)
+
 
 GANLearner.from_learners = delegates(to=GANLearner.__init__)(GANLearner.from_learners)
 GANLearner.wgan = delegates(to=GANLearner.__init__)(GANLearner.wgan)

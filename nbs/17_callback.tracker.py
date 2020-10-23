@@ -107,9 +107,11 @@ class FakeRecords(Callback):
     def before_fit(self): self.idx = list(self.recorder.metric_names[1:]).index(self.monitor)
     def after_epoch(self): self.recorder.values[-1][self.idx] = self.values[self.epoch]
 
+
 class TestTracker(Callback):
     run_after = TrackerCallback
     def before_fit(self): self.bests, self.news = [], []
+
     def after_epoch(self):
         self.bests.append(self.tracker.best)
         self.news.append(self.tracker.new_best)
@@ -136,6 +138,8 @@ test_eq(learn.test_tracker.news, [True, False])
 # hide
 # By default metrics have to be bigger at each epoch.
 def tst_metric(out, targ): return F.mse_loss(out, targ)
+
+
 learn = synth_learner(n_trn=2, cbs=TestTracker(), metrics=tst_metric)
 cbs = [TrackerCallback(monitor='tst_metric'), FakeRecords('tst_metric', [0.2, 0.1])]
 with learn.no_logging():
@@ -176,12 +180,14 @@ assert not hasattr(learn, 'new_best')
 @log_args
 class EarlyStoppingCallback(TrackerCallback):
     "A `TrackerCallback` that terminates training when monitored quantity stops improving."
+
     def __init__(self, monitor='valid_loss', comp=None, min_delta=0., patience=1, reset_on_fit=True):
         super().__init__(monitor=monitor, comp=comp, min_delta=min_delta, reset_on_fit=reset_on_fit)
         self.patience = patience
 
     def before_fit(self): self.wait = 0
     super().before_fit()
+
     def after_epoch(self):
         "Compare the value monitored to its best score and maybe stop training."
         super().after_epoch()
@@ -214,6 +220,7 @@ test_eq(len(learn.recorder.values), 3)
 @log_args
 class SaveModelCallback(TrackerCallback):
     "A `TrackerCallback` that saves the model's best during training and loads it at the end."
+
     def __init__(self, monitor='valid_loss', comp=None, min_delta=0., fname='model', every_epoch=False, with_opt=False, reset_on_fit=True):
         super().__init__(monitor=monitor, comp=comp, min_delta=min_delta, reset_on_fit=reset_on_fit)
         # keep track of file path for loggers
@@ -256,12 +263,14 @@ shutil.rmtree(Path.cwd() / 'tmp')
 @log_args
 class ReduceLROnPlateau(TrackerCallback):
     "A `TrackerCallback` that reduces learning rate when a metric has stopped improving."
+
     def __init__(self, monitor='valid_loss', comp=None, min_delta=0., patience=1, factor=10., min_lr=0, reset_on_fit=True):
         super().__init__(monitor=monitor, comp=comp, min_delta=min_delta, reset_on_fit=reset_on_fit)
         self.patience, self.factor, self.min_lr = patience, factor, min_lr
 
     def before_fit(self): self.wait = 0
     super().before_fit()
+
     def after_epoch(self):
         "Compare the value monitored to its best score and reduce LR by `factor` if no improvement."
         super().after_epoch()

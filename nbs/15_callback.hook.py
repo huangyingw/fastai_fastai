@@ -44,7 +44,10 @@ from fastai.basics import *
 
 # +
 tst_model = nn.Linear(5, 3)
+
+
 def example_forward_hook(m, i, o): print(m, i, o)
+
 
 x = torch.randn(4, 5)
 hook = tst_model.register_forward_hook(example_forward_hook)
@@ -58,6 +61,8 @@ hook.remove()
 
 # +
 def example_backward_hook(m, gi, go): print(m, gi, go)
+
+
 hook = tst_model.register_backward_hook(example_backward_hook)
 
 x = torch.randn(4, 5)
@@ -77,6 +82,7 @@ hook.remove()
 @docs
 class Hook():
     "Create a hook on `m` with `hook_func`."
+
     def __init__(self, m, hook_func, is_forward=True, detach=True, cpu=False, gather=False):
         store_attr('hook_func,detach,cpu,gather')
         f = m.register_forward_hook if is_forward else m.register_backward_hook
@@ -143,6 +149,7 @@ test_stdout(lambda: tst_model(x), "")
 # export
 def _hook_inner(m, i, o): return o if isinstance(o, Tensor) or is_listy(o) else list(o)
 
+
 def hook_output(module, detach=True, cpu=False, grad=False):
     "Return a `Hook` that stores activations of `module` in `self.stored`"
     return Hook(module, _hook_inner, detach=detach, cpu=cpu, is_forward=not grad)
@@ -179,6 +186,7 @@ with hook_output(tst_model, cpu=True) as h:
 @docs
 class Hooks():
     "Create several hooks on the modules in `ms` with `hook_func`."
+
     def __init__(self, ms, hook_func, is_forward=True, detach=True, cpu=False):
         self.hooks = [Hook(m, hook_func, is_forward, detach, cpu) for m in ms]
 
@@ -332,6 +340,7 @@ class HookCallback(Callback):
     "`Callback` that can be used to register hooks on `modules`"
     _methods = ["hook"]
     hook = noops
+
     def __init__(self, modules=None, every=None, remove_end=True, is_forward=True, detach=True, cpu=True, **kwargs):
         store_attr('modules,every,remove_end,is_forward,detach,cpu')
         assert not kwargs
@@ -361,6 +370,7 @@ class HookCallback(Callback):
             self._remove()
 
     def _register(self): self.hooks = Hooks(self.modules, self.hook, self.is_forward, self.detach, self.cpu)
+
     def _remove(self):
         if getattr(self, 'hooks', None):
             self.hooks.remove()
@@ -379,6 +389,7 @@ class TstCallback(HookCallback):
     def hook(self, m, i, o): return o
     def after_batch(self): test_eq(self.hooks.stored[0], self.pred)
 
+
 learn = synth_learner(n_trn=5, cbs=TstCallback())
 learn.fit(1)
 
@@ -387,10 +398,13 @@ learn.fit(1)
 class TstCallback(HookCallback):
     def __init__(self, modules=None, remove_end=True, detach=True, cpu=False):
         super().__init__(modules, None, remove_end, False, detach, cpu)
+
     def hook(self, m, i, o): return o
+
     def after_batch(self):
         if self.training:
             test_eq(self.hooks.stored[0][0], 2 * (self.pred - self.y) / self.pred.shape[0])
+
 
 learn = synth_learner(n_trn=5, cbs=TstCallback())
 learn.fit(1)
@@ -433,6 +447,8 @@ def layer_info(learn, *xb):
 
 
 def _m(): return nn.Sequential(nn.Linear(1, 50), nn.ReLU(), nn.BatchNorm1d(50), nn.Linear(50, 1))
+
+
 sample_input = torch.randn((16, 1))
 test_eq(layer_info(synth_learner(model=_m()), sample_input), [
     ('Linear', 100, True, [1, 50]),
@@ -449,9 +465,11 @@ class _2InpModel(Module):
     def __init__(self):
         super().__init__()
         self.seq = nn.Sequential(nn.Linear(2, 50), nn.ReLU(), nn.BatchNorm1d(50), nn.Linear(50, 1))
+
     def forward(self, *inps):
         outputs = torch.cat(inps, dim=-1)
         return self.seq(outputs)
+
 
 sample_inputs = (torch.randn(16, 1), torch.randn(16, 1))
 learn = synth_learner(model=_2InpModel())
@@ -530,9 +548,11 @@ learn.summary()
 # Test for multiple output
 class _NOutModel(Module):
     def __init__(self): self.lin = nn.Linear(5, 6)
+
     def forward(self, x1):
         x = torch.randn((10, 5))
         return x, self.lin(x)
+
 
 learn = synth_learner(model=_NOutModel())
 learn.summary()  # Output Shape should be (50, 16, 256), (1, 16, 256)
@@ -549,6 +569,7 @@ learn.summary()  # Output Shape should be (50, 16, 256), (1, 16, 256)
 class ActivationStats(HookCallback):
     "Callback that record the mean and std of activations."
     run_before = TrainEvalCallback
+
     def __init__(self, with_hist=False, **kwargs):
         super().__init__(**kwargs)
         self.with_hist = with_hist
@@ -603,7 +624,6 @@ learn.activation_stats.stats
 # The first line contains the means of the outputs of the model for each batch in the training set, the second line their standard deviations.
 
 
-
 # +
 def test_every(n_tr, every):
     "create a learner, fit, then check number of stats collected"
@@ -611,6 +631,7 @@ def test_every(n_tr, every):
     learn.fit(1)
     expected_stats_len = math.ceil(n_tr / every)
     test_eq(expected_stats_len, len(learn.activation_stats.stats))
+
 
 for n_tr in [11, 12, 13]:
     test_every(n_tr, 4)
@@ -621,6 +642,7 @@ for n_tr in [11, 12, 13]:
 # hide
 class TstCallback(HookCallback):
     def hook(self, m, i, o): return o
+
     def before_fit(self):
         super().before_fit()
         self.means, self.stds = [], []
@@ -629,6 +651,7 @@ class TstCallback(HookCallback):
         if self.training:
             self.means.append(self.hooks.stored[0].mean().item())
             self.stds.append(self.hooks.stored[0].std() .item())
+
 
 learn = synth_learner(n_trn=5, cbs=[TstCallback(), ActivationStats()])
 learn.fit(1)

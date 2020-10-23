@@ -50,6 +50,7 @@ _all_ = ["plot_top_losses"]
 # export
 class Interpretation():
     "Interpretation base class, can be inherited for task specific Interpretation classes"
+
     def __init__(self, dl, inputs, preds, targs, decoded, losses):
         store_attr("dl,inputs,preds,targs,decoded,losses")
 

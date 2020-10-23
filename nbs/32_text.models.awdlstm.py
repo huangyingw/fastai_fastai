@@ -54,6 +54,7 @@ assert ((t == 4 / 3) + (t == 0)).all()
 # export
 class RNNDropout(Module):
     "Dropout with probability `p` that is consistent on the seq_len dimension."
+
     def __init__(self, p=0.5): self.p = p
 
     def forward(self, x):
@@ -304,6 +305,7 @@ awd_lstm_clas_config = dict(emb_sz=400, n_hid=1152, n_layers=3, pad_token=1, bid
 # export
 class AWD_QRNN(AWD_LSTM):
     "Same as an AWD-LSTM, but using QRNNs instead of LSTMs"
+
     def _one_rnn(self, n_in, n_out, bidir, weight_p, l):
         from fastai.text.models.qrnn import QRNN
         rnn = QRNN(n_in, n_out, 1, save_prev_x=(not bidir), zoneout=0, window=2 if l == 0 else 1, output_gate=True, bidirectional=bidir)

@@ -36,7 +36,6 @@ from fastai.basics import *
 # > Callback and helper functions to schedule any hyper-parameter
 
 
-
 # ## Annealing
 
 # export
@@ -75,14 +74,28 @@ def annealer(f):
 # +
 # export
 def sched_lin(start, end, pos): return start + pos * (end - start)
+
+
 def sched_cos(start, end, pos): return start + (1 + math.cos(math.pi * (1 - pos))) * (end - start) / 2
+
+
 def sched_no(start, end, pos): return start
+
+
 def sched_exp(start, end, pos): return start * (end / start) ** pos
 
+
 def SchedLin(start, end): return _Annealer(sched_lin, start, end)
+
+
 def SchedCos(start, end): return _Annealer(sched_cos, start, end)
+
+
 def SchedNo(start, end): return _Annealer(sched_no, start, end)
+
+
 def SchedExp(start, end): return _Annealer(sched_exp, start, end)
+
 
 SchedLin.__doc__ = "Linear schedule function from `start` to `end`"
 SchedCos.__doc__ = "Cosine schedule function from `start` to `end`"
@@ -155,6 +168,7 @@ def combine_scheds(pcts, scheds):
     pcts = tensor([0] + L(pcts))
     assert torch.all(pcts >= 0)
     pcts = torch.cumsum(pcts, 0)
+
     def _inner(pos):
         if int(pos) == 1:
             return scheds[-1](1.)
@@ -240,6 +254,8 @@ test_close(learn.recorder.hps['lr'], [1e-3 + (1e-2 - 1e-3) * i / n for i in rang
 # hide
 # test discriminative lrs
 def _splitter(m): return [[m.a], [m.b]]
+
+
 learn = synth_learner(splitter=_splitter)
 sched = {'lr': combined_cos(0.5, np.array([1e-4, 1e-3]), np.array([1e-3, 1e-2]), np.array([1e-5, 1e-4]))}
 learn.fit(1, cbs=ParamScheduler(sched))
@@ -301,6 +317,8 @@ def plot_sched(self: Recorder, keys=None, figsize=None):
 # hide
 # test discriminative lrs
 def _splitter(m): return [[m.a], [m.b]]
+
+
 learn = synth_learner(splitter=_splitter)
 learn.fit_one_cycle(1, lr_max=slice(1e-3, 1e-2))
 #n = len(learn.dls.train)
@@ -498,7 +516,6 @@ def lr_find(self: Learner, start_lr=1e-7, end_lr=10, num_it=100, stop_div=True, 
         return SuggestedLRs(lr_min / 10., lr_steep)
 
 
-
 # First introduced by Leslie N. Smith in [Cyclical Learning Rates for Training Neural Networks](https://arxiv.org/pdf/1506.01186.pdf), the LR Finder trains the model with exponentially growing learning rates from `start_lr` to `end_lr` for `num_it` and stops in case of divergence (unless `stop_div=False`) then plots the losses vs the learning rates with a log scale.
 #
 # A good value for the learning rates is then either:
@@ -506,7 +523,6 @@ def lr_find(self: Learner, start_lr=1e-7, end_lr=10, num_it=100, stop_div=True, 
 # - when the slope is the steepest
 #
 # Those two values are returned by default by the Learning Rate Finder.
-
 # slow
 with tempfile.TemporaryDirectory() as d:
     learn = synth_learner(path=Path(d))

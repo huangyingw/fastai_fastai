@@ -53,6 +53,7 @@ def reduce_loss(loss, reduction='mean'):
 class MixUp(Callback):
     run_after, run_valid = [Normalize], False
     def __init__(self, alpha=0.4): self.distrib = Beta(tensor(alpha), tensor(alpha))
+
     def before_fit(self):
         self.stack_y = getattr(self.learn.loss_func, 'y_int', False)
         if self.stack_y:
@@ -80,7 +81,6 @@ class MixUp(Callback):
         with NoneReduce(self.old_lf) as lf:
             loss = torch.lerp(lf(pred, *self.yb1), lf(pred, *yb), self.lam)
         return reduce_loss(loss, getattr(self.old_lf, 'reduction', 'mean'))
-
 
 
 path = untar_data(URLs.MNIST_TINY)

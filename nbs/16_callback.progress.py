@@ -35,7 +35,6 @@ from fastai.basics import *
 # > Callback and helper function to track progress of training or log results
 
 
-
 # ## ProgressCallback -
 
 # +
@@ -63,6 +62,7 @@ class ProgressCallback(Callback):
     def before_validate(self): self._launch_pbar()
     def after_train(self): self.pbar.on_iter_end()
     def after_validate(self): self.pbar.on_iter_end()
+
     def after_batch(self):
         self.pbar.update(self.iter + 1)
         if hasattr(self, 'smooth_loss'):
@@ -91,6 +91,7 @@ class ProgressCallback(Callback):
                  after_validate="Close the progress bar over the validation dataloader",
                  after_batch="Update the current progress bar",
                  after_fit="Close the master bar")
+
 
 if not hasattr(defaults, 'callbacks'):
     defaults.callbacks = [TrainEvalCallback, Recorder, ProgressCallback]
@@ -125,6 +126,8 @@ with learn.no_bar():
 # hide
 # Check validate works without any training
 def tst_metric(out, targ): return F.mse_loss(out, targ)
+
+
 learn = synth_learner(n_trn=5, metrics=tst_metric)
 preds, targs = learn.validate()
 
@@ -189,6 +192,7 @@ learn.predict(torch.tensor([[0.1]]))
 class CSVLogger(Callback):
     run_after = Recorder
     "Log the results displayed in `learn.path/fname`"
+
     def __init__(self, fname='history.csv', append=False):
         self.fname, self.append = Path(fname), append
 

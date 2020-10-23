@@ -62,8 +62,10 @@ def synth_dbunch(a=2, b=3, bs=16, n_train=10, n_valid=2, cuda=False):
     valid_dl = TfmdDL(valid_ds, bs=bs, num_workers=0)
     return DataLoaders(train_dl, valid_dl, device=device)
 
+
 class RegModel(Module):
     "A r"
+
     def __init__(self): self.a, self.b = nn.Parameter(torch.randn(1)), nn.Parameter(torch.randn(1))
     def forward(self, x): return x * self.a + self.b
 
@@ -89,6 +91,7 @@ class _A:
     def __init__(self, a): self.a = a
     @contextmanager
     def a_changed(self, v): return replacing_yield(self, 'a', v)
+
 
 a = _A(42)
 with a.a_changed(32):
@@ -163,6 +166,7 @@ _after_epoch = [event.after_epoch, event.after_fit]
 # export
 class _ConstantFunc():
     "Returns a function that returns `o`"
+
     def __init__(self, o): self.o = o
     def __call__(self, *args, **kwargs): return self.o
 
@@ -204,6 +208,7 @@ class Learner():
     def _grab_cbs(self, cb_cls): return L(cb for cb in self.cbs if isinstance(cb, cb_cls))
     def add_cbs(self, cbs): L(cbs).map(self.add_cb)
     def remove_cbs(self, cbs): L(cbs).map(self.remove_cb)
+
     def add_cb(self, cb):
         old = getattr(self, cb.name, None)
         assert not old or isinstance(old, type(cb)), f"self.{cb.name} already registered"
@@ -247,6 +252,7 @@ class Learner():
         [cb(event_name) for cb in sort_by_run(self.cbs)]
 
     def _bn_bias_state(self, with_bias): return norm_bias_params(self.model, with_bias).map(self.opt.state)
+
     def create_opt(self):
         self.opt = self.opt_func(self.splitter(self.model), lr=self.lr)
         if not self.wd_bn_bias:
@@ -440,6 +446,7 @@ class Learner():
     def to_detach(self, b, cpu=True, gather=True):
         return self.dl.to_detach(b, cpu, gather) if hasattr(getattr(self, 'dl', None), 'to_detach') else to_detach(b, cpu, gather)
 
+
 Learner.x, Learner.y = add_props(lambda i, x: detuplify((x.xb, x.yb)[i]))
 # -
 
@@ -532,6 +539,7 @@ assert final_loss < init_loss, (final_loss, init_loss)
 # hide
 class TestTrainEvalCallback(Callback):
     run_after, run_valid = TrainEvalCallback, False
+
     def before_fit(self):
         test_eq([self.pct_train, self.train_iter], [0., 0])
         self.old_pct_train, self.old_train_iter = self.pct_train, self.train_iter
@@ -551,6 +559,7 @@ class TestTrainEvalCallback(Callback):
 
     def before_validate(self):
         assert not self.training and not self.model.training
+
 
 learn = synth_learner(cbs=TestTrainEvalCallback)
 learn.fit(1)
@@ -574,12 +583,15 @@ class _TstModel(nn.Module):
         self.a, self.b = nn.Parameter(torch.randn(1)), nn.Parameter(torch.randn(1))
         self.tst = nn.Sequential(nn.Linear(4, 5), nn.BatchNorm1d(3))
         self.tst[0].bias.data, self.tst[1].bias.data = torch.randn(5), torch.randn(3)
+
     def forward(self, x): return x * self.a + self.b
+
 
 class _PutGrad(Callback):
     def after_backward(self):
         for p in self.learn.model.tst.parameters():
             p.grad = torch.ones_like(p.data)
+
 
 learn = synth_learner(n_train=5, opt_func=partial(SGD, wd=1, decouple_wd=True), cbs=_PutGrad)
 learn.model = _TstModel()
@@ -636,6 +648,7 @@ test_eq(learn.loss, learn.loss_func(out, b[1]))
 # hide
 class VerboseCallback(Callback):
     "Callback that prints the name of each event called"
+
     def __call__(self, event_name):
         print(event_name)
         super().__call__(event_name)
@@ -794,6 +807,7 @@ with tempfile.TemporaryDirectory() as d:
 class TstCallback(Callback):
     def batch_begin(self): self.learn.a = self.a + 1
 
+
 tst_learn = synth_learner()
 test_eq(len(tst_learn.cbs), 1)
 assert isinstance(tst_learn.cbs[0], TrainEvalCallback)
@@ -811,6 +825,8 @@ assert hasattr(tst_learn, ('tst'))
 
 class AddCbCallback(Callback):
     pass
+
+
 test_fail(lambda: synth_learner(cbs=AddCbCallback()))
 
 show_doc(Learner.__call__)
@@ -1082,6 +1098,7 @@ test_eq(to_detach_from_dl(learn, Tensor([123.])), Tensor([23.]))
 @docs
 class Metric():
     "Blueprint for defining a metric"
+
     def reset(self): pass
     def accumulate(self, learn): pass
     @property
@@ -1124,12 +1141,15 @@ def _maybe_reduce(val):
 # export
 class AvgMetric(Metric):
     "Average the values of `func` taking into account potential different batch sizes"
+
     def __init__(self, func): self.func = func
     def reset(self): self.total, self.count = 0., 0
+
     def accumulate(self, learn):
         bs = find_bs(learn.yb)
         self.total += learn.to_detach(self.func(learn.pred, *learn.yb)) * bs
         self.count += bs
+
     @property
     def value(self): return self.total / self.count if self.count != 0 else None
     @property
@@ -1160,11 +1180,14 @@ test_close(tst.value, (t - u).abs().mean())
 # export
 class AvgLoss(Metric):
     "Average the losses taking into account potential different batch sizes"
+
     def reset(self): self.total, self.count = 0., 0
+
     def accumulate(self, learn):
         bs = find_bs(learn.yb)
         self.total += learn.to_detach(learn.loss.mean()) * bs
         self.count += bs
+
     @property
     def value(self): return self.total / self.count if self.count != 0 else None
     @property
@@ -1194,11 +1217,14 @@ test_close(tst.value, t.mean())
 # export
 class AvgSmoothLoss(Metric):
     "Smooth average of the losses (exponentially weighted with `beta`)"
+
     def __init__(self, beta=0.98): self.beta = beta
     def reset(self): self.count, self.val = 0, tensor(0.)
+
     def accumulate(self, learn):
         self.count += 1
         self.val = torch.lerp(to_detach(learn.loss.mean(), gather=False), self.val, self.beta)
+
     @property
     def value(self): return self.val / (1 - self.beta**self.count)
 
@@ -1219,6 +1245,7 @@ for i in range(4):
 # export
 class ValueMetric(Metric):
     "Use to include a pre-calculated metric value (for instance calculated in a `Callback`) and returned by `func`"
+
     def __init__(self, func, metric_name=None): store_attr('func, metric_name')
 
     @property
@@ -1233,6 +1260,7 @@ show_doc(ValueMetric, title_level=3)
 
 # +
 def metric_value_fn(): return 5e-3
+
 
 vm = ValueMetric(metric_value_fn, 'custom_value_metric')
 test_eq(vm.value, 5e-3)
@@ -1357,6 +1385,8 @@ if Recorder not in defaults.callbacks:
 
 # Test printed output
 def tst_metric(out, targ): return F.mse_loss(out, targ)
+
+
 learn = synth_learner(n_train=5, metrics=tst_metric)
 pat = r"[tensor\(\d.\d*\), tensor\(\d.\d*\), tensor\(\d.\d*\), 'dd:dd']"
 test_stdout(lambda: learn.fit(1), pat, regex=True)
@@ -1449,6 +1479,8 @@ test_eq(learn.recorder.metric_names, ['epoch', 'train_loss', 'valid_loss', 'tst_
 # hide
 # Test numpy metric
 def tst_metric_np(out, targ): return F.mse_loss(out, targ).numpy()
+
+
 learn = synth_learner(n_train=5, metrics=tst_metric_np)
 learn.fit(1)
 
@@ -1564,6 +1596,7 @@ assert targs is None
 # Test with targets that are tuples
 def _fake_loss(x, y, z, reduction=None): return F.mse_loss(x, y)
 
+
 learn = synth_learner(n_train=5)
 x = torch.randn(16 * 5)
 y = 2 * x + 3 + 0.1 * torch.randn(16 * 5)
@@ -1580,6 +1613,7 @@ test_eq(targs, [y, y])
 class _TupleModel(Module):
     def __init__(self, model): self.model = model
     def forward(self, x1, x2): return self.model(x1)
+
 
 learn = synth_learner(n_train=5)
 # learn.dls.n_inp=2
@@ -1632,9 +1666,11 @@ class _FakeLossFunc(Module):
     def activation(self, x): return x + 1
     def decodes(self, x): return 2 * x
 
+
 class _Add1(Transform):
     def encodes(self, x): return x + 1
     def decodes(self, x): return x - 1
+
 
 learn = synth_learner(n_train=5)
 dl = TfmdDL(Datasets(torch.arange(50), tfms=[L(), [_Add1()]]))
@@ -1691,11 +1727,14 @@ def freeze_to(self: Learner, n):
     self.opt.freeze_to(n)
     self.opt.clear_state()
 
+
 @patch
 def freeze(self: Learner): self.freeze_to(-1)
 
+
 @patch
 def unfreeze(self: Learner): self.freeze_to(0)
+
 
 add_docs(Learner,
          freeze_to="Freeze parameter groups up to `n`",
@@ -1711,7 +1750,9 @@ class _TstModel(nn.Module):
         self.a, self.b = nn.Parameter(torch.randn(1)), nn.Parameter(torch.randn(1))
         self.tst = nn.Sequential(nn.Linear(4, 5), nn.BatchNorm1d(3))
         self.tst[0].bias.data, self.tst[1].bias.data = torch.randn(5), torch.randn(3)
+
     def forward(self, x): return x * self.a + self.b
+
 
 class _PutGrad(Callback):
     def after_backward(self):
@@ -1719,7 +1760,9 @@ class _PutGrad(Callback):
             if p.requires_grad:
                 p.grad = torch.ones_like(p.data)
 
+
 def _splitter(m): return [list(m.tst[0].parameters()), list(m.tst[1].parameters()), [m.a, m.b]]
+
 
 learn = synth_learner(n_train=5, opt_func=partial(SGD), cbs=_PutGrad, splitter=_splitter, lr=1e-2)
 learn.model = _TstModel()

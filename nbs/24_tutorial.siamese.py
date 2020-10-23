@@ -70,7 +70,6 @@ img
 # Let's wrap all the standard preprocessing (resize, conversion to tensor, dividing by 255 and reordering of the channels) in one helper function:
 
 
-
 def open_image(fname, size=224):
     img = PIL.Image.open(fname).convert('RGB')
     img = img.resize((size, size))
@@ -83,10 +82,10 @@ open_image(files[0]).shape
 # We can see the label of our image is in the filename, before the last `_` and some number. We can then use a regex expression to create a label function:
 
 
-
 # +
 def label_func(fname):
     return re.match(r'^(.*)_\d+.jpg$', fname.name).groups()[0]
+
 
 label_func(files[0])
 # -
@@ -106,7 +105,6 @@ lbl2files = {l: [f for f in files if label_func(f) == l] for l in labels}
 # - a filename of a different class for the second image (with probability 0.5)
 #
 # We will go through that random draw each time we access an item, to have as many samples as possible. For the validation set however, we will fix that random draw once and for all (otherwise we will validate on a different dataset at each epoch).
-
 
 
 class SiameseDataset(torch.utils.data.Dataset):
@@ -163,7 +161,6 @@ dls = dls.cuda()
 # When you have a custom dataset like before, you can easily convert it into a fastai `Transform` by just changing the `__getitem__` function to <code>encodes</code>. In general, a `Transform` in fastai calls the <code>encodes</code> method when you apply it on an item (a bit like PyTorch modules call `forward` when applied on something) so this will transform your python dataset in a function that transforms integer to your data.
 #
 # If you then return a tuple (or a subclass of a tuple), and use fastai's semantic type, you can then apply any other fastai's transform on your data and it will be dispatched properly. Let's see how that works:
-
 
 
 class SiameseTransform(Transform):
@@ -253,6 +250,7 @@ class SiameseTransform(Transform):
         self.splbl2files = [{l: [f for f in files[splits[i]] if label_func(f) == l] for l in labels}
                             for i in range(2)]
         self.valid = {f: self._draw(f, 1) for f in files[splits[1]]}
+
     def encodes(self, f):
         f2, same = self.valid.get(f, self._draw(f, 0))
         img1, img2 = PILImage.create(f), PILImage.create(f2)
@@ -382,6 +380,8 @@ def get_tuple_files(path):
 # And we are ready to define our block:
 
 def get_x(t): return t[:2]
+
+
 def get_y(t): return t[2]
 
 
@@ -485,6 +485,7 @@ class SiameseTransform(Transform):
         self.splbl2files = [{l: [f for f in files[splits[i]] if label_func(f) == l] for l in labels}
                             for i in range(2)]
         self.valid = {f: self._draw(f, 1) for f in files[splits[1]]}
+
     def encodes(self, f):
         f2, same = self.valid.get(f, self._draw(f, 0))
         img1, img2 = PILImage.create(f), PILImage.create(f2)

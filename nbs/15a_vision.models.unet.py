@@ -81,7 +81,9 @@ class UnetBlock(Module):
 # export
 class ResizeToOrig(Module):
     "Merge a shortcut with the result of the module by adding them or concatenating them if `dense=True`."
+
     def __init__(self, mode='nearest'): self.mode = mode
+
     def forward(self, x):
         if x.orig.shape[-2:] != x.shape[-2:]:
             x = F.interpolate(x, x.orig.shape[-2:], mode=self.mode)
@@ -91,6 +93,7 @@ class ResizeToOrig(Module):
 # export
 class DynamicUnet(SequentialEx):
     "Create a U-Net from a given architecture."
+
     def __init__(self, encoder, n_classes, img_size, blur=False, blur_final=True, self_attention=False,
                  y_range=None, last_cross=True, bottle=False, act_cls=defaults.activation,
                  init=nn.init.kaiming_normal_, norm_type=None, **kwargs):
@@ -134,7 +137,6 @@ class DynamicUnet(SequentialEx):
     def __del__(self):
         if hasattr(self, "sfs"):
             self.sfs.remove()
-
 
 
 m = resnet34()

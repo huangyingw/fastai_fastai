@@ -429,7 +429,6 @@ learn.fit_one_cycle(5, 5e-3)
 # Here is how we write mixup in a `Callback`:
 
 
-
 class Mixup(Callback):
     run_valid = False
 

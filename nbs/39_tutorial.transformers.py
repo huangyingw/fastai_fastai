@@ -101,9 +101,11 @@ all_texts = np.concatenate([df_train[0].values, df_valid[0].values])
 
 class TransformersTokenizer(Transform):
     def __init__(self, tokenizer): self.tokenizer = tokenizer
+
     def encodes(self, x):
         toks = self.tokenizer.tokenize(x)
         return tensor(self.tokenizer.convert_tokens_to_ids(toks))
+
     def decodes(self, x): return TitledStr(self.tokenizer.decode(x.cpu().numpy()))
 
 
@@ -154,6 +156,7 @@ def tokenize(text):
     toks = tokenizer.tokenize(text)
     return tensor(tokenizer.convert_tokens_to_ids(toks))
 
+
 tokenized = [tokenize(t) for t in progress_bar(all_texts)]
 
 
@@ -163,6 +166,7 @@ tokenized = [tokenize(t) for t in progress_bar(all_texts)]
 
 class TransformersTokenizer(Transform):
     def __init__(self, tokenizer): self.tokenizer = tokenizer
+
     def encodes(self, x):
         return x if isinstance(x, Tensor) else tokenize(x)
 

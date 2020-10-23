@@ -346,7 +346,11 @@ path.ls()
 # Inside the subdirectories, we have different frames, each of them come with an image (`\_rgb.jpg`) and a pose file (`\_pose.txt`). We can easily get all the image files recursively with `get_image_files`, then write a function that converts an image filename to its associated pose file.
 
 img_files = get_image_files(path)
+
+
 def img2pose(x): return Path(f'{str(x)[:-7]}pose.txt')
+
+
 img2pose(img_files[0])
 
 # We can have a look at our first image:
@@ -359,6 +363,8 @@ im.to_thumb(160)
 # The Biwi dataset web site explains the format of the pose text file associated with each image, which shows the location of the center of the head. The details of this aren't important for our purposes, so we'll just show the function we use to extract the head center point:
 
 cal = np.genfromtxt(path / '01' / 'rgb.cal', skip_footer=6)
+
+
 def get_ctr(f):
     ctr = np.genfromtxt(img2pose(f), skip_header=3)
     c1 = ctr[0] * cal[0][0] / ctr[2] + cal[0][2]

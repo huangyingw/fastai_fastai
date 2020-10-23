@@ -379,12 +379,15 @@ class TestBeforeMixedPrecision(Callback):
     def before_batch(self): test_eq(self.x.dtype, torch.float32)
     def after_pred(self): test_eq(self.pred.dtype, torch.float16)
     def after_loss(self): self.tst_loss = self.learn.loss.detach().clone()
+
     def after_backward(self):
         self.has_overflown = grad_overflow(self.mixed_precision.model_pgs)
         self.grads = [p.grad.data.clone() for p in self.model.parameters()]
         self.old_params = [p.data.clone() for p in self.model.parameters()]
+
     def after_step(self): assert not self.has_overflown
     def after_cancel_batch(self): assert self.has_overflown
+
 
 class TestAfterMixedPrecision(Callback):
     run_after = MixedPrecision
@@ -392,15 +395,18 @@ class TestAfterMixedPrecision(Callback):
     def after_fit(self): test_eq(first(self.model.parameters()).dtype, torch.float32)
     def before_batch(self): test_eq(self.x.dtype, torch.float16)
     def after_pred(self): test_eq(self.pred.dtype, torch.float32)
+
     def before_backward(self):
         loss_scale = self.mixed_precision.loss_scale if self.training else 1.
         test_eq(self.loss, self.test_before_mixed_precision.tst_loss * loss_scale)
+
     def after_backward(self):
         tbmp = self.test_before_mixed_precision
         test_eq(self.loss, tbmp.loss)
         # Test gradients have been copied and scaled back
         test_close(sum([[p.grad.data for p in pg] for pg in self.mixed_precision.master_pgs], []),
                    [g.float() / self.mixed_precision.loss_scale for g in tbmp.grads])
+
     def after_step(self):
         tbmp, mp = self.test_before_mixed_precision, self.mixed_precision
         # Test master params have been copied to model

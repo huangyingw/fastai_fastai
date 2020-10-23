@@ -133,6 +133,8 @@ def create_body(arch, n_in=3, pretrained=True, cut=None):
 
 # +
 def tst(pretrained): return nn.Sequential(nn.Conv2d(3, 5, 3), nn.BatchNorm2d(5), nn.AvgPool2d(1), nn.Linear(3, 4))
+
+
 m = create_body(tst)
 test_eq(len(m), 2)
 
@@ -260,11 +262,22 @@ def default_split(m):
 # +
 # export
 def _xresnet_split(m): return L(m[0][:3], m[0][3:], m[1:]).map(params)
+
+
 def _resnet_split(m): return L(m[0][:6], m[0][6:], m[1:]).map(params)
+
+
 def _squeezenet_split(m: nn.Module): return L(m[0][0][:5], m[0][0][5:], m[1:]).map(params)
+
+
 def _densenet_split(m: nn.Module): return L(m[0][0][:7], m[0][0][7:], m[1:]).map(params)
+
+
 def _vgg_split(m: nn.Module): return L(m[0][0][:22], m[0][0][22:], m[1:]).map(params)
+
+
 def _alexnet_split(m: nn.Module): return L(m[0][0][:6], m[0][0][6:], m[1:]).map(params)
+
 
 _default_meta = {'cut': None, 'split': default_split}
 _xresnet_meta = {'cut': -4, 'split': _xresnet_split, 'stats': imagenet_stats}
@@ -392,7 +405,11 @@ def unet_learner(dls, arch, loss_func=None, pretrained=True, cut=None, splitter=
 # +
 path = untar_data(URLs.CAMVID_TINY)
 fnames = get_image_files(path / 'images')
+
+
 def label_func(x): return path / 'labels' / f'{x.stem}_P{x.suffix}'
+
+
 codes = np.loadtxt(path / 'codes.txt', dtype=str)
 
 dls = SegmentationDataLoaders.from_label_func(path, fnames, label_func, codes=codes)

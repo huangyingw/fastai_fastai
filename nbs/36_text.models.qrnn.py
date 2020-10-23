@@ -57,6 +57,7 @@ def load_cpp(name, files, path):
 # export
 class _LazyBuiltModule():
     "A module with a CPP extension that builds itself at first use"
+
     def __init__(self, name, files): self.name, self.files, self.mod = name, files, None
 
     def _build(self):
@@ -124,6 +125,7 @@ def manual_forget_mult(x, f, h=None, batch_first=True, backward=False):
         out = out.transpose(0, 1)
     return out
 
+
 x, f = torch.randn(5, 3, 20).chunk(2, dim=2)
 for (bf, bw) in [(True, True), (False, True), (True, False), (False, False)]:
     th_out = manual_forget_mult(x, f, batch_first=bf, backward=bw)
@@ -177,6 +179,7 @@ class ForgetMultGPU(Function):
 def detach_and_clone(t):
     return t.detach().clone().requires_grad_(True)
 
+
 x, f = torch.randn(5, 3, 20).cuda().chunk(2, dim=2)
 x, f = x.contiguous().requires_grad_(True), f.contiguous().requires_grad_(True)
 th_x, th_f = detach_and_clone(x), detach_and_clone(f)
@@ -217,6 +220,7 @@ for (bf, bw) in [(True, True), (False, True), (True, False), (False, False)]:
 # export
 class QRNNLayer(Module):
     "Apply a single layer Quasi-Recurrent Neural Network (QRNN) to an input sequence."
+
     def __init__(self, input_size, hidden_size=None, save_prev_x=False, zoneout=0, window=1,
                  output_gate=True, batch_first=True, backward=False):
         assert window in [1, 2], "This QRNN implementation currently only handles convolutional window of size 1 or size 2"
@@ -295,6 +299,7 @@ test_close(h_fwd, h_bwd, eps=1e-4)
 # export
 class QRNN(Module):
     "Apply a multiple layer Quasi-Recurrent Neural Network (QRNN) to an input sequence."
+
     def __init__(self, input_size, hidden_size, n_layers=1, batch_first=True, dropout=0,
                  bidirectional=False, save_prev_x=False, zoneout=0, window=None, output_gate=True):
         assert not (save_prev_x and bidirectional), "Can't save the previous X with bidirectional."

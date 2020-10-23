@@ -71,6 +71,7 @@ mk_class('ActivationType', **{o: o.lower() for o in ['No', 'Sigmoid', 'Softmax',
 # export
 class AccumMetric(Metric):
     "Stores predictions and targets on CPU in accumulate to perform final calculations with `func`."
+
     def __init__(self, func, dim_argmax=None, activation=ActivationType.No, thresh=None, to_np=False,
                  invert_arg=False, flatten=True, **kwargs):
         store_attr('func,dim_argmax,activation,thresh,flatten')
@@ -142,6 +143,8 @@ class TstLearner(Learner):
 def _l2_mean(x, y): return torch.sqrt((x.float() - y.float()).pow(2).mean())
 
 # Go through a fake cycle with various batch sizes and computes the value of met
+
+
 def compute_val(met, x1, x2):
     met.reset()
     vals = [0, 6, 15, 20]
@@ -191,6 +194,8 @@ test_close(compute_val(tst, x1, x2), torch.sqrt(x2.pow(2).mean()))
 
 # hide
 def _l2_mean(x, y): return torch.sqrt((x.argmax(dim=-1).float() - y.float()).pow(2).mean())
+
+
 x1, x2 = torch.randn(20, 5), torch.randint(0, 5, (20,))
 tst = AccumMetric(_l2_mean, dim_argmax=-1, flatten=False, activation=ActivationType.Softmax)
 test_close(compute_val(tst, x1, x2), _l2_mean(F.softmax(x1, dim=-1), x2))
@@ -433,6 +438,7 @@ class Perplexity(AvgLoss):
     @property
     def name(self): return "perplexity"
 
+
 perplexity = Perplexity()
 # -
 
@@ -611,6 +617,8 @@ test_close(mse(x1, x2), (x1 - x2).pow(2).mean())
 
 # export
 def _rmse(inp, targ): return torch.sqrt(F.mse_loss(inp, targ))
+
+
 rmse = AccumMetric(_rmse)
 rmse.__doc__ = "Root mean squared error"
 
@@ -647,6 +655,8 @@ test_close(msle(x1, x2), (torch.log(x1 + 1) - torch.log(x2 + 1)).pow(2).mean())
 def _exp_rmspe(inp, targ):
     inp, targ = torch.exp(inp), torch.exp(targ)
     return torch.sqrt(((targ - inp) / targ).pow(2).mean())
+
+
 exp_rmspe = AccumMetric(_exp_rmspe)
 exp_rmspe.__doc__ = "Root mean square percentage error of the exponential of  predictions and targets"
 
@@ -723,8 +733,10 @@ test_eq(foreground_acc(x, y), 1)
 # export
 class Dice(Metric):
     "Dice coefficient metric for binary target in segmentation"
+
     def __init__(self, axis=1): self.axis = axis
     def reset(self): self.inter, self.union = 0, 0
+
     def accumulate(self, learn):
         pred, targ = flatten_check(learn.pred.argmax(dim=self.axis), learn.y)
         self.inter += (pred * targ).float().sum().item()
@@ -772,10 +784,12 @@ class CorpusBLEUMetric(Metric):
 
     class NGram():
         def __init__(self, ngram, max_n=5000): self.ngram, self.max_n = ngram, max_n
+
         def __eq__(self, other):
             if len(self.ngram) != len(other.ngram):
                 return False
             return np.all(np.array(self.ngram) == np.array(other.ngram))
+
         def __hash__(self): return int(sum([o * self.max_n**i for i, o in enumerate(self.ngram)]))
 
     def get_grams(self, x, n, max_n=5000):
@@ -825,6 +839,7 @@ def create_vcb_emb(pred, targ):
         pred_emb[i].scatter_(1, v.view(len(v), 1), 1)
     return pred_emb
 
+
 def compute_bleu_val(met, x1, x2):
     met.reset()
     learn = TstLearner()
@@ -833,6 +848,7 @@ def compute_bleu_val(met, x1, x2):
         learn.pred, learn.yb = x1, (x2,)
         met.accumulate(learn)
     return met.value
+
 
 targ = torch.tensor([[1, 2, 3, 4, 5, 6, 1, 7, 8]])
 pred = torch.tensor([[1, 9, 3, 4, 5, 6, 1, 10, 8]])
@@ -856,7 +872,9 @@ test_close(compute_bleu_val(CorpusBLEUMetric(), pred_emb, targ), 0.48549)
 # export
 class LossMetric(AvgMetric):
     "Create a metric from `loss_func.attr` named `nm`"
+
     def __init__(self, attr, nm=None): store_attr('attr,nm')
+
     def accumulate(self, learn):
         bs = find_bs(learn.yb)
         self.total += learn.to_detach(getattr(learn.loss_func, self.attr, 0)) * bs

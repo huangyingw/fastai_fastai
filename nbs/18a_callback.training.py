@@ -44,7 +44,9 @@ from fastai.basics import *
 @log_args
 class ShortEpochCallback(Callback):
     "Fit just `pct` of an epoch, then stop"
+
     def __init__(self, pct=0.01, short_valid=True): self.pct, self.short_valid = pct, short_valid
+
     def after_batch(self):
         if self.iter / self.n_iter < self.pct:
             return
@@ -101,6 +103,7 @@ assert learn.recorder.values[-1][1] == learn.recorder.values[0][1]
 # export
 bn_types = (nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d)
 
+
 def set_bn_eval(m: nn.Module, use_eval=True) -> None:
     "Set bn layers in eval mode for all recursive children of `m`."
     for l in m.children():
@@ -111,8 +114,10 @@ def set_bn_eval(m: nn.Module, use_eval=True) -> None:
                 l.train()
         set_bn_eval(l)
 
+
 class BnFreeze(Callback):
     "Freeze moving average statistics in all non-trainable batchnorm layers."
+
     def before_epoch(self):
         set_bn_eval(self.model)
 

@@ -38,6 +38,7 @@ from fastai.basics import *
 @docs
 class ModelResetter(Callback):
     "`Callback` that resets the model at each validation/training step"
+
     def before_train(self): self.model.reset()
     def before_validate(self): self.model.reset()
     def after_fit(self): self.model.reset()
@@ -52,6 +53,7 @@ class ModelResetter(Callback):
 @log_args
 class RNNRegularizer(Callback):
     "`Callback` that adds AR and TAR regularization in RNN training"
+
     def __init__(self, alpha=0., beta=0.): self.alpha, self.beta = alpha, beta
 
     def after_pred(self):

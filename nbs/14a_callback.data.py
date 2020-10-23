@@ -38,15 +38,17 @@ from fastai.basics import *
 # export
 class CollectDataCallback(Callback):
     "Collect all batches, along with `pred` and `loss`, into `self.data`. Mainly for testing"
+
     def before_fit(self): self.data = L()
+
     def after_batch(self):
         self.data.append(self.learn.to_detach((self.xb, self.yb, self.pred, self.loss)))
-
 
 
 # export
 class CudaCallback(Callback):
     "Move data to CUDA device"
+
     def __init__(self, device=None): self.device = ifnone(device, default_device())
     def before_batch(self): self.learn.xb, self.learn.yb = to_device(self.xb), to_device(self.yb)
     def before_fit(self): self.model.to(self.device)
@@ -101,6 +103,7 @@ plt.hist(t)
 @delegates()
 class PartialDL(TfmdDL):
     "Select randomly partial quantity of data at each epoch"
+
     def __init__(self, dataset=None, bs=None, partial_n=None, **kwargs):
         super().__init__(dataset=dataset, bs=bs, **kwargs)
         self.partial_n = min(partial_n, self.n) if partial_n else None

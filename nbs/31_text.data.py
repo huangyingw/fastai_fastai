@@ -85,8 +85,11 @@ test_eq(set([x for x in make_vocab(count, max_vocab=12, min_freq=1) if not x.sta
 # export
 class TensorText(TensorBase):
     pass
+
+
 class LMTensorText(TensorText):
     pass
+
 
 TensorText.__doc__ = "Semantic type for a tensor representing text"
 LMTensorText.__doc__ = "Semantic type for a tensor representing text in language modeling"
@@ -97,6 +100,7 @@ LMTensorText.__doc__ = "Semantic type for a tensor representing text in language
 # export
 class Numericalize(Transform):
     "Reversible transform of tokenized texts to numericalized ids"
+
     def __init__(self, vocab=None, min_freq=3, max_vocab=60000, special_toks=None, pad_tok=None):
         store_attr('vocab,min_freq,max_vocab,special_toks,pad_tok')
         self.o2i = None if vocab is None else defaultdict(int, {v: k for k, v in enumerate(vocab)})
@@ -176,6 +180,7 @@ def _get_lengths(ds):
 @delegates()
 class LMDataLoader(TfmdDL):
     "A `DataLoader` suitable for language modeling"
+
     def __init__(self, dataset, lens=None, cache=2, bs=64, seq_len=72, num_workers=0, **kwargs):
         self.items = ReindexCollection(dataset, cache=cache, tfm=_maybe_first)
         self.seq_len = seq_len
@@ -194,6 +199,7 @@ class LMDataLoader(TfmdDL):
         self.n = self.n_batches * bs
 
     def make_chunks(self): self.chunks = Chunks(self.items, self.lens)
+
     def shuffle_fn(self, idxs):
         self.items.shuffle()
         self.make_chunks()
@@ -299,6 +305,7 @@ def pad_input(samples, pad_idx=1, pad_fields=0, pad_first=False, backwards=False
     max_len_l = pad_fields.map(lambda f: max([len(s[f]) for s in samples]))
     if backwards:
         pad_first = not pad_first
+
     def _f(field_idx, x):
         if field_idx not in pad_fields:
             return x
@@ -337,6 +344,7 @@ for s in y:
 def pad_input_chunk(samples, pad_idx=1, pad_first=True, seq_len=72):
     "Pad `samples` by adding padding by chunks of size `seq_len`"
     max_len = max([len(s[0]) for s in samples])
+
     def _f(x):
         l = max_len - x.shape[0]
         pad_chunk = x.new_zeros((l // seq_len) * seq_len) + pad_idx
@@ -360,9 +368,11 @@ test_eq(pad_input_chunk([(tensor([1, 2, 3, 4, 5, 6]),), (tensor([1, 2, 3]),), (t
 # export
 def _default_sort(x): return len(x[0])
 
+
 @delegates(TfmdDL)
 class SortedDL(TfmdDL):
     "A `DataLoader` that goes throught the item in the order given by `sort_func`"
+
     def __init__(self, dataset, sort_func=None, res=None, **kwargs):
         super().__init__(dataset, **kwargs)
         self.sort_func = _default_sort if sort_func is None else sort_func
@@ -540,6 +550,7 @@ class TextDataLoaders(DataLoaders):
         "Create from `csv` file in `path/csv_fname`"
         df = pd.read_csv(Path(path) / csv_fname, header=header, delimiter=delimiter)
         return cls.from_df(df, path=path, **kwargs)
+
 
 TextDataLoaders.from_csv = delegates(to=TextDataLoaders.from_df)(TextDataLoaders.from_csv)
 # -

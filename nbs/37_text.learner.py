@@ -163,6 +163,7 @@ def load_model_text(file, model, opt, with_opt=None, device=None, strict=True):
 @delegates(Learner.__init__)
 class TextLearner(Learner):
     "Basic class for a `Learner` in NLP."
+
     def __init__(self, dls, model, alpha=2., beta=1., moms=(0.8, 0.7, 0.8), **kwargs):
         super().__init__(dls, model, moms=moms, **kwargs)
         self.add_cbs([ModelResetter(), RNNRegularizer(alpha=alpha, beta=beta)])
@@ -271,6 +272,7 @@ test_eq(decode_spec_tokens(['xxwrep', '3', 'word']), ['word', 'word', 'word'])
 @log_args(but_as=TextLearner.__init__)
 class LMLearner(TextLearner):
     "Add functionality to `TextLearner` when dealing with a language model"
+
     def predict(self, text, n_words=1, no_unk=True, temperature=1., min_p=None, no_bar=False,
                 decoder=decode_spec_tokens, only_last_word=False):
         "Return `text` and the `n_words` that come after"
