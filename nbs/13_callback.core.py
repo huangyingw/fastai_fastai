@@ -132,12 +132,16 @@ show_doc(Callback.__call__)
 
 class _T(Callback):
     def call_me(self): return "maybe"
+
+
 test_eq(_T()("call_me"), "maybe")
 
 
 # Another way is by passing the callback function to the constructor:
 
 def cb(self): return "maybe"
+
+
 _t = Callback(before_fit=cb)
 test_eq(_t(event.before_fit), "maybe")
 
@@ -146,8 +150,10 @@ test_eq(_t(event.before_fit), "maybe")
 # +
 mk_class('TstLearner', 'a')
 
+
 class TstCallback(Callback):
     def batch_begin(self): print(self.a)
+
 
 learn, cb = TstLearner(1), TstCallback()
 cb.learn = learn
@@ -162,6 +168,7 @@ learn.a
 # +
 class TstCallback(Callback):
     def batch_begin(self): self.a += 1
+
 
 learn, cb = TstLearner(1), TstCallback()
 cb.learn = learn
@@ -178,6 +185,7 @@ test_eq(cb.learn.a, 1)
 class TstCallback(Callback):
     def batch_begin(self): self.learn.a = self.a + 1
 
+
 learn, cb = TstLearner(1), TstCallback()
 cb.learn = learn
 cb('batch_begin')
@@ -187,8 +195,12 @@ test_eq(cb.learn.a, 2)
 show_doc(Callback.name, name='Callback.name')
 
 test_eq(TstCallback().name, 'tst')
+
+
 class ComplicatedNameCallback(Callback):
     pass
+
+
 test_eq(ComplicatedNameCallback().name, 'complicated_name')
 
 
@@ -246,6 +258,7 @@ if not hasattr(defaults, 'callbacks'):
 # TODO: save_targs and save_preds only handle preds/targets that have one tensor, not tuples of tensors.
 class GatherPredsCallback(Callback):
     "`Callback` that saves the predictions and targets, optionally `with_loss`"
+
     def __init__(self, with_input=False, with_loss=False, save_preds=None, save_targs=None, concat_dim=0):
         store_attr("with_input,with_loss,save_preds,save_targs,concat_dim")
 
@@ -308,6 +321,7 @@ show_doc(GatherPredsCallback, title_level=3)
 class FetchPredsCallback(Callback):
     "A callback to fetch predictions during the training loop"
     remove_on_fetch = True
+
     def __init__(self, ds_idx=1, dl=None, with_input=False, with_decoded=False, cbs=None, reorder=True):
         self.cbs = L(cbs)
         store_attr('ds_idx,dl,with_input,with_decoded,reorder')

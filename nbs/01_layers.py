@@ -86,6 +86,8 @@ def Lambda(self, x):
 
 
 def _add2(x): return x + 2
+
+
 tst = Lambda(_add2)
 x = torch.randn(10, 20)
 test_eq(tst(x), x + 2)
@@ -97,6 +99,7 @@ tst
 # export
 class PartialLambda(Lambda):
     "Layer that applies `partial(func, **kwargs)`"
+
     def __init__(self, func, **kwargs):
         super().__init__(partial(func, **kwargs))
         self.repr = f'{func.__name__}, {kwargs}'
@@ -106,6 +109,8 @@ class PartialLambda(Lambda):
 
 
 def test_func(a, b=2): return a + b
+
+
 tst = PartialLambda(test_func, b=5)
 test_eq(tst(x), x + 5)
 
@@ -127,6 +132,7 @@ test_eq(tst(x).shape, [200])
 # export
 class View(Module):
     "Reshape `x` to `size`"
+
     def __init__(self, *size): self.size = size
     def forward(self, x): return x.view(self.size)
 
@@ -138,6 +144,7 @@ test_eq(tst(x).shape, [10, 5, 4])
 # export
 class ResizeBatch(Module):
     "Reshape `x` to `size`, keeping batch dim the same size"
+
     def __init__(self, *size): self.size = size
     def forward(self, x): return x.view((x.size(0),) + self.size)
 
@@ -182,20 +189,24 @@ assert torch.allclose(tst(test), tensor([-1., 0.5, 2.]), atol=1e-4, rtol=1e-4)
 # export
 class AdaptiveConcatPool1d(Module):
     "Layer that concats `AdaptiveAvgPool1d` and `AdaptiveMaxPool1d`"
+
     def __init__(self, size=None):
         self.size = size or 1
         self.ap = nn.AdaptiveAvgPool1d(self.size)
         self.mp = nn.AdaptiveMaxPool1d(self.size)
+
     def forward(self, x): return torch.cat([self.mp(x), self.ap(x)], 1)
 
 
 # export
 class AdaptiveConcatPool2d(Module):
     "Layer that concats `AdaptiveAvgPool2d` and `AdaptiveMaxPool2d`"
+
     def __init__(self, size=None):
         self.size = size or 1
         self.ap = nn.AdaptiveAvgPool2d(self.size)
         self.mp = nn.AdaptiveMaxPool2d(self.size)
+
     def forward(self, x): return torch.cat([self.mp(x), self.ap(x)], 1)
 
 
@@ -225,6 +236,7 @@ def adaptive_pool(pool_type):
 # export
 class PoolFlatten(nn.Sequential):
     "Combine `nn.AdaptiveAvgPool2d` and `Flatten`."
+
     def __init__(self, pool_type=PoolType.Avg): super().__init__(adaptive_pool(pool_type)(1), Flatten())
 
 
@@ -294,6 +306,7 @@ test_eq(InstanceNorm(15, affine=False).weight, None)
 # export
 class BatchNorm1dFlat(nn.BatchNorm1d):
     "`nn.BatchNorm1d`, but first flattens leading dimensions"
+
     def forward(self, x):
         if x.dim() == 2:
             return super().forward(x)
@@ -315,6 +328,7 @@ test_close(y, (x - mean) / torch.sqrt(var + 1e-5) * tst.weight + tst.bias, eps=1
 # export
 class LinBnDrop(nn.Sequential):
     "Module grouping `BatchNorm1d`, `Dropout` and `Linear` layers"
+
     def __init__(self, n_in, n_out, bn=True, p=0., act=None, lin_first=False):
         layers = [BatchNorm(n_out if lin_first else n_in, ndim=1)] if bn else []
         if p != 0:
@@ -591,6 +605,7 @@ def trunc_normal_(x, mean=0., std=1.):
 # export
 class Embedding(nn.Embedding):
     "Embedding layer with truncated normal initialization"
+
     def __init__(self, ni, nf):
         super().__init__(ni, nf)
         trunc_normal_(self.weight.data, std=0.01)
@@ -610,6 +625,7 @@ test_close(tst.weight.std(), 0.01, 0.1)
 # export
 class SelfAttention(Module):
     "Self attention layer for `n_channels`."
+
     def __init__(self, n_channels):
         self.query, self.key, self.value = [self._conv(n_channels, c) for c in (n_channels // 8, n_channels // 8, n_channels)]
         self.gamma = nn.Parameter(tensor([0.]))
@@ -662,6 +678,7 @@ test_close(y, x + out.view(32, 16, 8, 8), eps=1e-4)
 # export
 class PooledSelfAttention2d(Module):
     "Pooled self attention layer for 2d."
+
     def __init__(self, n_channels):
         self.n_channels = n_channels
         self.query, self.key, self.value = [self._conv(n_channels, c) for c in (n_channels // 8, n_channels // 8, n_channels // 2)]
@@ -750,6 +767,7 @@ for i in range(0, 16 * 4, 4):
 # export
 class PixelShuffle_ICNR(nn.Sequential):
     "Upsample by `scale` from `ni` filters to `nf` (default `ni`), using `nn.PixelShuffle`."
+
     def __init__(self, ni, nf=None, scale=2, blur=False, norm_type=NormType.Weight, act_cls=defaults.activation):
         super().__init__()
         nf = ifnone(nf, ni)
@@ -793,6 +811,7 @@ def sequential(*args):
 # export
 class SequentialEx(Module):
     "Like `nn.Sequential`, but with ModuleList semantics, and can access module input"
+
     def __init__(self, *layers): self.layers = nn.ModuleList(layers)
 
     def forward(self, x):
@@ -816,6 +835,7 @@ class SequentialEx(Module):
 # export
 class MergeLayer(Module):
     "Merge a shortcut with the result of the module by adding them or concatenating them if `dense=True`."
+
     def __init__(self, dense: bool=False): self.dense = dense
     def forward(self, x): return torch.cat([x, x.orig], dim=1) if self.dense else (x + x.orig)
 
@@ -835,9 +855,11 @@ test_eq(y, x + res_block[1](res_block[0](x)))
 # export
 class Cat(nn.ModuleList):
     "Concatenate layers outputs over a given dim"
+
     def __init__(self, layers, dim=1):
         self.dim = dim
         super().__init__(layers)
+
     def forward(self, x): return torch.cat([l(x) for l in self], dim=self.dim)
 
 
@@ -853,6 +875,7 @@ test_eq(cat(x), torch.cat([l(x) for l in layers], dim=1))
 # export
 class SimpleCNN(nn.Sequential):
     "Create a simple CNN with `filters`."
+
     def __init__(self, filters, kernel_szs=None, strides=None, bn=True):
         nl = len(filters) - 1
         kernel_szs = ifnone(kernel_szs, [3] * nl)
@@ -886,6 +909,7 @@ test_eq([m[0].stride for m in mods[:2]], [(1, 1), (2, 2)])
 # export
 class ProdLayer(Module):
     "Merge a shortcut with the result of the module by multiplying them."
+
     def forward(self, x): return x * x.orig
 
 
@@ -970,10 +994,12 @@ def SeparableBlock(expansion, ni, nf, reduction=16, stride=1, base_width=4, **kw
 @script
 def _swish_jit_fwd(x): return x.mul(torch.sigmoid(x))
 
+
 @script
 def _swish_jit_bwd(x, grad_output):
     x_sigmoid = torch.sigmoid(x)
     return grad_output * (x_sigmoid * (1 + x * (1 - x_sigmoid)))
+
 
 class _SwishJitAutoFn(torch.autograd.Function):
     @staticmethod
@@ -1003,11 +1029,13 @@ class Swish(Module):
 @script
 def _mish_jit_fwd(x): return x.mul(torch.tanh(F.softplus(x)))
 
+
 @script
 def _mish_jit_bwd(x, grad_output):
     x_sigmoid = torch.sigmoid(x)
     x_tanh_sp = F.softplus(x).tanh()
     return grad_output.mul(x_tanh_sp + x * x_sigmoid * (1 - x_tanh_sp * x_tanh_sp))
+
 
 class MishJitAutoFn(torch.autograd.Function):
     @staticmethod
@@ -1044,6 +1072,7 @@ for o in swish, Swish, mish, Mish:
 # export
 class ParameterModule(Module):
     "Register a lone parameter `p` in a module."
+
     def __init__(self, p): self.val = p
     def forward(self, x): return x
 
@@ -1063,6 +1092,7 @@ def children_and_parameters(m):
 class TstModule(Module):
     def __init__(self): self.a, self.lin = nn.Parameter(torch.randn(1)), nn.Linear(5, 10)
 
+
 tst = TstModule()
 children = children_and_parameters(tst)
 test_eq(len(children), 2)
@@ -1080,6 +1110,7 @@ def _has_children(m: nn.Module):
         return False
     return True
 
+
 nn.Module.has_children = property(_has_children)
 
 
@@ -1087,6 +1118,8 @@ nn.Module.has_children = property(_has_children)
 
 class A(Module):
     pass
+
+
 assert not A().has_children
 assert TstModule().has_children
 
@@ -1107,6 +1140,7 @@ assert isinstance(children[3], ParameterModule)
 # export
 class NoneReduce():
     "A context manager to evaluate `loss_func` with none reduce."
+
     def __init__(self, loss_func): self.loss_func, self.old_red = loss_func, None
 
     def __enter__(self):

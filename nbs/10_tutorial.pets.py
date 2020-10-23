@@ -252,6 +252,7 @@ FlipItem.order, Resize.order
 
 class PetTfm(ItemTransform):
     order = -5
+
     def setups(self, items):
         self.labeller = using_attr(RegexLabeller(pat=r'^(.*)_\d+.jpg$'), 'name')
         vals = map(self.labeller, items)
@@ -332,6 +333,7 @@ dls.show_batch()
 class ImageResizer(Transform):
     order = 1
     "Resize image to `size` using `resample`"
+
     def __init__(self, size, resample=Image.BILINEAR):
         if not is_listy(size):
             size = (size, size)
@@ -386,7 +388,10 @@ cv_source = untar_data(URLs.CAMVID_TINY)
 cv_items = get_image_files(cv_source / 'images')
 cv_splitter = RandomSplitter(seed=42)
 cv_split = cv_splitter(cv_items)
+
+
 def cv_label(o): return cv_source / 'labels' / f'{o.stem}_P{o.suffix}'
+
 
 tfms = [[PILImage.create], [cv_label, PILMask.create]]
 cv_dsets = Datasets(cv_items, tfms, splits=cv_split)

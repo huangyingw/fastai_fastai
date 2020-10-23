@@ -80,6 +80,7 @@ _batch_tfms = ('after_item', 'before_batch', 'after_batch')
 @delegates()
 class TfmdDL(DataLoader):
     "Transformed `DataLoader`"
+
     def __init__(self, dataset, bs=64, shuffle=False, num_workers=None, verbose=False, do_setup=True, **kwargs):
         if num_workers is None:
             num_workers = min(16, defaults.cpus)
@@ -203,6 +204,7 @@ class NegTfm(Transform):
     def encodes(self, x): return torch.neg(x)
     def decodes(self, x): return torch.neg(x)
 
+
 tdl = TfmdDL([(TensorImage([1]),)] * 4, after_batch=NegTfm(), bs=4, num_workers=4)
 b = tdl.one_batch()
 test_eq(type(b[0]), TensorImage)
@@ -215,8 +217,10 @@ class A(Transform):
     def encodes(self, x): return x
     def decodes(self, x): return TitledInt(x)
 
+
 @Transform
 def f(x) -> None: return fastuple((x, x))
+
 
 start = torch.arange(50)
 test_eq_type(f(2), fastuple((2, 2)))
@@ -244,6 +248,7 @@ class B(Transform):
     parameters = 'a'
     def __init__(self): self.a = torch.tensor(0.)
     def encodes(self, x): x
+
 
 tdl = TfmdDL([(TensorImage([1]),)] * 4, after_batch=B(), bs=4)
 test_eq(tdl.after_batch.fs[0].a.device, torch.device('cpu'))
@@ -281,12 +286,14 @@ show_doc(TfmdDL.to)
 class DataLoaders(GetAttr):
     "Basic wrapper around several `DataLoader`s."
     _default = 'train'
+
     def __init__(self, *loaders, path='.', device=None):
         self.loaders, self.path = list(loaders), Path(path)
         if device is not None or hasattr(loaders[0], 'to'):
             self.device = device
 
     def __getitem__(self, i): return self.loaders[i]
+
     def new_empty(self):
         loaders = [dl.new(dl.dataset.new_empty()) for dl in self.loaders]
         return type(self)(*loaders, path=self.path, device=self.device)
@@ -372,6 +379,7 @@ show_doc(DataLoaders.valid_ds, name="DataLoaders.valid_ds")
 class FilteredBase:
     "Base class for lists with subsets"
     _dl_type, _dbunch_type = TfmdDL, DataLoaders
+
     def __init__(self, *args, dl_type=None, **kwargs):
         if dl_type is not None:
             self._dl_type = dl_type
@@ -398,6 +406,7 @@ class FilteredBase:
                              n=None, **dl_kwargs[i]) for i in range(1, self.n_subsets)]
         return self._dbunch_type(*dls, path=path, device=device)
 
+
 FilteredBase.train, FilteredBase.valid = add_props(lambda i, x: x.subset(i))
 
 
@@ -407,6 +416,7 @@ FilteredBase.train, FilteredBase.valid = add_props(lambda i, x: x.subset(i))
 class TfmdLists(FilteredBase, L, GetAttr):
     "A `Pipeline` of `tfms` applied to a collection of `items`"
     _default = 'tfms'
+
     def __init__(self, items, tfms, use_list=None, do_setup=True, split_idx=None, train_setup=True,
                  splits=None, types=None, verbose=False, dl_type=None):
         super().__init__(items, use_list=use_list)
@@ -426,6 +436,7 @@ class TfmdLists(FilteredBase, L, GetAttr):
     def _new(self, items, split_idx=None, **kwargs):
         split_idx = ifnone(split_idx, self.split_idx)
         return super()._new(items, tfms=self.tfms, do_setup=False, types=self.types, split_idx=split_idx, **kwargs)
+
     def subset(self, i): return self._new(self._get(self.splits[i]), split_idx=i)
     def _after_item(self, o): return self.tfms(o)
     def __repr__(self): return f"{self.__class__.__name__}: {self.items}\ntfms - {self.tfms.fs}"
@@ -500,9 +511,14 @@ def show_at(o, idx, **kwargs):
 class _IntFloatTfm(Transform):
     def encodes(self, o): return TitledInt(o)
     def decodes(self, o): return TitledFloat(o)
+
+
 int2f_tfm = _IntFloatTfm()
 
+
 def _neg(o): return -o
+
+
 neg_tfm = Transform(_neg, _neg)
 # -
 
@@ -545,9 +561,11 @@ class _B(Transform):
     def __init__(self): self.m = 0
     def encodes(self, o): return o + self.m
     def decodes(self, o): return o - self.m
+
     def setups(self, items):
         print(items)
         self.m = tensor(items).float().mean().item()
+
 
 # test for setup, which updates `self.m`
 tl = TfmdLists(items, _B())
@@ -564,9 +582,13 @@ class _Cat(Transform):
     def encodes(self, o): return int(self.o2i[o])
     def decodes(self, o): return TitledStr(self.vocab[o])
     def setups(self, items): self.vocab, self.o2i = uniqueify(L(items), sort=True, bidir=True)
+
+
 tcat = _Cat()
 
+
 def _lbl(o): return TitledStr(o.split('_')[0])
+
 
 # Check that tfms are sorted by `order` & `_lbl` is called first
 fns = ['dog_0.jpg', 'cat_0.jpg', 'cat_2.jpg', 'cat_1.jpg', 'dog_1.jpg']
@@ -611,6 +633,8 @@ show_doc(TfmdLists.infer)
 
 # +
 def mult(x): return x * 2
+
+
 mult.order = 2
 
 fns = ['dog_0.jpg', 'cat_0.jpg', 'cat_2.jpg', 'cat_1.jpg', 'dog_1.jpg']
@@ -634,7 +658,11 @@ tl = TfmdLists(fns, [_lbl, cat, mult])
 test_eq(tl.infer_idx(2.0), 1)
 
 # Test type annotations work on a function
+
+
 def mult(x: (int, float)): return x * 2
+
+
 mult.order = 2
 tl = TfmdLists(fns, [_lbl, _Cat(), mult])
 test_eq(tl.infer_idx(2.0), 2)
@@ -649,6 +677,7 @@ test_eq(tl.infer_idx(2.0), 2)
 @delegates(TfmdLists)
 class Datasets(FilteredBase):
     "A dataset that creates a tuple from each `tfms`, passed through `item_tfms`"
+
     def __init__(self, items=None, tfms=None, tls=None, n_inp=None, dl_type=None, **kwargs):
         super().__init__(dl_type=dl_type)
         self.tls = L(tls if tls else [TfmdLists(items, t, **kwargs) for t in L(ifnone(tfms, [None]))])
@@ -722,6 +751,7 @@ dsets.decode(t)
 class Norm(Transform):
     def encodes(self, o): return (o - self.m) / self.s
     def decodes(self, o): return (o * self.s) + self.m
+
     def setups(self, items):
         its = tensor(items).float()
         self.m, self.s = its.mean(), its.std()
@@ -750,6 +780,8 @@ test_eq(dsets.train.norm.m, nrm.m)
 class B(Transform):
     def encodes(self, x) -> None: return int(x + 1)
     def decodes(self, x): return TitledInt(x - 1)
+
+
 add1 = B(split_idx=1)
 
 dsets = Datasets(items, [neg_tfm, [neg_tfm, int2f_tfm, add1]], splits=[[3], [0, 1, 2]])
@@ -866,6 +898,7 @@ class _Tfm(Transform):
     split_idx = 1
     def encodes(self, x): return x * 2
 
+
 dsets = Datasets(range(8), [None], splits=[[1, 2, 5, 7], [0, 3, 4, 6]])
 
 
@@ -874,6 +907,7 @@ dsets = Datasets(range(8), [None], splits=[[1, 2, 5, 7], [0, 3, 4, 6]])
 class _Tfm(Transform):
     split_idx = 1
     def encodes(self, x): return x * 2
+
 
 dsets = Datasets(range(8), [None], splits=[[1, 2, 5, 7], [0, 3, 4, 6]])
 dls = dsets.dataloaders(bs=4, after_batch=_Tfm(), shuffle_train=False, device=torch.device('cpu'))
@@ -923,6 +957,7 @@ class _Tfm1(Transform):
     split_idx = 0
     def encodes(self, x): return x * 3
 
+
 dsets = Datasets(range(8), [[_Tfm(), _Tfm1()]], splits=[[1, 2, 5, 7], [0, 3, 4, 6]])
 test_eq(dsets.train, [(3,), (6,), (15,), (21,)])
 test_eq(dsets.valid, [(0,), (6,), (8,), (12,)])
@@ -957,6 +992,7 @@ def test_set(dsets, test_items, rm_tfms=None, with_labels=False):
 class _Tfm1(Transform):
     split_idx = 0
     def encodes(self, x): return x * 3
+
 
 dsets = Datasets(range(8), [[_Tfm(), _Tfm1()]], splits=[[1, 2, 5, 7], [0, 3, 4, 6]])
 test_eq(dsets.train, [(3,), (6,), (15,), (21,)])

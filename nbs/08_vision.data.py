@@ -77,6 +77,7 @@ def bb_pad(samples, pad_idx=0):
     "Function that collect `samples` of labelled bboxes and adds padding with `pad_idx`."
     samples = [(s[0], *clip_remove_empty(*s[1:])) for s in samples]
     max_len = max([len(s[2]) for s in samples])
+
     def _f(img, bbox, lbl):
         bbox = torch.cat([bbox, bbox.new_zeros(max_len - bbox.shape[0], 4)])
         lbl = torch.cat([lbl, lbl .new_zeros(max_len - lbl .shape[0]) + pad_idx])
@@ -246,6 +247,7 @@ class ImageDataLoaders(DataLoaders):
                                         batch_tfms=batch_tfms)
         return cls.from_dblock(dblock, (fnames, labels), path=path, **kwargs)
 
+
 ImageDataLoaders.from_csv = delegates(to=ImageDataLoaders.from_df)(ImageDataLoaders.from_csv)
 ImageDataLoaders.from_name_func = delegates(to=ImageDataLoaders.from_path_func)(ImageDataLoaders.from_name_func)
 ImageDataLoaders.from_path_re = delegates(to=ImageDataLoaders.from_path_func)(ImageDataLoaders.from_path_re)
@@ -282,7 +284,11 @@ show_doc(ImageDataLoaders.from_path_func)
 # Here is how to create the same `DataLoaders` on the MNIST dataset as the previous example with a `label_func`:
 
 fnames = get_image_files(path)
+
+
 def label_func(x): return x.parent.name
+
+
 dls = ImageDataLoaders.from_path_func(path, fnames, label_func)
 
 # Here is another example on the pets dataset. Here filenames are all in an "images" folder and their names have the form `class_name_123.jpg`. One way to properly label them is thus to throw away everything after the last `_`:
@@ -373,7 +379,11 @@ show_doc(SegmentationDataLoaders.from_label_func)
 # +
 path = untar_data(URLs.CAMVID_TINY)
 fnames = get_image_files(path / 'images')
+
+
 def label_func(x): return path / 'labels' / f'{x.stem}_P{x.suffix}'
+
+
 codes = np.loadtxt(path / 'codes.txt', dtype=str)
 
 dls = SegmentationDataLoaders.from_label_func(path, fnames, label_func, codes=codes)

@@ -389,6 +389,7 @@ test_eq(parent_label(os.path.join("fastai_dev", "dev", "data", "mnist_tiny", "tr
 # export
 class RegexLabeller():
     "Label `item` with regex `pat`."
+
     def __init__(self, pat, match=False):
         self.pat = re.compile(pat)
         self.matcher = self.pat.match if match else self.pat.search
@@ -414,6 +415,7 @@ test_eq(f(fnames[0].name), '9932')
 # export
 class ColReader(DisplayedTransform):
     "Read `cols` in `row` with potential `pref` and `suff`"
+
     def __init__(self, cols, pref='', suff='', label_delim=None):
         store_attr()
         self.pref = str(pref) + os.path.sep if isinstance(pref, Path) else pref
@@ -464,6 +466,7 @@ test_eq([f(df.iloc[0, :])], [L(0, 1)])
 # export
 class CategoryMap(CollBase):
     "Collection of categories with the reverse mapping in `o2i`"
+
     def __init__(self, col, sort=True, add_na=False, strict=False):
         if is_categorical_dtype(col):
             items = L(col.cat.categories, use_list=True)
@@ -521,6 +524,7 @@ test_eq(t.o2i, {'H': 0, 'M': 1})
 class Categorize(DisplayedTransform):
     "Reversible transform of category string to `vocab` id"
     loss_func, order = CrossEntropyLossFlat(), 1
+
     def __init__(self, vocab=None, sort=True, add_na=False):
         if vocab is not None:
             vocab = CategoryMap(vocab, sort=sort, add_na=add_na)
@@ -536,6 +540,7 @@ class Categorize(DisplayedTransform):
             return TensorCategory(self.vocab.o2i[o])
         except KeyError as e:
             raise KeyError(f"Label '{o}' was not included in the training dataset") from e
+
     def decodes(self, o): return Category(self.vocab[o])
 
 
@@ -590,6 +595,7 @@ class MultiCategorize(Categorize):
             diff_str = "', '".join(diff)
             raise KeyError(f"Labels '{diff_str}' were not included in the training dataset")
         return TensorMultiCategory([self.vocab.o2i[o_] for o_ in o])
+
     def decodes(self, o): return MultiCategory([self.vocab[o_] for o_ in o])
 
 
@@ -662,9 +668,11 @@ test_stdout(lambda: show_at(tds, 2), 'a;c')
 class EncodedMultiCategorize(Categorize):
     "Transform of one-hot encoded multi-category that decodes with `vocab`"
     loss_func, order = BCEWithLogitsLossFlat(), 1
+
     def __init__(self, vocab):
         super().__init__(vocab, sort=vocab == None)
         self.c = len(vocab)
+
     def encodes(self, o): return TensorMultiCategory(tensor(o).float())
     def decodes(self, o): return MultiCategory(one_hot_decode(o, self.vocab))
 
@@ -689,6 +697,7 @@ class RegressionSetup(DisplayedTransform):
 
     def encodes(self, o): return tensor(o).float()
     def decodes(self, o): return TitledFloat(o) if o.ndim == 0 else TitledTuple(o_.item() for o_ in o)
+
     def setups(self, dsets):
         if self.c is not None:
             return
@@ -742,10 +751,12 @@ train[:3], valid[:3]
 # Our inputs are images that we open and convert to tensors, our targets are labeled depending on the parent directory and are categories.
 
 
-
 # +
 def open_img(fn: Path): return Image.open(fn).copy()
+
+
 def img2tensor(im: Image.Image): return TensorImage(array(im)[None])
+
 
 tfms = [[open_img, img2tensor],
         [parent_label, Categorize()]]
@@ -821,6 +832,7 @@ class Normalize(DisplayedTransform):
             self.mean, self.std = x.mean(self.axes, keepdim=True), x.std(self.axes, keepdim=True) + 1e-7
 
     def encodes(self, x: TensorImage): return (x - self.mean) / self.std
+
     def decodes(self, x: TensorImage):
         f = to_cpu if x.device.type == 'cpu' else noop
         return (x * f(self.std) + f(self.mean))

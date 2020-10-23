@@ -46,6 +46,7 @@ funcs_kwargs
 class BaseLoss():
     "Same as `loss_cls`, but flattens input and target."
     activation = decodes = noops
+
     def __init__(self, loss_cls, *args, axis=-1, flatten=True, floatify=False, is_2d=True, **kwargs):
         store_attr("axis,flatten,floatify,is_2d")
         self.func = loss_cls(*args, **kwargs)

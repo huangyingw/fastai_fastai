@@ -51,10 +51,12 @@ def _wif(worker_id):
     set_seed(info.seed)
     ds.wif()
 
+
 class _FakeLoader:
     _IterableDataset_len_called, _auto_collation, collate_fn, drop_last = None, False, noops, False
     _index_sampler, generator, prefetch_factor = Inf.count, None, 2
     dataset_kind = _dataset_kind = _DatasetKind.Iterable
+
     def __init__(self, d, pin_memory, num_workers, timeout):
         self.dataset, self.default, self.worker_init_fn = self, d, _wif
         store_attr('d,pin_memory,num_workers,timeout')
@@ -72,6 +74,7 @@ class _FakeLoader:
             yield self.d
         finally:
             self.num_workers = old_num_workers
+
 
 _collate_types = (ndarray, Tensor, typing.Mapping, str)
 
@@ -140,6 +143,7 @@ class DataLoader(GetAttr):
     _methods = _noop_methods + 'create_batches create_item create_batch retain \
         get_idxs sample shuffle_fn do_batch create_batch'.split()
     _default = 'dataset'
+
     def __init__(self, dataset=None, bs=None, num_workers=0, pin_memory=False, timeout=0, batch_size=None,
                  shuffle=False, drop_last=False, indexed=None, n=None, device=None, **kwargs):
         if batch_size is not None:
@@ -204,11 +208,13 @@ class DataLoader(GetAttr):
 
     @property
     def prebatched(self): return self.bs is None
+
     def do_item(self, s):
         try:
             return self.after_item(self.create_item(s))
         except SkipItemException:
             return None
+
     def chunkify(self, b): return b if self.prebatched else chunked(b, self.bs, self.drop_last)
     def shuffle_fn(self, idxs): return self.rng.sample(idxs, len(idxs))
     def randomize(self): self.rng = random.Random(self.rng.randint(0, 2**32 - 1))
@@ -217,6 +223,7 @@ class DataLoader(GetAttr):
     def create_batch(self, b): return (fa_collate, fa_convert)[self.prebatched](b)
     def do_batch(self, b): return self.retain(self.create_batch(self.before_batch(b)), b)
     def to(self, device): self.device = device
+
     def one_batch(self):
         if self.n is not None and len(self) == 0:
             raise ValueError(f'This DataLoader does not contain any batches')
@@ -271,6 +278,8 @@ class AdamantDL(DataLoader):
     def get_idxs(self):
         r = random.randint(0, self.n - 1)
         return [r] * self.n
+
+
 test_eq(torch.cat(tuple(AdamantDL((list(range(50))), bs=16, num_workers=4))).unique().numel(), 1)
 
 
@@ -281,6 +290,7 @@ class RandDL(DataLoader):
     def create_item(self, s):
         r = random.random()
         return r if r < 0.95 else stop()
+
 
 L(RandDL())
 # -
@@ -301,6 +311,7 @@ test_eq(dl.fake_l.num_workers, 4)
 def _rand_item(s):
     r = random.random()
     return r if r < 0.95 else stop()
+
 
 L(DataLoader(create_item=_rand_item))
 # -
@@ -362,6 +373,7 @@ class SleepyDL(list):
         time.sleep(random.random() / 50)
         return super().__getitem__(i)
 
+
 t = SleepyDL(letters)
 
 # %time test_eq(DataLoader(t, num_workers=0), letters)
@@ -376,7 +388,9 @@ test_shuffled(L(dl), L(dl))
 # +
 class SleepyQueue():
     "Simulate a queue with varying latency"
+
     def __init__(self, q): self.q = q
+
     def __iter__(self):
         while True:
             time.sleep(random.random() / 100)
@@ -384,6 +398,7 @@ class SleepyQueue():
                 yield self.q.get_nowait()
             except queues.Empty:
                 return
+
 
 q = Queue()
 for o in range(30):
@@ -393,8 +408,11 @@ it = SleepyQueue(q)
 # %time test_shuffled(L(DataLoader(it, num_workers=4)), range(30))
 
 # +
+
+
 class A(TensorBase):
     pass
+
 
 for nw in (0, 2):
     t = A(tensor([1, 2]))
@@ -414,6 +432,8 @@ list(DataLoader(list(range(50)), bs=32, shuffle=True, num_workers=3))
 # +
 class A(TensorBase):
     pass
+
+
 t = A(tensor(1, 2))
 
 tdl = DataLoader([t, t, t, t, t, t, t, t], bs=4, num_workers=2, after_batch=to_device)

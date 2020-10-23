@@ -92,6 +92,7 @@ def _open_thumb(fn, h, w): return Image.open(fn).to_thumb(h, w).convert('RGBA')
 # export
 class ImagesCleaner:
     "A widget that displays all images in `fns` along with a `Dropdown`"
+
     def __init__(self, opts=(), height=128, width=256, max_n=30):
         opts = ('<Keep>', '<Delete>') + tuple(opts)
         store_attr('opts,height,width,max_n')
@@ -107,6 +108,7 @@ class ImagesCleaner:
     def _ipython_display_(self): display(self.widget)
     def values(self): return L(self.widget.children).itemgot(1).attrgot('value')
     def delete(self): return self.values().argwhere(eq('<Delete>'))
+
     def change(self):
         idxs = self.values().argwhere(negate_func(in_(['<Delete>', '<Keep>'])))
         return idxs.zipwith(self.values()[idxs])
@@ -132,6 +134,7 @@ def _get_iw_info(learn, ds_idx=0):
 @delegates(ImagesCleaner)
 class ImageClassifierCleaner(GetAttr):
     "A widget that provides an `ImagesCleaner` with a CNN `Learner`"
+
     def __init__(self, learn, **kwargs):
         vocab = learn.dls.vocab
         self.default = self.iw = ImagesCleaner(vocab, **kwargs)
@@ -144,6 +147,7 @@ class ImageClassifierCleaner(GetAttr):
         self.widget = VBox([self.dd_cats, self.dd_ds, self.iw.widget])
 
     def _ipython_display_(self): display(self.widget)
+
     def on_change_ds(self, change=None):
         info = L(o for o in self.iwis[self.dd_ds.index] if o[1] == self.dd_cats.value)
         self.iw.set_fns(info.sorted(2, reverse=True).itemgot(0))

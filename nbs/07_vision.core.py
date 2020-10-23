@@ -292,6 +292,7 @@ mnist_img
 # export
 class AddMaskCodes(Transform):
     "Add the code metadata to a `TensorMask`"
+
     def __init__(self, codes=None):
         self.codes = codes
         if codes is not None:
@@ -389,6 +390,7 @@ categories, images, annots = map(lambda x: L(x), annotations.values())
 
 test_eq(test_images, images.attrgot('file_name'))
 
+
 def bbox_lbls(file_name):
     img = images.filter(lambda img: img['file_name'] == file_name)[0]
     bbs = annots.filter(lambda a: a['image_id'] == img['id'])
@@ -396,6 +398,7 @@ def bbox_lbls(file_name):
     lbls = [i2o[cat] for cat in bbs.attrgot('category_id')]
     bboxes = [[bb[0], bb[1], bb[0] + bb[2], bb[1] + bb[3]] for bb in bbs.attrgot('bbox')]
     return [bboxes, lbls]
+
 
 for idx in random.sample(range(len(images)), 5):
     test_eq(test_lbl_bbox[idx], bbox_lbls(test_images[idx]))
@@ -408,6 +411,7 @@ for idx in random.sample(range(len(images)), 5):
 # export
 def _draw_outline(o, lw):
     o.set_path_effects([patheffects.Stroke(linewidth=lw, foreground='black'), patheffects.Normal()])
+
 
 def _draw_rect(ax, b, color='white', text=None, text_size=14, hw=True, rev=False):
     lx, ly, w, h = b
@@ -444,6 +448,7 @@ class TensorBBox(TensorPoint):
 # export
 class LabeledBBox(L):
     "Basic type for a list of bounding boxes in an image"
+
     def show(self, ctx=None, **kwargs):
         for b, l in zip(self.bbox, self.lbl):
             if l != '#na#':
@@ -502,6 +507,8 @@ pipe_img.show(img, figsize=(1, 1))
 
 
 def _cam_lbl(x): return mask_fn
+
+
 cam_tds = Datasets([cam_fn], [[PILImage.create, ToTensor()], [_cam_lbl, PILMask.create, ToTensor()]])
 show_at(cam_tds, 0)
 
@@ -518,6 +525,7 @@ def _scale_pnts(y, sz, do_scale=True, y_first=False):
     res = y * 2 / tensor(sz).float() - 1 if do_scale else y
     return TensorPoint(res, img_size=sz)
 
+
 def _unscale_pnts(y, sz): return TensorPoint((y + 1) * tensor(sz).float() / 2, img_size=sz)
 
 
@@ -528,6 +536,7 @@ class PointScaler(Transform):
     "Scale a tensor representing points"
     order = 1
     def __init__(self, do_scale=True, y_first=False): self.do_scale, self.y_first = do_scale, y_first
+
     def _grab_sz(self, x):
         self.sz = [x.shape[-1], x.shape[-2]] if isinstance(x, Tensor) else x.size
         return x
@@ -555,7 +564,11 @@ class PointScaler(Transform):
 # > Note: This transform automatically grabs the sizes of the images it sees before a <code>TensorPoint</code> object and embeds it in them. For this to work, those images need to be before any points in the order of your final tuple. If you don't have such images, you need to embed the size of the corresponding image when creating a <code>TensorPoint</code> by passing it with `sz=...`.
 
 def _pnt_lbl(x): return TensorPoint.create(pnts)
+
+
 def _pnt_open(fn): return PILImage(PILImage.create(fn).resize((28, 35)))
+
+
 pnt_tds = Datasets([mnist_fn], [_pnt_open, [_pnt_lbl]])
 pnt_tdl = TfmdDL(pnt_tds, bs=1, after_item=[PointScaler(), ToTensor()])
 
@@ -615,6 +628,7 @@ def encodes(self, x: TensorBBox):
     pnts = self.encodes(cast(x.view(-1, 2), TensorPoint))
     return cast(pnts.view(-1, 4), TensorBBox)
 
+
 @PointScaler
 def decodes(self, x: TensorBBox):
     pnts = self.decodes(cast(x.view(-1, 2), TensorPoint))
@@ -623,7 +637,10 @@ def decodes(self, x: TensorBBox):
 
 # +
 def _coco_bb(x): return TensorBBox.create(bbox[0])
+
+
 def _coco_lbl(x): return bbox[1]
+
 
 coco_tds = Datasets([coco_fn], [PILImage.create, [_coco_bb], [_coco_lbl, MultiCategorize(add_na=True)]], n_inp=1)
 coco_tdl = TfmdDL(coco_tds, bs=1, after_item=[BBoxLabeler(), PointScaler(), ToTensor()])

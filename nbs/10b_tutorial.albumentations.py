@@ -56,6 +56,8 @@ img
 # The albumentations transform work on numpy images, so we just convert our `PILImage` to a numpy array before wrapping it back in `PILImage.create` (this function takes filenames as well as arrays or tensors).
 
 aug = ShiftScaleRotate(p=1)
+
+
 def aug_tfm(img):
     np_img = np.array(img)
     aug_img = aug(image=np_img)['image']
@@ -73,6 +75,7 @@ tfm = Transform(aug_tfm)
 
 class AlbumentationsTransform(Transform):
     def __init__(self, aug): self.aug = aug
+
     def encodes(self, img: PILImage):
         aug_img = self.aug(image=np.array(img))['image']
         return PILImage.create(aug_img)
@@ -104,6 +107,7 @@ ax = mask.show(ctx=ax)
 
 class SegmentationAlbumentationsTransform(ItemTransform):
     def __init__(self, aug): self.aug = aug
+
     def encodes(self, x):
         img, mask = x
         aug = self.aug(image=np.array(img), mask=np.array(mask))
@@ -125,12 +129,15 @@ cv_source = untar_data(URLs.CAMVID_TINY)
 cv_items = get_image_files(cv_source / 'images')
 cv_splitter = RandomSplitter(seed=42)
 cv_split = cv_splitter(cv_items)
+
+
 def cv_label(o): return cv_source / 'labels' / f'{o.stem}_P{o.suffix}'
 
 
 class ImageResizer(Transform):
     order = 1
     "Resize image to `size` using `resample`"
+
     def __init__(self, size, resample=Image.BILINEAR):
         if not is_listy(size):
             size = (size, size)
@@ -150,6 +157,7 @@ dls = cv_dsets.dataloaders(bs=64, after_item=[ImageResizer(128), ToTensor(), Int
 class SegmentationAlbumentationsTransform(ItemTransform):
     split_idx = 0
     def __init__(self, aug): self.aug = aug
+
     def encodes(self, x):
         img, mask = x
         aug = self.aug(image=np.array(img), mask=np.array(mask))

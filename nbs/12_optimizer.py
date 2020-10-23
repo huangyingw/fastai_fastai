@@ -40,11 +40,13 @@ from fastai.torch_basics import *
 # export
 class _BaseOptimizer():
     "Common functionality between `Optimizer` and `OptimWrapper`"
+
     def all_params(self, n=slice(None), with_grad=False):
         res = L((p, pg, self.state[p], hyper) for pg, hyper in zip(self.param_lists[n], self.hypers[n]) for p in pg)
         return L(o for o in res if o[0].grad is not None) if with_grad else res
 
     def _set_require_grad(self, rg, p, pg, state, h): p.requires_grad_(rg or state.get('force_train', False))
+
     def freeze_to(self, n):
         self.frozen_idx = n if n >= 0 else len(self.param_lists) + n
         if self.frozen_idx >= len(self.param_lists):
@@ -64,6 +66,7 @@ class _BaseOptimizer():
 
     def unfreeze(self): self.freeze_to(0)
     def set_hypers(self, **kwargs): L(kwargs.items()).starmap(self.set_hyper)
+
     def _set_hyper(self, k, v):
         for v_, h in zip(v, self.hypers):
             h[k] = v_
@@ -118,6 +121,7 @@ def _update(state, new=None):
 class Optimizer(_BaseOptimizer):
     "Base optimizer class for the fastai library, updating `params` with `cbs`"
     _keep_on_clear = ['force_train', 'do_wd']
+
     def __init__(self, params, cbs, train_bn=True, **defaults):
         params = L(params)
         self.cbs, self.state, self.train_bn = L(cbs), defaultdict(dict), train_bn
@@ -182,15 +186,25 @@ test_eq(opt.param_lists, [[0, 1], [2, 3]])
 
 # +
 def tst_arg(p, lr=0, **kwargs): return p
+
+
 tst_arg.defaults = dict(lr=1e-2)
 
+
 def tst_arg2(p, lr2=0, **kwargs): return p
+
+
 tst_arg2.defaults = dict(lr2=1e-3)
 
+
 def tst_arg3(p, mom=0, **kwargs): return p
+
+
 tst_arg3.defaults = dict(mom=0.9)
 
+
 def tst_arg4(p, **kwargs): return p
+
 
 opt = Optimizer([1, 2, 3], [tst_arg, tst_arg2, tst_arg3])
 test_eq(opt.hypers, [{'lr2': 1e-3, 'mom': 0.9, 'lr': 1e-2}])
@@ -245,6 +259,7 @@ def weight_decay(p, lr, wd, do_wd=True, **kwargs):
     if do_wd and wd != 0:
         p.data.mul_(1 - lr * wd)
 
+
 weight_decay.defaults = dict(wd=0.)
 # -
 
@@ -260,6 +275,7 @@ def l2_reg(p, lr, wd, do_wd=True, **kwargs):
     "L2 regularization as adding `wd*p` to `p.grad`"
     if do_wd and wd != 0:
         p.grad.data.add_(p.data, alpha=wd)
+
 
 l2_reg.defaults = dict(wd=0.)
 # -
@@ -280,7 +296,10 @@ show_doc(Optimizer.step)
 # +
 # test basic step
 r = L.range(4)
+
+
 def tst_params(): return r.map(tst_param)
+
 
 params = tst_params()
 opt = Optimizer(params, sgd_step, lr=0.1)
@@ -322,6 +341,8 @@ opt.zero_grad()
 def tst_stat(p, **kwargs):
     s = kwargs.get('sum', torch.zeros_like(p)) + p.data
     return {'sum': s}
+
+
 tst_stat.defaults = {'mom': 0.9}
 
 # Test Optimizer init
@@ -352,6 +373,7 @@ def average_grad(p, mom, dampening=False, grad_avg=None, **kwargs):
     damp = 1 - mom if dampening else 1.
     grad_avg.mul_(mom).add_(p.grad.data, alpha=damp)
     return {'grad_avg': grad_avg}
+
 
 average_grad.defaults = dict(mom=0.9)
 # -
@@ -389,6 +411,7 @@ def average_sqr_grad(p, sqr_mom, dampening=True, sqr_avg=None, **kwargs):
     damp = 1 - sqr_mom if dampening else 1.
     sqr_avg.mul_(sqr_mom).addcmul_(p.grad.data, p.grad.data, value=damp)
     return {'sqr_avg': sqr_avg}
+
 
 average_sqr_grad.defaults = dict(sqr_mom=0.99)
 # -
@@ -555,10 +578,13 @@ opt.step()
 
 # +
 # export
+
+
 def rms_prop_step(p, lr, sqr_avg, eps, grad_avg=None, **kwargs):
     "Step for SGD with momentum with `lr`"
     denom = sqr_avg.sqrt().add_(eps)
     p.data.addcdiv_((grad_avg if grad_avg is not None else p.grad), denom, value=-lr)
+
 
 rms_prop_step.defaults = dict(eps=1e-8)
 
@@ -627,6 +653,7 @@ def adam_step(p, lr, mom, step, sqr_mom, grad_avg, sqr_avg, eps, **kwargs):
     p.data.addcdiv_(grad_avg, (sqr_avg / debias2).sqrt() + eps, value=-lr / debias1)
     return p
 
+
 adam_step._defaults = dict(eps=1e-5)
 
 
@@ -681,6 +708,7 @@ def radam_step(p, lr, mom, step, sqr_mom, grad_avg, sqr_avg, eps, beta, **kwargs
     else:
         p.data.add_(grad_avg, alpha=-lr / debias1)
     return p
+
 
 radam_step._defaults = dict(eps=1e-5)
 
@@ -749,6 +777,7 @@ def qhadam_step(p, lr, mom, sqr_mom, sqr_avg, nu_1, nu_2, step, grad_avg, eps, *
                     value=-lr)
     return p
 
+
 qhadam_step._defaults = dict(eps=1e-8)
 
 
@@ -783,6 +812,7 @@ def larc_layer_lr(p, lr, trust_coeff, wd, eps, clip=True, **kwargs):
     p_norm, g_norm = torch.norm(p.data), torch.norm(p.grad.data)
     local_lr = lr * trust_coeff * (p_norm) / (g_norm + p_norm * wd + eps)
     return {'local_lr': min(lr, local_lr) if clip else local_lr}
+
 
 larc_layer_lr.defaults = dict(trust_coeff=0.02, wd=0., eps=1e-8)
 
@@ -844,6 +874,7 @@ def lamb_step(p, lr, mom, step, sqr_mom, grad_avg, sqr_avg, eps, **kwargs):
     q = 1 if r1 == 0 or r2 == 0 else min(r1 / r2, 10)
     p.data.add_(step, alpha=-lr * q)
 
+
 lamb_step._defaults = dict(eps=1e-6, wd=0.)
 
 
@@ -877,6 +908,7 @@ test_close(params[0], tensor([0.7840, 1.7840, 2.7840]), eps=1e-3)
 class Lookahead(Optimizer, GetAttr):
     "Wrap `opt` in a lookahead optimizer"
     _default = 'opt'
+
     def __init__(self, opt, k=6, alpha=0.5):
         store_attr('opt,k,alpha')
         self._init_state()
@@ -979,6 +1011,7 @@ pytorch_hp_map = {'momentum': 'mom', 'weight_decay': 'wd', 'alpha': 'sqr_mom', '
 class OptimWrapper(_BaseOptimizer, GetAttr):
     _xtra = ['zero_grad', 'step', 'state_dict', 'load_state_dict']
     _default = 'opt'
+
     def __init__(self, opt, hp_map=None):
         self.opt = opt
         if hp_map is None:

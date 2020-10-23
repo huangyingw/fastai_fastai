@@ -93,6 +93,8 @@ def resize_to(img, targ_sz, use_min=False):
 # +
 class _FakeImg():
     def __init__(self, size): self.size = size
+
+
 img = _FakeImg((200, 500))
 
 test_eq(resize_to(img, 400), [160, 400])

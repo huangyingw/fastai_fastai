@@ -180,6 +180,7 @@ class Config:
         self.save_file(config)
 
     def save(self): self.save_file(self.d)
+
     def save_file(self, config):
         "save config file at default config location `~/.fastai/config.yml`."
         with self.config_file.open('w') as f:
@@ -464,6 +465,7 @@ def _get_check(url):
     "internal function to get the hash of the file at `url`."
     checks = json.load(open(Path(__file__).parent / 'checks.txt', 'r'))
     return checks.get(url, '')
+
 
 def _check_file(fname):
     "internal function to get the hash of the local file at `fname`."

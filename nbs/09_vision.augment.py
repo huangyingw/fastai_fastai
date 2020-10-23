@@ -50,6 +50,7 @@ img = PILImage(PILImage.create(TEST_IMAGE).resize((600, 400)))
 class RandTransform(DisplayedTransform):
     "A transform that before_call its state at each `__call__`"
     do, nm, supports, split_idx = True, None, [], 0
+
     def __init__(self, p=1., nm=None, before_call=None, **kwargs):
         store_attr('p')
         super().__init__(**kwargs)
@@ -74,6 +75,8 @@ show_doc(RandTransform.before_call)
 
 
 def _add1(x): return x + 1
+
+
 dumb_tfm = RandTransform(enc=_add1, p=0.5)
 start, d1, d2 = 2, False, False
 for _ in range(40):
@@ -95,6 +98,7 @@ dumb_tfm
 def _neg_axis(x, axis):
     x[..., axis] = -x[..., axis]
     return x
+
 
 TensorTypes = (TensorImage, TensorMask, TensorPoint, TensorBBox)
 
@@ -125,6 +129,7 @@ def _pnt2tensor(pnts, sz):
         t[p[1], p[0]] = 1.
     return t
 
+
 t = _pnt2tensor([[1, 0], [2, 1]], (3, 3))
 x = PILImage.create(t)
 y = x.flip_lr()
@@ -142,6 +147,7 @@ test_eq(bbox.flip_lr(), tensor([[1., 0., 0., 1]]) - 1)
 # export
 class FlipItem(RandTransform):
     "Randomly flip with probability `p`"
+
     def __init__(self, p=0.5): super().__init__(p=p)
     def encodes(self, x: (Image.Image, *TensorTypes)): return x.flip_lr()
 
@@ -162,6 +168,8 @@ def dihedral(x: TensorImage, k):
     if k in [3, 5, 6, 7]:
         x = x.transpose(-1, -2)
     return x
+
+
 @patch
 def dihedral(x: TensorPoint, k):
     if k in [1, 3, 4, 7]:
@@ -171,6 +179,8 @@ def dihedral(x: TensorPoint, k):
     if k in [3, 5, 6, 7]:
         x = x.flip(1)
     return x
+
+
 @patch
 def dihedral(x: TensorBBox, k):
     pnts = TensorPoint(x.view(-1, 2)).dihedral(k).view(-1, 2, 2)
@@ -183,6 +193,7 @@ def dihedral(x: TensorBBox, k):
 # export
 class DihedralItem(RandTransform):
     "Randomly flip with probability `p`"
+
     def before_call(self, b, split_idx):
         super().before_call(b, split_idx)
         self.k = random.randint(0, 7)
@@ -221,6 +232,7 @@ show_doc(PadMode, title_level=3)
 # export
 _pad_modes = {'zeros': 'constant', 'border': 'edge', 'reflection': 'reflect'}
 
+
 @patch
 def _do_crop_pad(x: Image.Image, sz, tl, orig_sz,
                  pad_mode=PadMode.Zeros, resize_mode=Image.BILINEAR, resize_to=None):
@@ -237,16 +249,19 @@ def _do_crop_pad(x: Image.Image, sz, tl, orig_sz,
         x = x.resize(resize_to, resize_mode)
     return x
 
+
 @patch
 def _do_crop_pad(x: TensorPoint, sz, tl, orig_sz, pad_mode=PadMode.Zeros, resize_to=None, **kwargs):
     #assert pad_mode==PadMode.Zeros,"Only zero padding is supported for `TensorPoint` and `TensorBBox`"
     orig_sz, sz, tl = map(FloatTensor, (orig_sz, sz, tl))
     return TensorPoint((x + 1) * orig_sz / sz - tl * 2 / sz - 1, sz=sz if resize_to is None else resize_to)
 
+
 @patch
 def _do_crop_pad(x: TensorBBox, sz, tl, orig_sz, pad_mode=PadMode.Zeros, resize_to=None, **kwargs):
     bbox = TensorPoint._do_crop_pad(x.view(-1, 2), sz, tl, orig_sz, pad_mode, resize_to).view(-1, 4)
     return TensorBBox(bbox, img_size=x.get_meta('img_size'))
+
 
 @patch
 def crop_pad(x: (TensorBBox, TensorPoint, Image.Image),
@@ -265,6 +280,7 @@ def _process_sz(size):
         size = (size, size)
     return fastuple(size[1], size[0])
 
+
 def _get_sz(x):
     if isinstance(x, tuple):
         x = x[0]
@@ -280,6 +296,7 @@ def _get_sz(x):
 class CropPad(RandTransform):
     "Center crop or pad an image to `size`"
     order = 0
+
     def __init__(self, size, pad_mode=PadMode.Zeros, **kwargs):
         size = _process_sz(size)
         store_attr()
@@ -305,6 +322,7 @@ for ax, mode in zip(axs.flatten(), [PadMode.Zeros, PadMode.Border, PadMode.Refle
 class CropPad(DisplayedTransform):
     "Center crop or pad an image to `size`"
     order = 0
+
     def __init__(self, size, pad_mode=PadMode.Zeros, **kwargs):
         size = _process_sz(size)
         store_attr()
@@ -366,6 +384,7 @@ test_eq(p1, torch.tensor([[-1.6, -2], [-0.8, -1], [0, 0]]))
 class RandomCrop(RandTransform):
     "Randomly crop an image to `size`"
     split_idx, order = None, 1
+
     def __init__(self, size, **kwargs):
         size = _process_sz(size)
         store_attr()
@@ -385,6 +404,7 @@ class RandomCrop(RandTransform):
 # export
 class OldRandomCrop(CropPad):
     "Randomly crop an image to `size`"
+
     def before_call(self, b, split_idx):
         super().before_call(b, split_idx)
         w, h = self.orig_sz
@@ -443,6 +463,7 @@ test_eq(ResizeMethod.Squish, 'squish')
 class Resize(RandTransform):
     split_idx, mode, mode_mask, order = None, Image.BILINEAR, Image.NEAREST, 1
     "Resize image to `size` using `method`"
+
     def __init__(self, size, method=ResizeMethod.Crop, pad_mode=PadMode.Reflection,
                  resamples=(Image.BILINEAR, Image.NEAREST), **kwargs):
         size = _process_sz(size)
@@ -512,6 +533,7 @@ test_eq(y.size, (10, 10))
 class RandomResizedCrop(RandTransform):
     "Picks a random scaled crop of an image and resize it to `size`"
     split_idx, order = None, 1
+
     def __init__(self, size, min_scale=0.08, ratio=(3 / 4, 4 / 3), resamples=(Image.BILINEAR, Image.NEAREST),
                  val_xtra=0.14, **kwargs):
         size = _process_sz(size)
@@ -575,6 +597,7 @@ test_eq(cropped.shape, [256, 256])
 class RatioResize(DisplayedTransform):
     'Resizes the biggest dimension of an image to `max_sz` maintaining the aspect ratio'
     order = 1
+
     def __init__(self, max_sz, resamples=(Image.BILINEAR, Image.NEAREST), **kwargs):
         store_attr()
         super().__init__(**kwargs)
@@ -596,6 +619,8 @@ test_eq(RatioResize(256)(img.dihedral(3)).size[1], 256)
 # ## Affine and coord tfm on the GPU
 
 timg = TensorImage(array(img)).permute(2, 0, 1).float() / 255.
+
+
 def _batch_ex(bs): return TensorImage(timg[None].expand(bs, *timg.shape).clone())
 
 
@@ -642,6 +667,7 @@ def affine_coord(x: TensorImage, mat=None, coord_tfm=None, sz=None, mode='biline
         coords = coord_tfm(coords)
     return TensorImage(_grid_sample(x, coords, mode=mode, padding_mode=pad_mode, align_corners=align_corners))
 
+
 @patch
 def affine_coord(x: TensorMask, mat=None, coord_tfm=None, sz=None, mode='nearest',
                  pad_mode=PadMode.Reflection, align_corners=True):
@@ -652,6 +678,7 @@ def affine_coord(x: TensorMask, mat=None, coord_tfm=None, sz=None, mode='nearest
     if add_dim:
         res = res[:, 0]
     return TensorMask(res)
+
 
 @patch
 def affine_coord(x: TensorPoint, mat=None, coord_tfm=None, sz=None, mode='nearest',
@@ -664,6 +691,7 @@ def affine_coord(x: TensorPoint, mat=None, coord_tfm=None, sz=None, mode='neares
     if mat is not None:
         x = (x - mat[:, :, 2].unsqueeze(1)) @ torch.inverse(mat[:, :, :2].transpose(1, 2))
     return TensorPoint(x, sz=sz)
+
 
 @patch
 def affine_coord(x: TensorBBox, mat=None, coord_tfm=None, sz=None, mode='nearest',
@@ -695,6 +723,7 @@ def _prepare_mat(x, mat):
 class AffineCoordTfm(RandTransform):
     "Combine and apply affine and coord transforms"
     order, split_idx = 30, None
+
     def __init__(self, aff_fs=None, coord_fs=None, size=None, mode='bilinear', pad_mode=PadMode.Reflection,
                  mode_mask='nearest', align_corners=None, **kwargs):
         store_attr(but=['aff_fs', 'coord_fs'])
@@ -755,6 +784,7 @@ for i in [0, 1]:
 class RandomResizedCropGPU(RandTransform):
     "Picks a random scaled crop of an image and resize it to `size`"
     split_idx, order = None, 30
+
     def __init__(self, size, min_scale=0.08, ratio=(3 / 4, 4 / 3), mode='bilinear', valid_scale=1., **kwargs):
         if isinstance(size, int):
             size = (size, size)
@@ -837,7 +867,11 @@ def _draw_mask(x, def_draw, draw=None, p=0.5, neutral=0., batch=False):
 
 
 x = torch.zeros(5, 2, 3)
+
+
 def def_draw(x): return torch.randint(0, 8, (x.size(0),))
+
+
 t = _draw_mask(x, def_draw)
 assert (0. <= t).all() and (t <= 7).all()
 t = _draw_mask(x, def_draw, 1)
@@ -902,6 +936,7 @@ test_eq(bbox.flip_batch(p=1.), tensor([[[0., 0., 1., 1.]]]) - 1)
 # export
 class Flip(AffineCoordTfm):
     "Randomly flip a batch of images with a probability `p`"
+
     def __init__(self, p=0.5, draw=None, size=None, mode='bilinear', pad_mode=PadMode.Reflection, align_corners=True, batch=False):
         aff_fs = partial(flip_mat, p=p, draw=draw, batch=batch)
         super().__init__(aff_fs, size=size, mode=mode, pad_mode=pad_mode, align_corners=align_corners, p=p)
@@ -940,6 +975,7 @@ for i in range(15):
 # export
 class DeterministicFlip(Flip):
     "Flip the batch every other call"
+
     def __init__(self, size=None, mode='bilinear', pad_mode=PadMode.Reflection, align_corners=True, **kwargs):
         super().__init__(p=1., draw=DeterministicDraw([0, 1]), mode=mode, pad_mode=pad_mode, align_corners=align_corners, **kwargs)
 
@@ -982,6 +1018,7 @@ def dihedral_batch(x: (TensorImage, TensorMask, TensorPoint, TensorBBox), p=0.5,
 # export
 class Dihedral(AffineCoordTfm):
     "Apply a random dihedral transformation to a batch of images with a probability `p`"
+
     def __init__(self, p=0.5, draw=None, size=None, mode='bilinear', pad_mode=PadMode.Reflection, align_corners=None, batch=False):
         f = partial(dihedral_mat, p=p, draw=draw, batch=batch)
         super().__init__(aff_fs=f, size=size, mode=mode, pad_mode=pad_mode, align_corners=align_corners)
@@ -1060,6 +1097,7 @@ def rotate(x: (TensorImage, TensorMask, TensorPoint, TensorBBox), size=None, mod
 # export
 class Rotate(AffineCoordTfm):
     "Apply a random rotation of at most `max_deg` with probability `p` to a batch of images"
+
     def __init__(self, max_deg=10, p=0.5, draw=None, size=None, mode='bilinear', pad_mode=PadMode.Reflection,
                  align_corners=True, batch=False):
         aff_fs = partial(rotate_mat, max_deg=max_deg, p=p, draw=draw, batch=batch)
@@ -1107,6 +1145,7 @@ def zoom(x: (TensorImage, TensorMask, TensorPoint, TensorBBox), size=None, mode=
 # export
 class Zoom(AffineCoordTfm):
     "Apply a random zoom of at most `max_zoom` with probability `p` to a batch of images"
+
     def __init__(self, min_zoom=1., max_zoom=1.1, p=0.5, draw=None, draw_x=None, draw_y=None, size=None, mode='bilinear',
                  pad_mode=PadMode.Reflection, batch=False, align_corners=True):
         aff_fs = partial(zoom_mat, min_zoom=min_zoom, max_zoom=max_zoom, p=p, draw=draw, draw_x=draw_x, draw_y=draw_y, batch=batch)
@@ -1219,6 +1258,7 @@ test_eq(y, torch.tensor([[[-0.5, -1], [0.5, -1]], [[-0.5, 1], [0.5, 1]], [[-1, -
 # export
 class Warp(AffineCoordTfm):
     "Apply perspective warping with `magnitude` and `p` on a batch of matrices"
+
     def __init__(self, magnitude=0.2, p=0.5, draw_x=None, draw_y=None, size=None, mode='bilinear',
                  pad_mode=PadMode.Reflection, batch=False, align_corners=True):
         store_attr()
@@ -1274,8 +1314,14 @@ def lighting(x: TensorImage, func): return TensorImage(torch.sigmoid(func(logit(
 # Most lighting transforms work better in "logit space", as we do not want to blowout the image by going over maximum or minimum brightness. Taking the sigmoid of the logit allows us to get back to "linear space."
 
 x = TensorImage(torch.tensor([.01 * i for i in range(0, 101)]))
+
+
 def f_lin(x): return (2 * (x - 0.5) + 0.5).clamp(0, 1)  # blue line
+
+
 def f_log(x): return 2 * x  # red line
+
+
 plt.plot(x, f_lin(x), 'b', x, x.lighting(f_log), 'r')
 
 
@@ -1285,6 +1331,7 @@ plt.plot(x, f_lin(x), 'b', x, x.lighting(f_log), 'r')
 class LightingTfm(RandTransform):
     "Apply `fs` to the logits"
     order = 40
+
     def __init__(self, fs, **kwargs):
         super().__init__(**kwargs)
         self.fs = L(fs)
@@ -1391,6 +1438,7 @@ def contrast(x: TensorImage, **kwargs):
 # export
 class Contrast(LightingTfm):
     "Apply change in contrast of `max_lighting` to batch of images with probability `p`."
+
     def __init__(self, max_lighting=0.2, p=0.75, draw=None, batch=False):
         store_attr()
         super().__init__(_ContrastLogit(max_lighting, p, draw, batch))
@@ -1465,6 +1513,7 @@ def saturation(x: TensorImage, **kwargs):
 class Saturation(LightingTfm):
     "Apply change in saturation of `max_lighting` to batch of images with probability `p`."
     # Ref: https://pytorch.org/docs/stable/torchvision/transforms.html#torchvision.transforms.functional.adjust_saturation
+
     def __init__(self, max_lighting=0.2, p=0.75, draw=None, batch=False):
         store_attr()
         super().__init__(_SaturationLogit(max_lighting, p, draw, batch))
@@ -1602,6 +1651,7 @@ def hue(x: TensorImage, **kwargs):
 class Hue(RandTransform):
     "Apply change in hue of `max_hue` to batch of images with probability `p`."
     # Ref: https://pytorch.org/docs/stable/torchvision/transforms.html#torchvision.transforms.functional.adjust_hue
+
     def __init__(self, max_hue=0.1, p=0.75, draw=None, batch=False):
         super().__init__(_Hue(max_hue, p, draw, batch))
         store_attr()
@@ -1667,6 +1717,7 @@ def _slice(area, sz):
 class RandomErasing(RandTransform):
     "Randomly selects a rectangle region in an image and randomizes its pixels."
     order = 100  # After Normalize
+
     def __init__(self, p=0.5, sl=0., sh=0.3, min_aspect=0.3, max_count=1):
         store_attr()
         super().__init__(p=p)
@@ -1814,6 +1865,8 @@ camvid = untar_data(URLs.CAMVID_TINY)
 fns = get_image_files(camvid / 'images')
 cam_fn = fns[0]
 mask_fn = camvid / 'labels' / f'{cam_fn.stem}_P{cam_fn.suffix}'
+
+
 def _cam_lbl(fn): return mask_fn
 
 
@@ -1827,6 +1880,8 @@ cam_tdl.show_batch(max_n=9, vmin=1, vmax=30)
 mnist = untar_data(URLs.MNIST_TINY)
 mnist_fn = 'images/mnist3.png'
 pnts = np.array([[0, 0], [0, 35], [28, 0], [28, 35], [9, 17]])
+
+
 def _pnt_lbl(fn) -> None: return TensorPoint.create(pnts)
 
 
@@ -1843,7 +1898,10 @@ images, lbl_bbox = get_annotations(coco / 'train.json')
 idx = 2
 coco_fn, bbox = coco / 'train' / images[idx], lbl_bbox[idx]
 
+
 def _coco_bb(x): return TensorBBox.create(bbox[0])
+
+
 def _coco_lbl(x): return bbox[1]
 
 

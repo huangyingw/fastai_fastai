@@ -47,6 +47,7 @@ from fastai.torch_basics import *
 # export
 class TransformBlock():
     "A basic wrapper that links defaults transforms for the data block API"
+
     def __init__(self, type_tfms=None, item_tfms=None, batch_tfms=None, dl_type=None, dls_kwargs=None):
         self.type_tfms = L(type_tfms)
         self.item_tfms = ToTensor + L(item_tfms)
@@ -96,6 +97,7 @@ def _merge_tfms(*tfms):
     g = groupby(concat(*tfms), _merge_grouper)
     return L(v[-1] for k, v in g.items()).map(instantiate)
 
+
 def _zip(x): return L(x).zip()
 
 
@@ -119,7 +121,10 @@ tfms = _merge_tfms([show_image, set_trace])
 # Check functions are properly separated
 test_eq(len(tfms), 2)
 
+
 def _f(x): return 0
+
+
 test_eq(len(_merge_tfms([_f, lambda x: 1])), 2)
 test_eq(len(_merge_tfms([_f, _f])), 1)
 
@@ -135,6 +140,7 @@ class DataBlock():
     blocks, dl_type = (TransformBlock, TransformBlock), TfmdDL
     _methods = 'get_items splitter get_y get_x'.split()
     _msg = "If you wanted to compose several transforms in your getter don't forget to wrap them in a `Pipeline`."
+
     def __init__(self, blocks=None, dl_type=None, getters=None, n_inp=None, item_tfms=None, batch_tfms=None, **kwargs):
         blocks = L(self.blocks if blocks is None else blocks)
         blocks = L(b() if callable(b) else b for b in blocks)
@@ -294,6 +300,7 @@ def _apply_pipeline(p, x):
 
 # +
 # export
+
 
 def _find_fail_collate(s):
     s = L(*s)

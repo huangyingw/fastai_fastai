@@ -160,6 +160,7 @@ class ArrayBase(ndarray):
 class ArrayImageBase(ArrayBase):
     "Base class for arrays representing images"
     _show_args = {'cmap': 'viridis'}
+
     def show(self, ctx=None, **kwargs):
         return show_image(self, ctx=ctx, **{**self._show_args, **kwargs})
 
@@ -396,6 +397,8 @@ test_eq(t, tensor([1]).view(1, 1, 1))
 
 # export
 def _fa_rebuild_tensor(cls, *args, **kwargs): return cls(torch._utils._rebuild_tensor_v2(*args, **kwargs))
+
+
 def _fa_rebuild_qtensor(cls, *args, **kwargs): return cls(torch._utils._rebuild_qtensor(*args, **kwargs))
 
 
@@ -478,6 +481,7 @@ def to_device(b, device=None):
         device = 'cpu'
     elif device is None:
         device = default_device()
+
     def _inner(o): return o.to(device, non_blocking=True) if isinstance(o, Tensor) else o.to_device(device) if hasattr(o, "to_device") else o
     return apply(_inner, b)
 
@@ -583,6 +587,8 @@ def as_subclass(self: Tensor, typ):
 
 class _T(Tensor):
     pass
+
+
 t = tensor(1.).requires_grad_()
 t._meta = {'img_size': 1}
 t2 = t.as_subclass(_T)
@@ -643,6 +649,7 @@ def _patch_tb():
         if isinstance(f, (MethodWrapperType, BuiltinFunctionType, BuiltinMethodType, MethodType, FunctionType)):
             setattr(TensorBase, fn, get_f(fn))
 
+
 _patch_tb()
 
 
@@ -698,6 +705,7 @@ test_eq(t4._meta, {'img_size': 2})
 # export
 class TensorImageBase(TensorBase):
     _show_args = ArrayImageBase._show_args
+
     def show(self, ctx=None, **kwargs):
         return show_image(self, ctx=ctx, **{**self._show_args, **kwargs})
 
@@ -742,6 +750,7 @@ test_eq_type(to_concat([TensorImage([1, 2]), TensorImage([3, 4])]), TensorImage(
 # export
 class TitledTensorScalar(TensorBase):
     "A tensor containing a scalar that has a `show` method"
+
     def show(self, **kwargs): show_title(self.item(), **kwargs)
 
 
@@ -752,10 +761,14 @@ class TitledTensorScalar(TensorBase):
 def tensored(self: L):
     "`mapped(tensor)`"
     return self.map(tensor)
+
+
 @patch
 def stack(self: L, dim=0):
     "Same as `torch.stack`"
     return torch.stack(list(self.tensored()), dim=dim)
+
+
 @patch
 def cat(self: L, dim=0):
     "Same as `torch.cat`"
@@ -813,6 +826,7 @@ test_eq_type(concat(L(1, 2), 1), L(1, 2, 1))
 # export
 class Chunks:
     "Slice and int indexing into a list of lists"
+
     def __init__(self, chunks, lens=None):
         self.chunks = chunks
         self.lens = L(map(len, self.chunks) if lens is None else lens)
@@ -902,33 +916,43 @@ assert show_title("title", ctx=pd.Series(dict(a=1)), label='a').equals(pd.Series
 class ShowTitle:
     "Base class that adds a simple `show`"
     _show_args = {'label': 'text'}
+
     def show(self, ctx=None, **kwargs):
         "Show self"
         return show_title(str(self), ctx=ctx, **merge(self._show_args, kwargs))
+
 
 class TitledInt(Int, ShowTitle):
     _show_args = {'label': 'text'}
+
     def show(self, ctx=None, **kwargs):
         "Show self"
         return show_title(str(self), ctx=ctx, **merge(self._show_args, kwargs))
+
 
 class TitledFloat(Float, ShowTitle):
     _show_args = {'label': 'text'}
+
     def show(self, ctx=None, **kwargs):
         "Show self"
         return show_title(str(self), ctx=ctx, **merge(self._show_args, kwargs))
+
 
 class TitledStr(Str, ShowTitle):
     _show_args = {'label': 'text'}
+
     def show(self, ctx=None, **kwargs):
         "Show self"
         return show_title(str(self), ctx=ctx, **merge(self._show_args, kwargs))
 
+
 class TitledTuple(fastuple, ShowTitle):
     _show_args = {'label': 'text'}
+
     def show(self, ctx=None, **kwargs):
         "Show self"
         return show_title(str(self), ctx=ctx, **merge(self._show_args, kwargs))
+
 
 add_docs(TitledInt, "An `int` with `show`")
 add_docs(TitledStr, "An `str` with `show`")
@@ -1058,10 +1082,10 @@ def np_func(f):
 # This decorator is particularly useful for using numpy functions as fastai metrics, for instance:
 
 
-
 # +
 @np_func
 def f1(inp, targ): return f1_score(targ, inp)
+
 
 a1, a2 = array([0, 1, 1]), array([1, 0, 1])
 t = f1(tensor(a1), tensor(a2))
@@ -1074,6 +1098,7 @@ assert isinstance(t, Tensor)
 # export
 class Module(nn.Module, metaclass=PrePostInitMeta):
     "Same as `nn.Module`, but no need for subclasses to call `super().__init__`"
+
     def __pre_init__(self, *args, **kwargs): super().__init__()
     def __init__(self): pass
 
@@ -1085,6 +1110,7 @@ show_doc(Module, title_level=3)
 class _T(Module):
     def __init__(self): self.f = nn.Linear(1, 1)
     def forward(self, x): return self.f(x)
+
 
 t = _T()
 t(tensor([1.]))
@@ -1480,6 +1506,7 @@ def script_save_ctx(static, *argidx):
     "Decorator: create jit script and save args with indices `argidx` using `ctx.save_for_backward`"
     def _dec(f):
         sf = torch.jit.script(f)
+
         def _f(ctx, *args, **kwargs):
             if argidx:
                 save = [args[o] for o in argidx]
