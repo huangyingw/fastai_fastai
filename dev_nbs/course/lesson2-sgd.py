@@ -23,7 +23,9 @@ import torch
 import torch.nn as nn
 import numpy as np
 
+
 def tensor(*argv): return torch.tensor(argv)
+
 
 # TEST
 assert torch.all(tensor(1, 2) == torch.tensor([1, 2])), 'Backward compatibility with fastai v1'
@@ -108,10 +110,12 @@ plt.scatter(x[:, 0], y, c='orange')
 line, = plt.plot(x[:, 0], (x@a).detach())
 plt.close()
 
+
 def animate(i):
     update()
     line.set_ydata((x@a).detach())
     return line,
+
 
 animation.FuncAnimation(fig, animate, np.arange(0, 100), interval=20)
 # -
