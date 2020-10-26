@@ -13,4 +13,6 @@
     remote = origin
     merge = refs/heads/dev
 [gdif]
+    ignore = dev_nbs/*.py 
     ignore = install_fastai.sh
+    ignore = nbs/*.py
