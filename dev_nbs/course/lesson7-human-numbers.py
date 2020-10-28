@@ -102,8 +102,6 @@ nh = 64
 
 
 def loss4(input, target): return F.cross_entropy(input, target[:, -1])
-
-
 def acc4(input, target): return accuracy(input, target[:, -1])
 
 
