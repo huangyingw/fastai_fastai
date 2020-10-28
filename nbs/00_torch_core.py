@@ -397,8 +397,6 @@ test_eq(t, tensor([1]).view(1, 1, 1))
 
 # export
 def _fa_rebuild_tensor(cls, *args, **kwargs): return cls(torch._utils._rebuild_tensor_v2(*args, **kwargs))
-
-
 def _fa_rebuild_qtensor(cls, *args, **kwargs): return cls(torch._utils._rebuild_qtensor(*args, **kwargs))
 
 
