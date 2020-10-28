@@ -122,6 +122,10 @@ class BCEWithLogitsLossFlat(BaseLoss):
     "Same as `nn.BCEWithLogitsLoss`, but flattens input and target."
     @use_kwargs_dict(keep=True, weight=None, reduction='mean', pos_weight=None)
     def __init__(self, *args, axis=-1, floatify=True, thresh=0.5, **kwargs):
+        if kwargs.get('pos_weight', None) is not None and kwargs.get('flatten', None) is True:
+            raise ValueError("`flatten` must be False when using `pos_weight` to avoid a RuntimeError due to shape mismatch")
+        if kwargs.get('pos_weight', None) is not None:
+            kwargs['flatten'] = False
         super().__init__(nn.BCEWithLogitsLoss, *args, axis=axis, floatify=floatify, is_2d=False, **kwargs)
         self.thresh = thresh
 
@@ -139,6 +143,12 @@ test_fail(lambda x: nn.BCEWithLogitsLoss()(output, target))
 output = torch.randn(32, 5)
 target = torch.randint(0, 2, (32, 5))
 # nn.BCEWithLogitsLoss would fail with int targets but not our flattened version.
+_ = tst(output, target)
+test_fail(lambda x: nn.BCEWithLogitsLoss()(output, target))
+
+tst = BCEWithLogitsLossFlat(pos_weight=torch.ones(10))
+output = torch.randn(32, 5, 10)
+target = torch.randn(32, 5, 10)
 _ = tst(output, target)
 test_fail(lambda x: nn.BCEWithLogitsLoss()(output, target))
 
