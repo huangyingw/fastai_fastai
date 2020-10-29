@@ -703,6 +703,7 @@ class Datasets(FilteredBase):
     def split_idx(self): return self.tls[0].tfms.split_idx
     @property
     def items(self): return self.tls[0].items
+
     @items.setter
     def items(self, v):
         for tl in self.tls:
