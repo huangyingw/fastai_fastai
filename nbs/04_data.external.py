@@ -319,7 +319,7 @@ class URLs():
     ZEBRA_FINCH = 'https://storage.googleapis.com/ml-animal-sounds-datasets/zebra_finch.zip'
 
     # Medical Imaging datasets
-    # SKIN_LESION        = f'{S3_IMAGELOC}skin_lesion.tgz'
+    #SKIN_LESION        = f'{S3_IMAGELOC}skin_lesion.tgz'
     SIIM_SMALL = f'{S3_IMAGELOC}siim_small.tgz'
 
     # Pretrained models
