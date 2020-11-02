@@ -95,6 +95,7 @@ class TensorDicom(TensorImage):
 # export
 class PILDicom(PILBase):
     _open_args, _tensor_cls, _show_args = {}, TensorDicom, TensorDicom._show_args
+
     @classmethod
     def create(cls, fn: (Path, str, bytes), mode=None) -> None:
         "Open a `DICOM file` from path `fn` or bytes `fn` and load it as a `PIL Image`"

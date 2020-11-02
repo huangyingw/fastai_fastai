@@ -380,8 +380,6 @@ def get_tuple_files(path):
 # And we are ready to define our block:
 
 def get_x(t): return t[:2]
-
-
 def get_y(t): return t[2]
 
 

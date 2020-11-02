@@ -79,8 +79,6 @@ jsonutil.json_clean = json_clean
 
 path = untar_data(URLs.PETS) / 'images'
 fnames = get_image_files(path)
-
-
 def is_cat(x): return x[0].isupper()
 
 

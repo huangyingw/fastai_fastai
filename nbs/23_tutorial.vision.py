@@ -346,8 +346,6 @@ path.ls()
 # Inside the subdirectories, we have different frames, each of them come with an image (`\_rgb.jpg`) and a pose file (`\_pose.txt`). We can easily get all the image files recursively with `get_image_files`, then write a function that converts an image filename to its associated pose file.
 
 img_files = get_image_files(path)
-
-
 def img2pose(x): return Path(f'{str(x)[:-7]}pose.txt')
 
 
