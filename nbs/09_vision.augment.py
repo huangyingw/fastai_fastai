@@ -159,6 +159,8 @@ test_eq(tflip(bbox, split_idx=0), tensor([[1., 0., 0., 1]]) - 1)
 # export
 @patch
 def dihedral(x: PILImage, k): return x if k == 0 else x.transpose(k - 1)
+
+
 @patch
 def dihedral(x: TensorImage, k):
     if k in [1, 3, 4, 7]:
@@ -395,7 +397,11 @@ class RandomCrop(RandTransform):
         if split_idx:
             self.tl = (self.orig_sz - self.size) // 2
         else:
-            self.tl = fastuple(random.randint(0, self.orig_sz[0] - self.size[0]), random.randint(0, self.orig_sz[1] - self.size[1]))
+            wd = self.orig_sz[0] - self.size[0]
+            hd = self.orig_sz[1] - self.size[1]
+            w_rand = (wd, -1) if wd < 0 else (0, wd)
+            h_rand = (hd, -1) if hd < 0 else (0, hd)
+            self.tl = fastuple(random.randint(*w_rand), random.randint(*h_rand))
 
     def encodes(self, x: (Image.Image, TensorBBox, TensorPoint)):
         return x.crop_pad(self.size, self.tl, orig_sz=self.orig_sz)
@@ -425,12 +431,19 @@ for ax in axs:
 
 # +
 # hide
-t = torch.empty(20, 16).uniform_(0, 1)
+large_sz = 25
+t = torch.empty(20, 16, 3).uniform_(0, 255).type(torch.uint8)
 x = PILImage.create(t)
-crop = RandomCrop(10)
+crop = RandomCrop(large_sz)
 y = crop(x, split_idx=0)
-test_eq(y.size, (10, 10))
-test_eq(tensor(array(y)), t[crop.tl[1]:crop.tl[1] + 10, crop.tl[0]:crop.tl[0] + 10])
+test_eq(y.size, (large_sz, large_sz))
+test_eq(tensor(y)[:-crop.tl[1], :-crop.tl[0], :].sum(), 0)
+
+small_sz = 10
+crop = RandomCrop(small_sz)
+y = crop(x, split_idx=0)
+test_eq(y.size, (small_sz, small_sz))
+test_eq(tensor(array(y)), t[crop.tl[1]:crop.tl[1] + small_sz, crop.tl[0]:crop.tl[0] + small_sz])
 
 crop.as_item = False
 pts = TensorPoint(torch.tensor([[-1, -1], [-0.5, -0.5], [0., 0.]]))
@@ -619,8 +632,6 @@ test_eq(RatioResize(256)(img.dihedral(3)).size[1], 256)
 # ## Affine and coord tfm on the GPU
 
 timg = TensorImage(array(img)).permute(2, 0, 1).float() / 255.
-
-
 def _batch_ex(bs): return TensorImage(timg[None].expand(bs, *timg.shape).clone())
 
 
@@ -631,6 +642,8 @@ def _init_mat(x):
 
 
 # ### AffineCoordTfm -
+
+# Uses coordinates in `coords` to map coordinates in `x` to new locations for transformations such as `flip`. Preferably use `TensorImage.affine_coord` as this combines `_grid_sample` with `F.affine_grid` for easier usage. Use`F.affine_grid` to make it easier to generate the `coords`, as this tends to be large `[H,W,2]` where `H` and `W` are the height and width of your image `x`.
 
 # export
 def _grid_sample(x, coords, mode='bilinear', padding_mode='reflection', align_corners=None):
@@ -651,6 +664,40 @@ def _grid_sample(x, coords, mode='bilinear', padding_mode='reflection', align_co
                 x = F.interpolate(x, scale_factor=1 / d, mode='area')
     return F.grid_sample(x, coords, mode=mode, padding_mode=padding_mode, align_corners=align_corners)
 
+
+# This is the image we start with, and are going to be using for the following examples.
+
+img = torch.tensor([[[0, 0, 0], [1, 0, 0], [2, 0, 0]],
+                    [[0, 1, 0], [1, 1, 0], [2, 1, 0]],
+                    [[0, 2, 0], [1, 2, 0], [2, 2, 0]]]).permute(2, 0, 1)[None] / 2.
+show_images(img)
+
+# Here we `_grid_sample`, but do not change the original image. Notice how the coordinates in `grid` map to the coordiants in `img`.
+
+grid = torch.tensor([[[[-1, -1], [0, -1], [1, -1]],
+                      [[-1, 0], [0, 0], [1, 0]],
+                      [[-1, 1], [0, 1], [1, 1.]]]])
+img = _grid_sample(img, grid, align_corners=True)
+show_images(img)
+
+# Next we do a flip by manually editing the grid.
+
+grid = torch.tensor([[[1., -1], [0, -1], [-1, -1]],
+                     [[1, 0], [0, 0], [-1, 0]],
+                     [[1, 1], [0, 1], [-1, 1]]])
+img = _grid_sample(img, grid[None], align_corners=True)
+show_images(img)
+
+# Next we shift the image up by one. By drfault `_grid_sample` uses reflection padding.
+
+grid = torch.tensor([[[[-1, 0], [0, 0], [1, 0]],
+                      [[-1, 1], [0, 1], [1, 1]],
+                      [[-1, 2], [0, 2], [1, 2.]]]])
+img = _grid_sample(img, grid, align_corners=True)
+show_images(img)
+
+
+# `affine_coord` allows us to much more easily work with images, by allowing us to specify much smaller `mat`, by comparison to grids, which require us to specify values for every pixel.
 
 # +
 # export
@@ -710,6 +757,32 @@ def affine_coord(x: TensorBBox, mat=None, coord_tfm=None, sz=None, mode='nearest
 
 
 # -
+
+# Here are examples of how to use `affine_coord` on images. Including the identity or original image, a flip, and moving the image to the left.
+
+imgs = _batch_ex(3)
+identity = torch.tensor([[1, 0, 0], [0, 1, 0.]])
+flip = torch.tensor([[-1, 0, 0], [0, 1, 0.]])
+translation = torch.tensor([[1, 0, 1.], [0, 1, 0]])
+mats = torch.stack((identity, flip, translation))
+show_images(imgs.affine_coord(mats, pad_mode=PadMode.Zeros))  # Zeros easiest to see
+
+# Now you may be asking, "What is this ``mat``"? Well lets take a quick look at the identify below.
+
+imgs = _batch_ex(1)
+identity = torch.tensor([[1, 0, 0], [0, 1, 0.]])
+eye = identity[:, 0:2]
+bi = identity[:, 2:3]
+eye, bi
+
+# Notice the the tensor 'eye' is an identity matrix. If we multiply this by a single coordinate in our original image x,y we will simply the same values returned for x and y. bi is added after this multiplication. For example, lets flip the image so the left top corner is in the right top corner:
+
+t = torch.tensor([[-1, 0, 0], [0, 1, 0.]])
+eye = t[:, 0:2]
+bi = t[:, 2:3]
+xy = torch.tensor([-1., -1])  # upper left corner
+torch.sum(xy * eye, dim=1) + bi[0]  # now the upper right corner
+
 
 # export
 def _prepare_mat(x, mat):
@@ -828,15 +901,9 @@ for ax in axs.flatten():
     show_image(y[i], ctx=ax)
 
 
-# ### Flip/Dihedral GPU helpers
+# ### GPU helpers
 
-# export
-def affine_mat(*ms):
-    "Restructure length-6 vector `ms` into an affine matrix with 0,0,1 in the last line"
-    return stack([stack([ms[0], ms[1], ms[2]], dim=1),
-                  stack([ms[3], ms[4], ms[5]], dim=1),
-                  stack([t0(ms[0]), t0(ms[0]), t1(ms[0])], dim=1)], dim=1)
-
+# This section contain helpers for working with augmentations on GPUs that is used throughout the code.
 
 # export
 def mask_tensor(x, p=0.5, neutral=0., batch=False):
@@ -852,8 +919,28 @@ def mask_tensor(x, p=0.5, neutral=0., batch=False):
     return x.add_(neutral) if neutral != 0 else x
 
 
+# Lets look at some examples of how ```mask_tensor``` might be used, we are using ```clone()``` because this operation overwrites the input. For this example lets try using degrees for rotating an image.
+
+with no_random():
+    x = torch.tensor([60, -30, 90, -210, 270, -180, 120, -240, 150])
+    print('p=0.5: ', mask_tensor(x.clone()))
+    print('p=1.0: ', mask_tensor(x.clone(), p=1.))
+    print('p=0.0: ', mask_tensor(x.clone(), p=0.))
+
+# Notice how ```p``` controls how likely a value is expected to be replaced with 0, or be unchanged since a 0 degree rotation would just be the original image. `batch` acts on the entire batch instead of single elements of the batch. Now lets consider a different example, of working with brightness. Note: with brightness 0 is a completely black image.
+
+x = torch.tensor([0.6, 0.4, 0.3, 0.7, 0.4])
+print('p=0.: ', mask_tensor(x.clone(), p=0))
+print('p=0.,neutral=0.5: ', mask_tensor(x.clone(), p=0, neutral=0.5))
+
+
+# Here is would be very bad if we had a completely black image, as that is not an unchanged image. Instead we set ```neutral``` to 0.5 which is the value for an unchanged image for brightness.
+
+# ```_draw_mask``` is used to support the api of many following transformations to create ```mask_tensor```s. (```p, neutral, batch```) are passed down to ```mask_tensor```. ```def_draw``` is the **def**ault **draw** function, and what should happen if no custom user setting is provided. ```draw``` is user defined behavior and can be a function, list of floats, or a float. ```draw``` and ```def_draw``` must return a tensor.
+
 # export
 def _draw_mask(x, def_draw, draw=None, p=0.5, neutral=0., batch=False):
+    "Creates mask_tensor based on `x` with `neutral` with probability `1-p`. "
     if draw is None:
         draw = def_draw
     if callable(draw):
@@ -866,9 +953,36 @@ def _draw_mask(x, def_draw, draw=None, p=0.5, neutral=0., batch=False):
     return mask_tensor(res, p=p, neutral=neutral, batch=batch)
 
 
+# Here we use random integers from 1 to 8 for our ```def_draw```, this example is very similar to ```Dihedral```.
+
+x = torch.zeros(10, 2, 3)
+
+
+def def_draw(x):
+    x = torch.randint(1, 8, (x.size(0),))
+    return x
+
+
+with no_random():
+    print(torch.randint(1, 8, (x.size(0),)))
+with no_random():
+    print(_draw_mask(x, def_draw))
+
+# Next, there are three ways to define ```draw```, as a constant, as a list, and as a function. All of these override  ```def_draw```, so that it has no effect on the final result.
+
+with no_random():
+    print('const: ', _draw_mask(x, def_draw, draw=1))
+    print('list : ', _draw_mask(x, def_draw, draw=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]))
+    print('list : ', _draw_mask(x[0:2], def_draw, draw=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]))
+    print('funct: ', _draw_mask(x, def_draw, draw=lambda x: torch.arange(1, x.size(0) + 1)))
+    try:
+        _draw_mask(x, def_draw, draw=[1, 2])
+    except AssertionError as e:
+        print(type(e), '\n', e)
+
+# Note, when using a list it can be larger than the batch size, but it cannot be smaller than the batch size. Otherwise there would not be enough augmentations for elements of the batch.
+
 x = torch.zeros(5, 2, 3)
-
-
 def def_draw(x): return torch.randint(0, 8, (x.size(0),))
 
 
@@ -884,15 +998,59 @@ for i in range(5):
     assert (t == torch.zeros(5)).all() or (t == torch.ones(5)).all()
 
 
+# #### Flip/Dihedral GPU Helpers
+
+# `affine_mat` is used to transform the length-6 vestor into a [bs,3,3] tensor. This is used to allow us to combine affine transforms.
+
+# export
+def affine_mat(*ms):
+    "Restructure length-6 vector `ms` into an affine matrix with 0,0,1 in the last line"
+    return stack([stack([ms[0], ms[1], ms[2]], dim=1),
+                  stack([ms[3], ms[4], ms[5]], dim=1),
+                  stack([t0(ms[0]), t0(ms[0]), t1(ms[0])], dim=1)], dim=1)
+
+
+# Here is an example of how flipping an image would look using `affine_mat`.
+
+flips = torch.tensor([-1, 1, -1])
+ones = t1(flips)
+zeroes = t0(flips)
+affines = affine_mat(flips, zeroes, zeroes, zeroes, ones, zeroes)
+print(affines)
+
+# This is done so that we can combine multiple affine transformations without doing the math on the entire image. We need the matrices to be the same size, so we can do a matric multiple in order to combines affine transformations. While this is usually done on and entire batch, here is what it would look like to have multiple flip transformations for a single image. Since we flip twice we end up with an affine matrix that would simply return our original image.
+#
+# If you would like more information on how this works, see `affine_coord`.
+
+x = torch.eye(3, dtype=torch.int64)
+for affine in affines:
+    x @= affine
+    print(x)
+
+
+# `flip_mat` will generate a [bs,3,3] tensor representing our flips for a batch with probability `p`. `draw` can be used to define a function, constant, or list that defines what flips to use. If draw is a list, the length must be greater than or equal to the batch size. For `draw` 0 is the original image, or 1 is a flipped image.  `batch` will mean that the entire batch will be flipped or not.
+
 # export
 def flip_mat(x, p=0.5, draw=None, batch=False):
     "Return a random flip matrix"
     def _def_draw(x): return x.new_ones(x.size(0))
     mask = x.new_ones(x.size(0)) - 2 * _draw_mask(x, _def_draw, draw=draw, p=p, batch=batch)
-    #mask = mask_tensor(-x.new_ones(x.size(0)), p=p, neutral=1.)
     return affine_mat(mask, t0(mask), t0(mask),
                       t0(mask), t1(mask), t0(mask))
 
+
+# Below are some examples of how to use draw as a constant, list and function.
+
+with no_random():
+    x = torch.randn(2, 4, 3)
+    print('const: ', flip_mat(x, draw=1))
+    print('list : ', flip_mat(x, draw=[1, 0]))
+    print('list : ', flip_mat(x[0:2], draw=[1, 0, 1, 0, 1]))
+    print('funct: ', flip_mat(x, draw=lambda x: torch.ones(x.size(0))))
+    try:
+        flip_mat(x, draw=[1])
+    except AssertionError as e:
+        print(type(e), '\n', e)
 
 x = flip_mat(torch.randn(100, 4, 3))
 test_eq(set(x[:, 0, 0].numpy()), {-1, 1})  # might fail with probability 2*2**(-100) (picked only 1s or -1s)
@@ -909,6 +1067,8 @@ def _get_default(x, mode=None, pad_mode=None):
 
 
 # ### Flip -
+
+# Flip images,masks,points and bounding boxes horizontally. `p` is the probability of a flip being applied. `draw` can be used to define custom flip behavior.
 
 # export
 @patch
@@ -942,9 +1102,24 @@ class Flip(AffineCoordTfm):
         super().__init__(aff_fs, size=size, mode=mode, pad_mode=pad_mode, align_corners=align_corners, p=p)
 
 
+# Here are some examples of using flip. Notice that a constant `draw=1`, is effectively the same as the default settings.  Also notice the fine-tune control we can get in the third example, by setting `p=1.` and defining a custom draw.
+
+with no_random(32):
+    imgs = _batch_ex(5)
+    deflt = imgs.flip_batch()
+    const = imgs.flip_batch(draw=1)  # same as default
+    listy = imgs.flip_batch(p=1., draw=[1, 0, 1, 0, 1])  # completely manual!!!
+    funct = imgs.flip_batch(draw=lambda x: torch.ones(x.size(0)))  # same as default
+
+    show_images(deflt, titles=[1, 2, 3, 4, 5])
+    show_images(const, titles=[1, 2, 3, 4, 5])  # same above
+    show_images(listy, titles=[1, 0, 1, 0, 1])
+    show_images(funct, titles=[1, 2, 3, 4, 5])  # same as default
+
 # +
 flip = Flip(p=1.)
 t = _pnt2tensor([[1, 0], [2, 1]], (3, 3))
+
 y = flip(TensorImage(t[None, None]), split_idx=0)
 test_eq(y, _pnt2tensor([[1, 0], [0, 1]], (3, 3))[None, None])
 
@@ -991,6 +1166,8 @@ for i, ax in enumerate(axs.flatten()):
 
 
 # ### Dihedral -
+
+# Since we are working with squares and rectangles, we can think of dihedral flips as flips across the horizontal, vertical, and diagonal and their combinations. Remember though that rectangles are not symmetrical across their diagonal, so this will effectively cropping parts of rectangles.
 
 # export
 def dihedral_mat(x, p=0.5, draw=None, batch=False):
@@ -1065,9 +1242,11 @@ class DeterministicDihedral(Dihedral):
         super().__init__(p=1., draw=DeterministicDraw(list(range(8))), pad_mode=pad_mode, align_corners=align_corners)
 
 
-t = _batch_ex(8)
+# `DeterministicDihedral` guarantees that the first call will not be flipped, then the following call will be flip in a deterministic order. After all 7 possible dihedral flips the pattern will reset to the unflipped version.
+
+t = _batch_ex(10)
 dih = DeterministicDihedral()
-_, axs = plt.subplots(2, 4, figsize=(12, 6))
+_, axs = plt.subplots(2, 5, figsize=(14, 6))
 for i, ax in enumerate(axs.flatten()):
     y = dih(t)
     show_image(y[0], ctx=ax, title=f'Call {i}')
@@ -1314,11 +1493,7 @@ def lighting(x: TensorImage, func): return TensorImage(torch.sigmoid(func(logit(
 # Most lighting transforms work better in "logit space", as we do not want to blowout the image by going over maximum or minimum brightness. Taking the sigmoid of the logit allows us to get back to "linear space."
 
 x = TensorImage(torch.tensor([.01 * i for i in range(0, 101)]))
-
-
 def f_lin(x): return (2 * (x - 0.5) + 0.5).clamp(0, 1)  # blue line
-
-
 def f_log(x): return 2 * x  # red line
 
 
@@ -1865,8 +2040,6 @@ camvid = untar_data(URLs.CAMVID_TINY)
 fns = get_image_files(camvid / 'images')
 cam_fn = fns[0]
 mask_fn = camvid / 'labels' / f'{cam_fn.stem}_P{cam_fn.suffix}'
-
-
 def _cam_lbl(fn): return mask_fn
 
 
@@ -1880,8 +2053,6 @@ cam_tdl.show_batch(max_n=9, vmin=1, vmax=30)
 mnist = untar_data(URLs.MNIST_TINY)
 mnist_fn = 'images/mnist3.png'
 pnts = np.array([[0, 0], [0, 35], [28, 0], [28, 35], [9, 17]])
-
-
 def _pnt_lbl(fn) -> None: return TensorPoint.create(pnts)
 
 
@@ -1900,8 +2071,6 @@ coco_fn, bbox = coco / 'train' / images[idx], lbl_bbox[idx]
 
 
 def _coco_bb(x): return TensorBBox.create(bbox[0])
-
-
 def _coco_lbl(x): return bbox[1]
 
 
