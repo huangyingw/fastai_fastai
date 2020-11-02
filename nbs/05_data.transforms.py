@@ -753,8 +753,6 @@ train[:3], valid[:3]
 
 # +
 def open_img(fn: Path): return Image.open(fn).copy()
-
-
 def img2tensor(im: Image.Image): return TensorImage(array(im)[None])
 
 

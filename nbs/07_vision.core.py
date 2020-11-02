@@ -42,7 +42,7 @@ _all_ = ['Image', 'ToTensor']
 
 # +
 # It didn't use to be necessary to add ToTensor in all but we don't have the encodes methods defined here otherwise.
-# TODO: investigate
+#TODO: investigate
 # -
 
 # # Core vision
@@ -207,6 +207,7 @@ class PILBase(Image.Image, metaclass=BypassNewMeta):
     _bypass_type = Image.Image
     _show_args = {'cmap': 'viridis'}
     _open_args = {'mode': 'RGB'}
+
     @classmethod
     def create(cls, fn: (Path, str, Tensor, ndarray, bytes), **kwargs) -> None:
         "Open an `Image` from path `fn`"
@@ -564,8 +565,6 @@ class PointScaler(Transform):
 # > Note: This transform automatically grabs the sizes of the images it sees before a <code>TensorPoint</code> object and embeds it in them. For this to work, those images need to be before any points in the order of your final tuple. If you don't have such images, you need to embed the size of the corresponding image when creating a <code>TensorPoint</code> by passing it with `sz=...`.
 
 def _pnt_lbl(x): return TensorPoint.create(pnts)
-
-
 def _pnt_open(fn): return PILImage(PILImage.create(fn).resize((28, 35)))
 
 
@@ -637,8 +636,6 @@ def decodes(self, x: TensorBBox):
 
 # +
 def _coco_bb(x): return TensorBBox.create(bbox[0])
-
-
 def _coco_lbl(x): return bbox[1]
 
 

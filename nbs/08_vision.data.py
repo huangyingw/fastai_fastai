@@ -41,6 +41,8 @@ from fastai.torch_basics import *
 # ## Helper functions
 
 # export
+
+
 @delegates(subplots)
 def get_grid(n, nrows=None, ncols=None, add_vert=0, figsize=None, double=False, title=None, return_fig=False, **kwargs):
     "Return a grid of `n` axes, `rows` by `cols`"
@@ -284,8 +286,6 @@ show_doc(ImageDataLoaders.from_path_func)
 # Here is how to create the same `DataLoaders` on the MNIST dataset as the previous example with a `label_func`:
 
 fnames = get_image_files(path)
-
-
 def label_func(x): return x.parent.name
 
 
@@ -379,8 +379,6 @@ show_doc(SegmentationDataLoaders.from_label_func)
 # +
 path = untar_data(URLs.CAMVID_TINY)
 fnames = get_image_files(path / 'images')
-
-
 def label_func(x): return path / 'labels' / f'{x.stem}_P{x.suffix}'
 
 
