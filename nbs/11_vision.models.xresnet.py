@@ -94,35 +94,15 @@ def _xresnet(pretrained, expansion, layers, **kwargs):
 
 
 def xresnet18(pretrained=False, **kwargs): return _xresnet(pretrained, 1, [2, 2, 2, 2], **kwargs)
-
-
 def xresnet34(pretrained=False, **kwargs): return _xresnet(pretrained, 1, [3, 4, 6, 3], **kwargs)
-
-
 def xresnet50(pretrained=False, **kwargs): return _xresnet(pretrained, 4, [3, 4, 6, 3], **kwargs)
-
-
 def xresnet101(pretrained=False, **kwargs): return _xresnet(pretrained, 4, [3, 4, 23, 3], **kwargs)
-
-
 def xresnet152(pretrained=False, **kwargs): return _xresnet(pretrained, 4, [3, 8, 36, 3], **kwargs)
-
-
 def xresnet18_deep(pretrained=False, **kwargs): return _xresnet(pretrained, 1, [2, 2, 2, 2, 1, 1], **kwargs)
-
-
 def xresnet34_deep(pretrained=False, **kwargs): return _xresnet(pretrained, 1, [3, 4, 6, 3, 1, 1], **kwargs)
-
-
 def xresnet50_deep(pretrained=False, **kwargs): return _xresnet(pretrained, 4, [3, 4, 6, 3, 1, 1], **kwargs)
-
-
 def xresnet18_deeper(pretrained=False, **kwargs): return _xresnet(pretrained, 1, [2, 2, 1, 1, 1, 1, 1, 1], **kwargs)
-
-
 def xresnet34_deeper(pretrained=False, **kwargs): return _xresnet(pretrained, 1, [3, 4, 6, 3, 1, 1, 1, 1], **kwargs)
-
-
 def xresnet50_deeper(pretrained=False, **kwargs): return _xresnet(pretrained, 4, [3, 4, 6, 3, 1, 1, 1, 1], **kwargs)
 
 
@@ -140,41 +120,17 @@ g3 = [3, 8, 36, 3]
 
 # export
 def xse_resnet18(n_out=1000, pretrained=False, **kwargs): return XResNet(SEBlock, 1, g0, n_out=n_out, **se_kwargs1, **kwargs)
-
-
 def xse_resnext18(n_out=1000, pretrained=False, **kwargs): return XResNet(SEResNeXtBlock, 1, g0, n_out=n_out, **se_kwargs2, **kwargs)
-
-
 def xresnext18(n_out=1000, pretrained=False, **kwargs): return XResNet(SEResNeXtBlock, 1, g0, n_out=n_out, **se_kwargs3, **kwargs)
-
-
 def xse_resnet34(n_out=1000, pretrained=False, **kwargs): return XResNet(SEBlock, 1, g1, n_out=n_out, **se_kwargs1, **kwargs)
-
-
 def xse_resnext34(n_out=1000, pretrained=False, **kwargs): return XResNet(SEResNeXtBlock, 1, g1, n_out=n_out, **se_kwargs2, **kwargs)
-
-
 def xresnext34(n_out=1000, pretrained=False, **kwargs): return XResNet(SEResNeXtBlock, 1, g1, n_out=n_out, **se_kwargs3, **kwargs)
-
-
 def xse_resnet50(n_out=1000, pretrained=False, **kwargs): return XResNet(SEBlock, 4, g1, n_out=n_out, **se_kwargs1, **kwargs)
-
-
 def xse_resnext50(n_out=1000, pretrained=False, **kwargs): return XResNet(SEResNeXtBlock, 4, g1, n_out=n_out, **se_kwargs2, **kwargs)
-
-
 def xresnext50(n_out=1000, pretrained=False, **kwargs): return XResNet(SEResNeXtBlock, 4, g1, n_out=n_out, **se_kwargs3, **kwargs)
-
-
 def xse_resnet101(n_out=1000, pretrained=False, **kwargs): return XResNet(SEBlock, 4, g2, n_out=n_out, **se_kwargs1, **kwargs)
-
-
 def xse_resnext101(n_out=1000, pretrained=False, **kwargs): return XResNet(SEResNeXtBlock, 4, g2, n_out=n_out, **se_kwargs2, **kwargs)
-
-
 def xresnext101(n_out=1000, pretrained=False, **kwargs): return XResNet(SEResNeXtBlock, 4, g2, n_out=n_out, **se_kwargs3, **kwargs)
-
-
 def xse_resnet152(n_out=1000, pretrained=False, **kwargs): return XResNet(SEBlock, 4, g3, n_out=n_out, **se_kwargs1, **kwargs)
 
 
@@ -183,20 +139,10 @@ def xsenet154(n_out=1000, pretrained=False, **kwargs):
 
 
 def xse_resnext18_deep(n_out=1000, pretrained=False, **kwargs): return XResNet(SEResNeXtBlock, 1, g0 + [1, 1], n_out=n_out, **se_kwargs2, **kwargs)
-
-
 def xse_resnext34_deep(n_out=1000, pretrained=False, **kwargs): return XResNet(SEResNeXtBlock, 1, g1 + [1, 1], n_out=n_out, **se_kwargs2, **kwargs)
-
-
 def xse_resnext50_deep(n_out=1000, pretrained=False, **kwargs): return XResNet(SEResNeXtBlock, 4, g1 + [1, 1], n_out=n_out, **se_kwargs2, **kwargs)
-
-
 def xse_resnext18_deeper(n_out=1000, pretrained=False, **kwargs): return XResNet(SEResNeXtBlock, 1, [2, 2, 1, 1, 1, 1, 1, 1], n_out=n_out, **se_kwargs2, **kwargs)
-
-
 def xse_resnext34_deeper(n_out=1000, pretrained=False, **kwargs): return XResNet(SEResNeXtBlock, 1, [3, 4, 4, 2, 2, 1, 1, 1], n_out=n_out, **se_kwargs2, **kwargs)
-
-
 def xse_resnext50_deeper(n_out=1000, pretrained=False, **kwargs): return XResNet(SEResNeXtBlock, 4, [3, 4, 4, 2, 2, 1, 1, 1], n_out=n_out, **se_kwargs2, **kwargs)
 
 

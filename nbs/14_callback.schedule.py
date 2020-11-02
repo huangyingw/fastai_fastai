@@ -74,26 +74,14 @@ def annealer(f):
 # +
 # export
 def sched_lin(start, end, pos): return start + pos * (end - start)
-
-
 def sched_cos(start, end, pos): return start + (1 + math.cos(math.pi * (1 - pos))) * (end - start) / 2
-
-
 def sched_no(start, end, pos): return start
-
-
 def sched_exp(start, end, pos): return start * (end / start) ** pos
 
 
 def SchedLin(start, end): return _Annealer(sched_lin, start, end)
-
-
 def SchedCos(start, end): return _Annealer(sched_cos, start, end)
-
-
 def SchedNo(start, end): return _Annealer(sched_no, start, end)
-
-
 def SchedExp(start, end): return _Annealer(sched_exp, start, end)
 
 
