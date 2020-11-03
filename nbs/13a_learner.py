@@ -338,8 +338,7 @@ class Learner():
             self._with_events(self._do_fit, 'fit', CancelFitException, self._end_cleanup)
 
     def _end_cleanup(self): self.dl, self.xb, self.yb, self.pred, self.loss = None, (None,), (None,), None, None
-    def __enter__(self): self(_before_epoch)
-    return self
+    def __enter__(self): self(_before_epoch); return self
     def __exit__(self, exc_type, exc_value, tb): self(_after_epoch)
 
     def validation_context(self, cbs=None, inner=False):
