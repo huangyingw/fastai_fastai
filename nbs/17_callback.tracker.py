@@ -185,8 +185,7 @@ class EarlyStoppingCallback(TrackerCallback):
         super().__init__(monitor=monitor, comp=comp, min_delta=min_delta, reset_on_fit=reset_on_fit)
         self.patience = patience
 
-    def before_fit(self): self.wait = 0
-    super().before_fit()
+    def before_fit(self): self.wait = 0; super().before_fit()
 
     def after_epoch(self):
         "Compare the value monitored to its best score and maybe stop training."
@@ -220,6 +219,7 @@ test_eq(len(learn.recorder.values), 3)
 @log_args
 class SaveModelCallback(TrackerCallback):
     "A `TrackerCallback` that saves the model's best during training and loads it at the end."
+    _only_train_loop = True
 
     def __init__(self, monitor='valid_loss', comp=None, min_delta=0., fname='model', every_epoch=False, with_opt=False, reset_on_fit=True):
         super().__init__(monitor=monitor, comp=comp, min_delta=min_delta, reset_on_fit=reset_on_fit)
@@ -268,8 +268,7 @@ class ReduceLROnPlateau(TrackerCallback):
         super().__init__(monitor=monitor, comp=comp, min_delta=min_delta, reset_on_fit=reset_on_fit)
         self.patience, self.factor, self.min_lr = patience, factor, min_lr
 
-    def before_fit(self): self.wait = 0
-    super().before_fit()
+    def before_fit(self): self.wait = 0; super().before_fit()
 
     def after_epoch(self):
         "Compare the value monitored to its best score and reduce LR by `factor` if no improvement."
