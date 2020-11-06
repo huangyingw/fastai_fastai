@@ -14,7 +14,9 @@ pip install nbdev --upgrade
 #pip install -e ".[dev]"
 #pip install -e "fastai[dev]"
 
-conda install -c conda-forge \
+conda install -c conda-forge -y \
+    autoflake \
     graphviz \
+    ipynb-py-convert \
     jupytext \
     neovim
