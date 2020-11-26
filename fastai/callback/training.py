@@ -20,11 +20,12 @@ class ShortEpochCallback(Callback):
 class GradientAccumulation(Callback):
     "Accumulate gradients before updating weights"
     toward_end,run_before=True,MixedPrecision
-
     def __init__(self, n_acc=32): store_attr('n_acc')
     def before_fit(self): self.count=0
-
+    def after_loss(self):
+        if self.training: self.learn.loss /= self.n_acc/find_bs(self.learn.yb)
     def after_backward(self):
+        self.learn.loss *= self.n_acc/find_bs(self.learn.yb) #so correct loss is logged
         self.count += find_bs(self.learn.yb)
         if self.count < self.n_acc: raise CancelBatchException() #skip weight update
         else: self.count=0
@@ -44,6 +45,7 @@ def set_bn_eval(m:nn.Module, use_eval=True)->None:
         set_bn_eval(l)
 
 class BnFreeze(Callback):
+    run_after=TrainEvalCallback
     "Freeze moving average statistics in all non-trainable batchnorm layers."
-    def before_epoch(self):
+    def before_train(self):
         set_bn_eval(self.model)
