@@ -14,15 +14,15 @@ def reduce_loss(loss, reduction='mean'):
 # Cell
 class MixHandler(Callback):
     "A handler class for implementing `MixUp` style scheduling"
-    run_after,run_valid = [Normalize],False
+    run_valid = False
     def __init__(self, alpha=0.5):
         self.distrib = Beta(tensor(alpha), tensor(alpha))
 
-    def before_fit(self):
+    def before_train(self):
         self.stack_y = getattr(self.learn.loss_func, 'y_int', False)
-        if self.stack_y: self.old_lf,self.learn.loss_func = self.learn.loss_func,self.loss_func
+        if self.stack_y: self.old_lf,self.learn.loss_func = self.learn.loss_func,self.lf
 
-    def after_fit(self):
+    def after_train(self):
         if self.stack_y: self.learn.loss_func = self.old_lf
 
     def lf(self, pred, *yb):
@@ -32,10 +32,9 @@ class MixHandler(Callback):
         return reduce_loss(loss, getattr(self.old_lf, 'reduction', 'mean'))
 
 # Cell
-@delegates(MixHandler)
 class MixUp(MixHandler):
     "Implementation of https://arxiv.org/abs/1710.09412"
-    def __init__(self, alpha=.4, **kwargs): super().__init__(alpha, **kwargs)
+    def __init__(self, alpha=.4): super().__init__(alpha)
     def before_batch(self):
         lam = self.distrib.sample((self.y.size(0),)).squeeze().to(self.x.device)
         lam = torch.stack([lam, 1-lam], 1)
@@ -50,10 +49,9 @@ class MixUp(MixHandler):
             self.learn.yb = tuple(L(self.yb1,self.yb).map_zip(torch.lerp,weight=unsqueeze(self.lam, n=ny_dims-1)))
 
 # Cell
-@delegates(MixHandler)
 class CutMix(MixHandler):
     "Implementation of `https://arxiv.org/abs/1905.04899`"
-    def __init__(self, alpha=1., **kwargs): super().__init__(alpha, **kwargs)
+    def __init__(self, alpha=1.): super().__init__(alpha)
     def before_batch(self):
         bs, _, H, W = self.x.size()
         self.lam = self.distrib.sample((1,))

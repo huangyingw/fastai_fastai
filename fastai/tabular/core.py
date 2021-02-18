@@ -26,13 +26,12 @@ def add_datepart(df, field_name, prefix=None, drop=True, time=False):
     make_date(df, field_name)
     field = df[field_name]
     prefix = ifnone(prefix, re.sub('[Dd]ate$', '', field_name))
-    attr = ['Year', 'Month', 'Day', 'Dayofweek', 'Dayofyear', 'Is_month_end', 'Is_month_start',
+    attr = ['Year', 'Month', 'Week', 'Day', 'Dayofweek', 'Dayofyear', 'Is_month_end', 'Is_month_start',
             'Is_quarter_end', 'Is_quarter_start', 'Is_year_end', 'Is_year_start']
     if time: attr = attr + ['Hour', 'Minute', 'Second']
-    for n in attr: df[prefix + n] = getattr(field.dt, n.lower())
     # Pandas removed `dt.week` in v1.1.10
-    week = field.dt.isocalendar().week if hasattr(field.dt, 'isocalendar') else field.dt.week
-    df.insert(3, prefix+'Week', week)
+    week = field.dt.isocalendar().week.astype(field.dt.day.dtype) if hasattr(field.dt, 'isocalendar') else field.dt.week
+    for n in attr: df[prefix + n] = getattr(field.dt, n.lower()) if n != 'Week' else week
     mask = ~field.isna()
     df[prefix + 'Elapsed'] = np.where(mask,field.values.astype(np.int64) // 10 ** 9,None)
     if drop: df.drop(field_name, axis=1, inplace=True)
@@ -85,7 +84,9 @@ def cont_cat_split(df, max_card=20, dep_var=None):
     cont_names, cat_names = [], []
     for label in df:
         if label in L(dep_var): continue
-        if df[label].dtype == int and df[label].unique().shape[0] > max_card or df[label].dtype == float:
+        if ((pd.api.types.is_integer_dtype(df[label].dtype) and
+            df[label].unique().shape[0] > max_card) or
+            pd.api.types.is_float_dtype(df[label].dtype)):
             cont_names.append(label)
         else: cat_names.append(label)
     return cont_names, cat_names
@@ -237,7 +238,7 @@ class Categorify(TabularProc):
     "Transform the categorical variables to something similar to `pd.Categorical`"
     order = 1
     def setups(self, to):
-        store_attr(classes={n:CategoryMap(to.iloc[:,n].items, add_na=(n in to.cat_names)) for n in to.cat_names})
+        store_attr(classes={n:CategoryMap(to.iloc[:,n].items, add_na=(n in to.cat_names)) for n in to.cat_names}, but='to')
 
     def encodes(self, to): to.transform(to.cat_names, partial(_apply_cats, self.classes, 1))
     def decodes(self, to): to.transform(to.cat_names, partial(_decode_cats, self.classes))
@@ -267,7 +268,7 @@ def decodes(self, to:Tabular):
 # Internal Cell
 @Normalize
 def setups(self, to:Tabular):
-    store_attr(means=dict(getattr(to, 'train', to).conts.mean()),
+    store_attr(but='to', means=dict(getattr(to, 'train', to).conts.mean()),
                stds=dict(getattr(to, 'train', to).conts.std(ddof=0)+1e-7))
     return self(to)
 
@@ -297,7 +298,7 @@ class FillMissing(TabularProc):
 
     def setups(self, dsets):
         missing = pd.isnull(dsets.conts).any()
-        store_attr(na_dict={n:self.fill_strategy(dsets[n], self.fill_vals[n])
+        store_attr(but='to', na_dict={n:self.fill_strategy(dsets[n], self.fill_vals[n])
                             for n in missing[missing].keys()})
         self.fill_strategy = self.fill_strategy.__name__
 
@@ -344,12 +345,12 @@ def show_batch(x: Tabular, y, its, max_n=10, ctxs=None):
 @delegates()
 class TabDataLoader(TfmdDL):
     "A transformed `DataLoader` for Tabular data"
-    do_item = noops
     def __init__(self, dataset, bs=16, shuffle=False, after_batch=None, num_workers=0, **kwargs):
         if after_batch is None: after_batch = L(TransformBlock().batch_tfms)+ReadTabBatch(dataset)
         super().__init__(dataset, bs=bs, shuffle=shuffle, after_batch=after_batch, num_workers=num_workers, **kwargs)
 
     def create_batch(self, b): return self.dataset.iloc[b]
+    def do_item(self, s):      return 0 if s is None else s
 
 TabularPandas._dl_type = TabDataLoader
 

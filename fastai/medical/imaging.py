@@ -27,7 +27,7 @@ except: pass
 # Cell
 def get_dicom_files(path, recurse=True, folders=None):
     "Get dicom files in `path` recursively, only in `folders`, if specified."
-    return get_files(path, extensions=[".dcm"], recurse=recurse, folders=folders)
+    return get_files(path, extensions=[".dcm",".dicom"], recurse=recurse, folders=folders)
 
 # Cell
 @patch
@@ -381,7 +381,7 @@ def as_dict(self:DcmDataset, px_summ=True, window=dicom_windows.brain):
     return res
 
 # Cell
-def _dcm2dict(fn, **kwargs): return fn.dcmread().as_dict(**kwargs)
+def _dcm2dict(fn, window=dicom_windows.brain, **kwargs): return fn.dcmread().as_dict(window=window, **kwargs)
 
 # Cell
 @delegates(parallel)

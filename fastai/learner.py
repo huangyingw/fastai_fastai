@@ -2,8 +2,8 @@
 
 __all__ = ['CancelStepException', 'CancelFitException', 'CancelEpochException', 'CancelTrainException',
            'CancelValidException', 'CancelBatchException', 'replacing_yield', 'mk_metric', 'save_model', 'load_model',
-           'Learner', 'before_batch_cb', 'to_detach_from_dl', 'Metric', 'AvgMetric', 'AvgLoss', 'AvgSmoothLoss',
-           'ValueMetric', 'Recorder', 'load_learner']
+           'Learner', 'before_batch_cb', 'load_learner', 'to_detach_from_dl', 'Metric', 'AvgMetric', 'AvgLoss',
+           'AvgSmoothLoss', 'ValueMetric', 'Recorder']
 
 # Cell
 from .data.all import *
@@ -27,6 +27,7 @@ def replacing_yield(o, attr, val):
 # Cell
 def mk_metric(m):
     "Convert `m` to an `AvgMetric`, unless it's already a `Metric`"
+    if isinstance(m,type): m = m()
     return m if isinstance(m, Metric) else AvgMetric(m)
 
 # Cell
@@ -79,7 +80,8 @@ _loop = ['Start Fit', 'before_fit', 'Start Epoch Loop', 'before_epoch', 'Start T
          'after_cancel_fit', 'after_fit']
 
 # Cell
-class Learner():
+class Learner(GetAttr):
+    _default='model'
     def __init__(self, dls, model, loss_func=None, opt_func=Adam, lr=defaults.lr, splitter=trainable_params, cbs=None,
                  metrics=None, path=None, model_dir='models', wd=None, wd_bn_bias=False, train_bn=True,
                  moms=(0.95,0.85,0.95)):
@@ -90,7 +92,7 @@ class Learner():
         self.dls,self.model = dls,model
         store_attr(but='dls,model,cbs')
         self.training,self.create_mbar,self.logger,self.opt,self.cbs = False,True,print,None,L()
-        self.add_cbs([(cb() if isinstance(cb, type) else cb) for cb in L(defaults.callbacks)+L(cbs)])
+        self.add_cbs(L(defaults.callbacks)+L(cbs))
         self("after_create")
 
     @property
@@ -99,11 +101,17 @@ class Learner():
     def metrics(self,v): self._metrics = L(v).map(mk_metric)
 
     def _grab_cbs(self, cb_cls): return L(cb for cb in self.cbs if isinstance(cb, cb_cls))
-    def add_cbs(self, cbs): L(cbs).map(self.add_cb)
-    def remove_cbs(self, cbs): L(cbs).map(self.remove_cb)
+
+    def add_cbs(self, cbs):
+        L(cbs).map(self.add_cb)
+        return self
+
+    def remove_cbs(self, cbs):
+        L(cbs).map(self.remove_cb)
+        return self
+
     def add_cb(self, cb):
-        old = getattr(self, cb.name, None)
-        assert not old or isinstance(old, type(cb)), f"self.{cb.name} already registered"
+        if isinstance(cb, type): cb = cb()
         cb.learn = self
         setattr(self, cb.name, cb)
         self.cbs.append(cb)
@@ -115,6 +123,7 @@ class Learner():
             cb.learn = None
             if hasattr(self, cb.name): delattr(self, cb.name)
             if cb in self.cbs: self.cbs.remove(cb)
+        return self
 
     @contextmanager
     def added_cbs(self, cbs):
@@ -128,13 +137,12 @@ class Learner():
         try: yield self
         finally: self.add_cbs(cbs)
 
-    def ordered_cbs(self, event): return [cb for cb in sort_by_run(self.cbs) if hasattr(cb, event)]
-
+    def ordered_cbs(self, event): return [cb for cb in self.cbs.sorted('order') if hasattr(cb, event)]
     def __call__(self, event_name): L(event_name).map(self._call_one)
 
     def _call_one(self, event_name):
-        assert hasattr(event, event_name), event_name
-        [cb(event_name) for cb in sort_by_run(self.cbs)]
+        if not hasattr(event, event_name): raise Exception(f'missing {event_name}')
+        for cb in self.cbs.sorted('order'): cb(event_name)
 
     def _bn_bias_state(self, with_bias): return norm_bias_params(self.model, with_bias).map(self.opt.state)
     def create_opt(self):
@@ -149,9 +157,9 @@ class Learner():
         self.xb,self.yb = b[:i],b[i:]
 
     def _with_events(self, f, event_type, ex, final=noop):
-        try:       self(f'before_{event_type}')       ;f()
+        try: self(f'before_{event_type}');  f()
         except ex: self(f'after_cancel_{event_type}')
-        finally:   self(f'after_{event_type}')        ;final()
+        self(f'after_{event_type}');  final()
 
     def all_batches(self):
         self.n_iter = len(self.dl)
@@ -277,20 +285,6 @@ class Learner():
         if hasattr(self.loss_func, 'reduction'): return replacing_yield(self.loss_func, 'reduction', 'none')
         else: return replacing_yield(self, 'loss_func', partial(self.loss_func, reduction='none'))
 
-    @delegates(save_model)
-    def save(self, file, **kwargs):
-        file = join_path_file(file, self.path/self.model_dir, ext='.pth')
-        save_model(file, self.model, getattr(self,'opt',None), **kwargs)
-        return file
-
-    @delegates(load_model)
-    def load(self, file, with_opt=True, device=None, **kwargs):
-        if device is None and hasattr(self.dls, 'device'): device = self.dls.device
-        if self.opt is None: self.create_opt()
-        file = join_path_file(file, self.path/self.model_dir, ext='.pth')
-        load_model(file, self.model, self.opt, with_opt=with_opt, device=device, **kwargs)
-        return self
-
     def to_detach(self,b,cpu=True,gather=True):
         return self.dl.to_detach(b,cpu,gather) if hasattr(getattr(self,'dl',None),'to_detach') else to_detach(b,cpu,gather)
 
@@ -318,8 +312,6 @@ add_docs(Learner, "Group together a `model`, some `dls` and a `loss_func` to han
     no_logging="Context manager to temporarily remove `logger`",
     no_mbar="Context manager to temporarily prevent the master progress bar from being created",
     loss_not_reduced="A context manager to evaluate `loss_func` with reduction set to none.",
-    save="Save model and optimizer state (if `with_opt`) to `self.path/self.model_dir/file`",
-    load="Load model and optimizer state (if `with_opt`) from `self.path/self.model_dir/file` using `device`",
     to_detach="Calls `to_detach` if `self.dl` provides a `.to_detach` function otherwise calls global `to_detach`",
     __call__="Call `event_name` for all `Callback`s in `self.cbs`"
 )
@@ -336,6 +328,53 @@ def _before_batch_cb(f, self):
 def before_batch_cb(f):
     "Shortcut for creating a Callback on the `before_batch` event, which takes and returns `xb,yb`"
     return Callback(before_batch=partial(_before_batch_cb, f))
+
+# Cell
+@patch
+@delegates(save_model)
+def save(self:Learner, file, **kwargs):
+    "Save model and optimizer state (if `with_opt`) to `self.path/self.model_dir/file`"
+    file = join_path_file(file, self.path/self.model_dir, ext='.pth')
+    save_model(file, self.model, getattr(self,'opt',None), **kwargs)
+    return file
+
+# Cell
+@patch
+@delegates(load_model)
+def load(self:Learner, file, device=None, **kwargs):
+    "Load model and optimizer state (if `with_opt`) from `self.path/self.model_dir/file` using `device`"
+    if device is None and hasattr(self.dls, 'device'): device = self.dls.device
+    if self.opt is None: self.create_opt()
+    file = join_path_file(file, self.path/self.model_dir, ext='.pth')
+    load_model(file, self.model, self.opt, device=device, **kwargs)
+    return self
+
+# Cell
+@patch
+def export(self:Learner, fname='export.pkl', pickle_module=pickle, pickle_protocol=2):
+    "Export the content of `self` without the items and the optimizer state for inference"
+    if rank_distrib(): return # don't export if child proc
+    self._end_cleanup()
+    old_dbunch = self.dls
+    self.dls = self.dls.new_empty()
+    state = self.opt.state_dict() if self.opt is not None else None
+    self.opt = None
+    with warnings.catch_warnings():
+        #To avoid the warning that come from PyTorch about model not being checked
+        warnings.simplefilter("ignore")
+        torch.save(self, self.path/fname, pickle_module=pickle_module, pickle_protocol=pickle_protocol)
+    self.create_opt()
+    if state is not None: self.opt.load_state_dict(state)
+    self.dls = old_dbunch
+
+# Cell
+def load_learner(fname, cpu=True, pickle_module=pickle):
+    "Load a `Learner` object in `fname`, optionally putting it on the `cpu`"
+    distrib_barrier()
+    res = torch.load(fname, map_location='cpu' if cpu else None, pickle_module=pickle_module)
+    if hasattr(res, 'to_fp32'): res = res.to_fp32()
+    if cpu: res.dls.cpu()
+    return res
 
 # Cell
 def to_detach_from_dl(learn:(Learner,NoneType),b:object,cpu:bool=True,gather:bool=True):
@@ -429,7 +468,7 @@ def _maybe_item(t):
 class Recorder(Callback):
     "Callback that registers statistics (lr, loss and metrics) during training"
     _stateattrs=('lrs','iters','losses','values')
-    remove_on_fetch,run_after = True,TrainEvalCallback
+    remove_on_fetch,order = True,50
 
     def __init__(self, add_time=True, train_metrics=False, valid_metrics=True, beta=0.98):
         store_attr('add_time,train_metrics,valid_metrics')
@@ -525,33 +564,6 @@ add_docs(Learner,
          freeze_to="Freeze parameter groups up to `n`",
          freeze="Freeze up to last parameter group",
          unfreeze="Unfreeze the entire model")
-
-# Cell
-@patch
-def export(self:Learner, fname='export.pkl', pickle_module=pickle, pickle_protocol=2):
-    "Export the content of `self` without the items and the optimizer state for inference"
-    if rank_distrib(): return # don't export if child proc
-    self._end_cleanup()
-    old_dbunch = self.dls
-    self.dls = self.dls.new_empty()
-    state = self.opt.state_dict() if self.opt is not None else None
-    self.opt = None
-    with warnings.catch_warnings():
-        #To avoid the warning that come from PyTorch about model not being checked
-        warnings.simplefilter("ignore")
-        torch.save(self, self.path/fname, pickle_module=pickle_module, pickle_protocol=pickle_protocol)
-    self.create_opt()
-    if state is not None: self.opt.load_state_dict(state)
-    self.dls = old_dbunch
-
-# Cell
-def load_learner(fname, cpu=True, pickle_module=pickle):
-    "Load a `Learner` object in `fname`, optionally putting it on the `cpu`"
-    distrib_barrier()
-    res = torch.load(fname, map_location='cpu' if cpu else None, pickle_module=pickle_module)
-    if hasattr(res, 'to_fp32'): res = res.to_fp32()
-    if cpu: res.dls.cpu()
-    return res
 
 # Cell
 @patch
