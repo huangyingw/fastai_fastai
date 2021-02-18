@@ -2,6 +2,29 @@
 
 <!-- do not remove -->
 
+## 2.1.10
+
+### New Features
+
+- Small DICOM segmentation dataset ([#3034](https://github.com/fastai/fastai/pull/3034)), thanks to [@moritzschwyzer](https://github.com/moritzschwyzer)
+
+### Bugs Squashed
+
+- `NoneType object has no attribute append` in fastbook chapter 6 BIWI example ([#3091](https://github.com/fastai/fastai/issues/3091))
+
+
+## 2.1.9
+
+### New Features
+
+- Refactor MixUp and CutMix into MixHandler ([#3037](https://github.com/fastai/fastai/pull/3037)), thanks to [@muellerzr](https://github.com/muellerzr)
+  - Refactors into a general MixHandler class, with MixUp and CutMix simply implementing a `before_batch` to perform the data augmentation. See `fastai.callback.mixup`
+
+### Bugs Squashed
+
+- Gradient Accumulation + Mixed Precision shows artificially high training loss ([#3048](https://github.com/fastai/fastai/issues/3048))
+
+
 ## 2.1.8
 
 ### New Features
