@@ -119,7 +119,7 @@ test_eq(tst(x), x + 5)
 @module(full=False)
 def Flatten(self, x):
     "Flatten `x` to a single dimension, e.g. at end of a model. `full` for rank-1 tensor"
-    return x.view(-1) if self.full else x.view(x.size(0), -1)
+    return TensorBase(x.view(-1) if self.full else x.view(x.size(0), -1))
 
 
 tst = Flatten()
@@ -606,18 +606,19 @@ def trunc_normal_(x, mean=0., std=1.):
 class Embedding(nn.Embedding):
     "Embedding layer with truncated normal initialization"
 
-    def __init__(self, ni, nf):
+    def __init__(self, ni, nf, std=0.01):
         super().__init__(ni, nf)
-        trunc_normal_(self.weight.data, std=0.01)
+        trunc_normal_(self.weight.data, std=std)
 
 
-# Truncated normal initialization bounds the distribution to avoid large value. For a given standard deviation `std`, the bounds are roughly `-std`, `std`.
+# Truncated normal initialization bounds the distribution to avoid large value. For a given standard deviation `std`, the bounds are roughly `-2*std`, `2*std`.
 
-tst = Embedding(10, 30)
-assert tst.weight.min() > -0.02
-assert tst.weight.max() < 0.02
+std = 0.02
+tst = Embedding(10, 30, std)
+assert tst.weight.min() > -2 * std
+assert tst.weight.max() < 2 * std
 test_close(tst.weight.mean(), 0, 1e-2)
-test_close(tst.weight.std(), 0.01, 0.1)
+test_close(tst.weight.std(), std, 0.1)
 
 
 # ## Self attention
@@ -820,7 +821,7 @@ class SequentialEx(Module):
             res.orig = x
             nres = l(res)
             # We have to remove res.orig to avoid hanging refs and therefore memory leaks
-            res.orig = None
+            res.orig, nres.orig = None, None
             res = nres
         return res
 
@@ -846,6 +847,10 @@ x = torch.randn(32, 16, 8, 8)
 y = res_block(x)
 test_eq(y.shape, [32, 16, 8, 8])
 test_eq(y, x + res_block[1](res_block[0](x)))
+
+x = TensorBase(torch.randn(32, 16, 8, 8))
+y = res_block(x)
+test_is(y.orig, None)
 
 
 # ## Concat
@@ -1101,9 +1106,10 @@ assert isinstance(children[1], ParameterModule)
 test_eq(children[1].val, tst.a)
 
 
-# +
+# -
+
 # export
-def _has_children(m: nn.Module):
+def has_children(m):
     try:
         next(m.children())
     except StopIteration:
@@ -1111,23 +1117,18 @@ def _has_children(m: nn.Module):
     return True
 
 
-nn.Module.has_children = property(_has_children)
-
-
-# -
-
 class A(Module):
     pass
 
 
-assert not A().has_children
-assert TstModule().has_children
+assert not has_children(A())
+assert has_children(TstModule())
 
 
 # export
 def flatten_model(m):
     "Return the list of all submodules and parameters of `m`"
-    return sum(map(flatten_model, children_and_parameters(m)), []) if m.has_children else [m]
+    return sum(map(flatten_model, children_and_parameters(m)), []) if has_children(m) else [m]
 
 
 tst = nn.Sequential(TstModule(), TstModule())

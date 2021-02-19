@@ -364,35 +364,55 @@ def ImageTupleBlock(): return TransformBlock(type_tfms=ImageTuple.create, batch_
 
 # To gather our data with the data block API we will use the following functions:
 
+splits_files = [files[splits[i]] for i in range(2)]
+splits_sets = mapped(set, splits_files)
+
+
+def get_split(f):
+    for i, s in enumerate(splits_sets):
+        if f in s:
+            return i
+    raise ValueError(f'File {f} is not presented in any split.')
+
+
+splbl2files = [{l: [f for f in s if label_func(f) == l] for l in labels} for s in splits_sets]
+
+
+def splitter(items):
+    def get_split_files(i): return [j for j, (f1, f2, same) in enumerate(items) if get_split(f1) == i]
+    return get_split_files(0), get_split_files(1)
+
+
 def draw_other(f):
     same = random.random() < 0.5
     cls = label_func(f)
+    split = get_split(f)
     if not same:
         cls = random.choice(L(l for l in labels if l != cls))
-    return random.choice(lbl2files[cls]), same
+    return random.choice(splbl2files[split][cls]), same
 
 
-def get_tuple_files(path):
-    files = get_image_files(path)
-    return [[f, *draw_other(f)] for f in files]
+def get_tuples(files): return [[f, *draw_other(f)] for f in files]
 
 
 # And we are ready to define our block:
 
 def get_x(t): return t[:2]
+
+
 def get_y(t): return t[2]
 
 
 siamese = DataBlock(
     blocks=(ImageTupleBlock, CategoryBlock),
-    get_items=get_tuple_files,
+    get_items=get_tuples,
     get_x=get_x, get_y=get_y,
-    splitter=RandomSplitter(),
+    splitter=splitter,
     item_tfms=Resize(224),
     batch_tfms=[Normalize.from_stats(*imagenet_stats)]
 )
 
-dls = siamese.dataloaders(path / "images", path=path)
+dls = siamese.dataloaders(files)
 
 # We can check the types of the elements in one batch with the `explode_types` method. Here we have a tuple with one `ImageTuple` of two `TensorImage`s and one `TensorCategory`. The transform properly kept the types of everything even after collating the samples together!
 
@@ -417,8 +437,6 @@ def show_batch(x: ImageTuple, y, samples, ctxs=None, max_n=6, nrows=None, ncols=
 # As a sidenote, `x`and `y` are not actually used (all that needs to be shown is in the `samples` list). They are only passed along for type-dispatching because they carry the types of our inputs and targets.
 #
 # We can now have a look:
-
-b = dls.one_batch()
 
 dls.show_batch()
 
@@ -454,7 +472,7 @@ encoder[-1]
 
 # We also need to define the number of outputs of our head `n_out`, in our case it's 2: One for predicting both images are from the same class, and the other, to predict the contrary.
 
-head = create_head(512 * 4, 2, ps=0.5)
+head = create_head(512 * 2, 2, ps=0.5)
 model = SiameseModel(encoder, head)
 
 # Let's have a look at the generated head:

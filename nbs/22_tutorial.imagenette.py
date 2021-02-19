@@ -470,3 +470,5 @@ learn.lr_find()
 learn.fit_one_cycle(5, 5e-3)
 
 # Like label smoothing, this is a callback that provides more regularization, so you need to run more epochs before seeing any benefit. Also, our simple implementation does not have all the tricks of the fastai's implementation, so make sure to check the official one in `callback.mixup`!
+
+# ### fin -

@@ -43,7 +43,7 @@ from fastai.data.all import *
 # export
 def dropout_mask(x, sz, p):
     "Return a dropout mask of the same type as `x`, size `sz`, with probability `p` to cancel an element."
-    return x.new(*sz).bernoulli_(1 - p).div_(1 - p)
+    return x.new_empty(*sz).bernoulli_(1 - p).div_(1 - p)
 
 
 t = dropout_mask(torch.randn(3, 4), [4, 3], 0.25)
@@ -108,7 +108,7 @@ class WeightDropout(Module):
         with warnings.catch_warnings():
             # To avoid the warning that comes because the weights aren't flattened.
             warnings.simplefilter("ignore", category=UserWarning)
-            return self.module.forward(*args)
+            return self.module(*args)
 
     def reset(self):
         for layer in self.layer_names:

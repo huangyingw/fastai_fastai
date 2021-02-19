@@ -93,6 +93,11 @@ learn.fine_tune(8)
 
 learn.show_results(max_n=6, figsize=(7, 8))
 
+# Or we can plot the `k` instances that contributed the most to the validation loss by using the `SegmentationInterpretation` class.
+
+interp = SegmentationInterpretation.from_learner(learn)
+interp.plot_top_losses(k=2)
+
 # ## Natural language processing
 
 # Here is all of the code necessary to train a model that can classify the sentiment of a movie review better than anything that existed in the world just five years ago:

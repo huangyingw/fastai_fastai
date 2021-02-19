@@ -225,7 +225,6 @@ assert (0 <= out).all() and (out <= 5).all()
 # The following function lets us quickly create a `Learner` for collaborative filtering from the data.
 
 # export
-@log_args(to_return=True, but_as=Learner.__init__)
 @delegates(Learner.__init__)
 def collab_learner(dls, n_factors=50, use_nn=False, emb_szs=None, layers=None, config=None, y_range=None, loss_func=None, **kwargs):
     "Create a Learner for collaborative filtering on `dls`."

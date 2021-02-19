@@ -42,7 +42,7 @@ _all_ = ['Image', 'ToTensor']
 
 # +
 # It didn't use to be necessary to add ToTensor in all but we don't have the encodes methods defined here otherwise.
-#TODO: investigate
+# TODO: investigate
 # -
 
 # # Core vision
@@ -207,7 +207,6 @@ class PILBase(Image.Image, metaclass=BypassNewMeta):
     _bypass_type = Image.Image
     _show_args = {'cmap': 'viridis'}
     _open_args = {'mode': 'RGB'}
-
     @classmethod
     def create(cls, fn: (Path, str, Tensor, ndarray, bytes), **kwargs) -> None:
         "Open an `Image` from path `fn`"
@@ -301,7 +300,7 @@ class AddMaskCodes(Transform):
 
     def decodes(self, o: TensorMask):
         if self.codes is not None:
-            o._meta = {'codes': self.codes}
+            o.codes = self.codes
         return o
 
 
@@ -542,16 +541,12 @@ class PointScaler(Transform):
         self.sz = [x.shape[-1], x.shape[-2]] if isinstance(x, Tensor) else x.size
         return x
 
-    def _get_sz(self, x):
-        sz = x.get_meta('img_size')
-        assert sz is not None or self.sz is not None, "Size could not be inferred, pass it in the init of your TensorPoint with `img_size=...`"
-        return sz if self.sz is None else self.sz
+    def _get_sz(self, x): return getattr(x, 'img_size') if self.sz is None else self.sz
 
     def setups(self, dl):
-        its = dl.do_item(0)
-        for t in its:
-            if isinstance(t, TensorPoint):
-                self.c = t.numel()
+        res = first(dl.do_item(None), risinstance(TensorPoint))
+        if res is not None:
+            self.c = res.numel()
 
     def encodes(self, x: (PILBase, TensorImageBase)): return self._grab_sz(x)
     def decodes(self, x: (PILBase, TensorImageBase)): return self._grab_sz(x)
@@ -565,6 +560,8 @@ class PointScaler(Transform):
 # > Note: This transform automatically grabs the sizes of the images it sees before a <code>TensorPoint</code> object and embeds it in them. For this to work, those images need to be before any points in the order of your final tuple. If you don't have such images, you need to embed the size of the corresponding image when creating a <code>TensorPoint</code> by passing it with `sz=...`.
 
 def _pnt_lbl(x): return TensorPoint.create(pnts)
+
+
 def _pnt_open(fn): return PILImage(PILImage.create(fn).resize((28, 35)))
 
 
@@ -579,7 +576,7 @@ tfm = PointScaler()
 tfm.as_item = False
 x, y = tfm(pnt_tds[0])
 test_eq(tfm.sz, x.size)
-test_eq(y.get_meta('img_size'), x.size)
+test_eq(y.img_size, x.size)
 
 x, y = pnt_tdl.one_batch()
 # Scaling and flipping properly done
@@ -592,7 +589,7 @@ test_eq(type(x), TensorImage)
 test_eq(type(y), TensorPoint)
 test_eq(type(a), TensorImage)
 test_eq(type(b), TensorPoint)
-test_eq(b.get_meta('img_size'), (28, 35))  # Automatically picked the size of the input
+test_eq(b.img_size, (28, 35))  # Automatically picked the size of the input
 
 pnt_tdl.show_batch(figsize=(2, 2), cmap='Greys')
 
@@ -636,6 +633,8 @@ def decodes(self, x: TensorBBox):
 
 # +
 def _coco_bb(x): return TensorBBox.create(bbox[0])
+
+
 def _coco_lbl(x): return bbox[1]
 
 
@@ -649,7 +648,7 @@ tfm = PointScaler()
 tfm.as_item = False
 x, y, z = tfm(coco_tds[0])
 test_eq(tfm.sz, x.size)
-test_eq(y.get_meta('img_size'), x.size)
+test_eq(y.img_size, x.size)
 
 Categorize(add_na=True)
 
@@ -673,7 +672,7 @@ test_eq(type(z), TensorMultiCategory)
 test_eq(type(a), TensorImage)
 test_eq(type(b), TensorBBox)
 test_eq(type(c), LabeledBBox)
-test_eq(y.get_meta('img_size'), (128, 128))
+test_eq(y.img_size, (128, 128))
 # -
 
 coco_tdl.show_batch()
@@ -699,7 +698,7 @@ test_eq(type(z), TensorBBox)
 test_eq(type(a), TensorImage)
 test_eq(type(b), MultiCategory)
 test_eq(type(c), LabeledBBox)
-test_eq(z.get_meta('img_size'), (128, 128))
+test_eq(z.img_size, (128, 128))
 # -
 
 # # Export -

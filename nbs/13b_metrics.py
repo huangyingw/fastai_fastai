@@ -45,13 +45,11 @@ from fastai.data.all import *
 
 # export
 
-# export
-
 
 # export torch_core
 def flatten_check(inp, targ):
     "Check that `out` and `targ` have the same number of elements and flatten them."
-    inp, targ = inp.contiguous().view(-1), targ.contiguous().view(-1)
+    inp, targ = TensorBase(inp.contiguous()).view(-1), TensorBase(targ.contiguous()).view(-1)
     test_eq(len(inp), len(targ))
     return inp, targ
 
@@ -753,6 +751,60 @@ inter = (pred * x2).float().sum().item()
 union = (pred + x2).float().sum().item()
 test_eq(compute_val(Dice(), x1, x2), 2 * inter / union)
 
+
+# export
+class DiceMulti(Metric):
+    "Averaged Dice metric (Macro F1) for multiclass target in segmentation"
+
+    def __init__(self, axis=1): self.axis = axis
+    def reset(self): self.inter, self.union = {}, {}
+
+    def accumulate(self, learn):
+        pred, targ = flatten_check(learn.pred.argmax(dim=self.axis), learn.y)
+        for c in range(learn.pred.shape[self.axis]):
+            p = torch.where(pred == c, 1, 0)
+            t = torch.where(targ == c, 1, 0)
+            c_inter = (p * t).float().sum().item()
+            c_union = (p + t).float().sum().item()
+            if c in self.inter:
+                self.inter[c] += c_inter
+                self.union[c] += c_union
+            else:
+                self.inter[c] = c_inter
+                self.union[c] = c_union
+
+    @property
+    def value(self):
+        binary_dice_scores = np.array([])
+        for c in self.inter:
+            binary_dice_scores = np.append(binary_dice_scores, 2. * self.inter[c] / self.union[c] if self.union[c] > 0 else np.nan)
+        return np.nanmean(binary_dice_scores)
+
+
+# The DiceMulti method implements the "Averaged F1: arithmetic mean over harmonic means" described in this publication: https://arxiv.org/pdf/1911.03347.pdf
+
+# +
+x1a = torch.ones(20, 1, 1, 1)
+x1b = torch.clone(x1a) * 0.5
+x1c = torch.clone(x1a) * 0.3
+x1 = torch.cat((x1a, x1b, x1c), dim=1)   # Prediction: 20xClass0
+x2 = torch.zeros(20, 1, 1)              # Target: 20xClass0
+test_eq(compute_val(DiceMulti(), x1, x2), 1.)
+
+x2 = torch.ones(20, 1, 1)               # Target: 20xClass1
+test_eq(compute_val(DiceMulti(), x1, x2), 0.)
+
+x2a = torch.zeros(10, 1, 1)
+x2b = torch.ones(5, 1, 1)
+x2c = torch.ones(5, 1, 1) * 2
+x2 = torch.cat((x2a, x2b, x2c), dim=0)   # Target: 10xClass0, 5xClass1, 5xClass2
+dice1 = (2 * 10) / (2 * 10 + 10)              # Dice: 2*TP/(2*TP+FP+FN)
+dice2 = 0
+dice3 = 0
+test_eq(compute_val(DiceMulti(), x1, x2), (dice1 + dice2 + dice3) / 3)
+
+
+# -
 
 # export
 class JaccardCoeff(Dice):

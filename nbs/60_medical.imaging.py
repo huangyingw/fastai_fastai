@@ -58,7 +58,7 @@ except:
 matplotlib.rcParams['image.cmap'] = 'bone'
 
 # export
-_all_ = ['DcmDataset', 'DcmTag', 'DcmMultiValue', 'dcmread', 'get_dicom_files']
+_all_ = ['DcmDataset', 'DcmTag', 'DcmMultiValue', 'dcmread', 'get_dicom_files', 'DicomSegmentationDataLoaders']
 
 
 # ## Patching
@@ -66,7 +66,7 @@ _all_ = ['DcmDataset', 'DcmTag', 'DcmMultiValue', 'dcmread', 'get_dicom_files']
 # export
 def get_dicom_files(path, recurse=True, folders=None):
     "Get dicom files in `path` recursively, only in `folders`, if specified."
-    return get_files(path, extensions=[".dcm"], recurse=recurse, folders=folders)
+    return get_files(path, extensions=[".dcm", ".dicom"], recurse=recurse, folders=folders)
 
 
 # export
@@ -95,14 +95,13 @@ class TensorDicom(TensorImage):
 # export
 class PILDicom(PILBase):
     _open_args, _tensor_cls, _show_args = {}, TensorDicom, TensorDicom._show_args
-
     @classmethod
     def create(cls, fn: (Path, str, bytes), mode=None) -> None:
         "Open a `DICOM file` from path `fn` or bytes `fn` and load it as a `PIL Image`"
         if isinstance(fn, bytes):
             im = Image.fromarray(pydicom.dcmread(pydicom.filebase.DicomBytesIO(fn)).pixel_array)
         if isinstance(fn, (Path, str)):
-            im = Image.fromarray(dcmread(fn).pixel_array)
+            im = Image.fromarray(pydicom.dcmread(fn).pixel_array)
         im.load()
         im = im._new(im.im)
         return cls(im.convert(mode) if mode else im)
@@ -111,11 +110,12 @@ class PILDicom(PILBase):
 PILDicom._tensor_cls = TensorDicom
 
 
-# +
-# #export
-# @patch
-# def png16read(self:Path): return array(Image.open(self), dtype=np.uint16)
 # -
+
+# export
+@patch
+def png16read(self: Path): return array(Image.open(self), dtype=np.uint16)
+
 
 # export
 @patch(as_prop=True)
@@ -124,7 +124,7 @@ def pixels(self: DcmDataset):
     return tensor(self.pixel_array.astype(np.float32))
 
 
-pixels(dcm)
+dcm.pixels
 
 
 # export
@@ -140,13 +140,11 @@ def scaled_px(self: DcmDataset):
 
 # `scaled_px` uses `RescaleSlope` and `RescaleIntercept` values to correctly scale the image so that they represent the correct tissue densities. You can observe what `scaled_px` does by viewing the the pixel distribution of a dicom image.  The histogram below displays the current pixel distribution which shows a pixel range between `-1133` and `2545`.
 
-px = dcm.pixels.flatten()
-plt.hist(px, color='c')
+plt.hist(dcm.pixels.flatten().numpy())
 
 # As shown in the `header` of the test image the `RescaleIntercept` has a value of `-1024.0` and a `RescaleSlope` value of `1.0`. `scaled_px` will scale the pixels by these values.
 
-scaled_px_values = scaled_px(dcm)
-plt.hist(scaled_px_values.flatten(), color='c')
+plt.hist(dcm.scaled_px.flatten().numpy())
 
 
 # The pixel distibution is now between `-2157` and `1521`
@@ -176,18 +174,18 @@ def freqhist_bins(self: Tensor, n_bins=100):
 
 # For example with `n_bins` set to `1` this means the bins will be split into 3 distinct bins (the beginning, the end and the number of bins specified by `n_bins`.
 
-t_bin = pixels(dcm).freqhist_bins(n_bins=1)
+t_bin = dcm.pixels.freqhist_bins(n_bins=1)
 t_bin
 
-plt.hist(t_bin, bins=t_bin, color='c')
+plt.hist(t_bin.numpy(), bins=t_bin, color='c')
 plt.plot(t_bin, torch.linspace(0, 1, len(t_bin)))
 
 # with `n_bins` at 100
 
-t_bin = pixels(dcm).freqhist_bins(n_bins=100)
+t_bin = dcm.pixels.freqhist_bins(n_bins=100)
 t_bin
 
-plt.hist(t_bin, bins=t_bin, color='c')
+plt.hist(t_bin.numpy(), bins=t_bin, color='c')
 plt.plot(t_bin, torch.linspace(0, 1, len(t_bin)))
 
 
@@ -218,12 +216,12 @@ def hist_scaled(self: Tensor, brks=None):
 
 # The test image has pixel values that range between `-1000` and `2500`
 
-_ = plt.hist(pixels(dcm), bins=100)
+plt.hist(dcm.pixels.flatten().numpy(), bins=100)
 
 # `hist_scaled` provides a way of scaling the input pixel values to between `0` and `1`
 
-tensor_hists = pixels(dcm).hist_scaled()
-_ = plt.hist(tensor_hists, bins=100)
+tensor_hists = dcm.pixels.hist_scaled()
+plt.hist(tensor_hists.flatten().numpy(), bins=100)
 
 
 # export
@@ -326,7 +324,6 @@ dcm.show(cmap=plt.cm.gist_ncar, figsize=(6, 6))
 
 # export
 @patch
-@delegates(show_image, show_images)
 def show(self: DcmDataset, frames=1, scale=True, cmap=plt.cm.bone, min_px=-1100, max_px=None, **kwargs):
     "Adds functionality to view dicom images where each file may have more than 1 frame"
     px = (self.windowed(*scale) if isinstance(scale, tuple)
@@ -576,7 +573,7 @@ def zoom(self: DcmDataset, ratio):
     "Zoom image by specified ratio"
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
-        self.pixel_array = ndimage.zoom(self.pixel_array, ratio)
+        self.set_pixels(ndimage.zoom(self.pixel_array, ratio))
 
 
 # Check to see the current size of the dicom image
@@ -673,7 +670,7 @@ dcm.as_dict(px_summ=True, window=dicom_windows.brain)
 
 
 # export
-def _dcm2dict(fn, **kwargs): return fn.dcmread().as_dict(**kwargs)
+def _dcm2dict(fn, window=dicom_windows.brain, **kwargs): return fn.dcmread().as_dict(window=window, **kwargs)
 
 
 # export
@@ -688,9 +685,38 @@ pd.DataFrame.from_dicoms = classmethod(_from_dicoms)
 
 pneumothorax_source = untar_data(URLs.SIIM_SMALL)
 items = get_dicom_files(pneumothorax_source, recurse=True, folders='train')
+dicom_dataframe = pd.DataFrame.from_dicoms(items, window=dicom_windows.brain)
+dicom_dataframe.head(2).T.tail(5)
 
-dicom_dataframe = pd.DataFrame.from_dicoms(items)
-dicom_dataframe.head(1)
+
+# export
+class DicomSegmentationDataLoaders(DataLoaders):
+    "Basic wrapper around DICOM `DataLoaders` with factory methods for segmentation problems"
+    @classmethod
+    @delegates(DataLoaders.from_dblock)
+    def from_label_func(cls, path, fnames, label_func, valid_pct=0.2, seed=None, codes=None, item_tfms=None, batch_tfms=None, **kwargs):
+        "Create from list of `fnames` in `path`s with `label_func`."
+        dblock = DataBlock(blocks=(ImageBlock(cls=PILDicom), MaskBlock(codes=codes)),
+                           splitter=RandomSplitter(valid_pct, seed=seed),
+                           get_y=label_func,
+                           item_tfms=item_tfms,
+                           batch_tfms=batch_tfms)
+        res = cls.from_dblock(dblock, fnames, path=path, **kwargs)
+        return res
+
+
+# +
+path = untar_data(URLs.TCGA_SMALL)
+codes = np.loadtxt(path / 'codes.txt', dtype=str)
+fnames = get_dicom_files(path / 'dicoms')
+
+
+def label_func(o): return path / 'labels' / f'{o.stem}.png'
+
+
+dls = DicomSegmentationDataLoaders.from_label_func(path, fnames, label_func, codes=codes, bs=4)
+dls.show_batch()
+# -
 
 # ## Export -
 

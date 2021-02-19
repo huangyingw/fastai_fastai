@@ -60,13 +60,13 @@ codes
 size = src_size // 2
 bs = 8
 
-valid_fnames = (path / 'valid.txt').read().split('\n')
+valid_fnames = (path / 'valid.txt').readlines()
 
 
 # export
 def FileSplitter(fname):
     "Split `items` depending on the value of `mask`."
-    valid = Path(fname).read().split('\n')
+    valid = Path(fname).readlines()
     def _func(x): return x.name in valid
     def _inner(o, **kwargs): return FuncSplitter(_func)(o)
     return _inner

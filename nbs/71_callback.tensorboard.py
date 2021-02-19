@@ -9,15 +9,17 @@
 #       format_version: '1.5'
 #       jupytext_version: 1.6.0
 #   kernelspec:
-#     display_name: fastaidev
+#     display_name: Python 3
 #     language: python
-#     name: fastaidev
+#     name: python3
 # ---
 
 # hide
 # skip
 from fastai.vision.core import TensorPoint, TensorBBox
 from nbdev.export import *
+from transformers import AutoTokenizer, AutoModel
+from transformers import GPT2LMHeadModel, GPT2TokenizerFast
 from fastai.text.all import TextDataLoaders, text_classifier_learner, AWD_LSTM
 from fastai.vision.all import Resize, RandomSubsetSplitter, aug_transforms, cnn_learner, resnet18
 from fastai.vision.data import *
@@ -118,10 +120,10 @@ from fastai.basics import *
 
 # export
 class TensorBoardBaseCallback(Callback):
+    order = Recorder.order + 1
     "Base class for tensorboard callbacks"
 
-    def __init__(self):
-        self.run_projector = False
+    def __init__(self): self.run_projector = False
 
     def after_pred(self):
         if self.run_projector:
@@ -143,14 +145,12 @@ class TensorBoardBaseCallback(Callback):
         self.h = hook_output(self.learn.model[1][1] if not self.layer else self.layer)
         self.feat = {}
 
-    def _setup_writer(self):
-        self.writer = SummaryWriter(log_dir=self.log_dir)
+    def _setup_writer(self): self.writer = SummaryWriter(log_dir=self.log_dir)
+    def __del__(self): self._remove()
 
     def _remove(self):
         if getattr(self, 'h', None):
             self.h.remove()
-
-    def __del__(self): self._remove()
 
 
 # export
@@ -299,10 +299,8 @@ def tensorboard_log(x: TensorImage, y: (TensorImageBase, TensorPoint, TensorBBox
     writer.add_figure('Sample results', fig, step)
 
 
-# ## Test
-
-
 # ## TensorBoardCallback
+
 
 # +
 path = untar_data(URLs.PETS)
@@ -386,41 +384,29 @@ projector_word_embeddings(learn, limit=1000, log_dir=Path.home() / 'tmp' / 'runs
 # #### GPT2
 
 # +
-#from transformers import GPT2LMHeadModel, GPT2TokenizerFast
 
-# +
-#tokenizer = GPT2TokenizerFast.from_pretrained('gpt2')
-#model = GPT2LMHeadModel.from_pretrained('gpt2')
+tokenizer = GPT2TokenizerFast.from_pretrained('gpt2')
+model = GPT2LMHeadModel.from_pretrained('gpt2')
+layer = model.transformer.wte
+vocab_dict = tokenizer.get_vocab()
+vocab = [k for k, v in sorted(vocab_dict.items(), key=lambda x: x[1])]
 
-# +
-#layer = model.transformer.wte
-
-# +
-#vocab_dict = tokenizer.get_vocab()
-#vocab = [k for k, v in sorted(vocab_dict.items(), key=lambda x: x[1])]
-
-# +
-#projector_word_embeddings(layer=layer, vocab=vocab, limit=2000, log_dir=Path.home()/'tmp'/'runs'/'transformers')
+projector_word_embeddings(layer=layer, vocab=vocab, limit=2000, log_dir=Path.home() / 'tmp' / 'runs' / 'transformers')
 # -
 
 # #### BERT
 
 # +
-#from transformers import AutoTokenizer, AutoModel
 
-# +
-#tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-#model = AutoModel.from_pretrained("bert-base-uncased")
+tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+model = AutoModel.from_pretrained("bert-base-uncased")
 
-# +
-#layer = model.embeddings.word_embeddings
+layer = model.embeddings.word_embeddings
 
-# +
-#vocab_dict = tokenizer.get_vocab()
-#vocab = [k for k, v in sorted(vocab_dict.items(), key=lambda x: x[1])]
+vocab_dict = tokenizer.get_vocab()
+vocab = [k for k, v in sorted(vocab_dict.items(), key=lambda x: x[1])]
 
-# +
-#projector_word_embeddings(layer=layer, vocab=vocab, limit=2000, start=2000, log_dir=Path.home()/'tmp'/'runs'/'transformers')
+projector_word_embeddings(layer=layer, vocab=vocab, limit=2000, start=2000, log_dir=Path.home() / 'tmp' / 'runs' / 'transformers')
 # -
 
 # ### Validate results in tensorboard

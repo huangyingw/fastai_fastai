@@ -43,7 +43,6 @@ from fastai.basics import *
 # ## Main functions
 
 # export
-@log_args(but_as=Learner.__init__)
 class TabularLearner(Learner):
     "`Learner` for tabular data"
 
@@ -63,7 +62,6 @@ show_doc(TabularLearner, title_level=3)
 # It works exactly as a normal `Learner`, the only difference is that it implements a `predict` method specific to work on a row of data.
 
 # export
-@log_args(to_return=True, but_as=Learner.__init__)
 @delegates(Learner.__init__)
 def tabular_learner(dls, layers=None, emb_szs=None, config=None, n_out=None, y_range=None, **kwargs):
     "Get a `Learner` using `dls`, with `metrics`, including a `TabularModel` created using the remaining params."

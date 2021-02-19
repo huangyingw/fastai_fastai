@@ -21,6 +21,7 @@ from nbdev.export import notebook2script
 from fastai.vision.core import *
 from PIL import Image
 from nbdev.showdoc import *
+import posixpath
 from sklearn.model_selection import train_test_split
 from fastai.data.external import *
 from fastai.data.load import *
@@ -33,6 +34,7 @@ from fastai.torch_basics import *
 
 # +
 # export
+
 
 # -
 
@@ -137,7 +139,7 @@ test_eq(len(t), len(get_image_files(path, recurse=True, folders='train')))
 
 # export
 def ImageGetter(suf='', recurse=True, folders=None):
-    "Create `get_image_files` partial function that searches path suffix `suf` and passes along `kwargs`, only in `folders`, if specified."
+    "Create `get_image_files` partial that searches suffix `suf` and passes along `kwargs`, only in `folders`, if specified"
     def _inner(o, recurse=recurse, folders=folders): return get_image_files(o / suf, recurse, folders)
     return _inner
 
@@ -190,7 +192,7 @@ def RandomSplitter(valid_pct=0.2, seed=None):
     def _inner(o):
         if seed is not None:
             torch.manual_seed(seed)
-        rand_idx = L(int(i) for i in torch.randperm(len(o)))
+        rand_idx = L(list(torch.randperm(len(o)).numpy()))
         cut = int(valid_pct * len(o))
         return rand_idx[cut:], rand_idx[:cut]
     return _inner
@@ -212,7 +214,8 @@ test_eq(f(src)[0], trn)
 def TrainTestSplitter(test_size=0.2, random_state=None, stratify=None, train_size=None, shuffle=True):
     "Split `items` into random train and test subsets using sklearn train_test_split utility."
     def _inner(o, **kwargs):
-        train, valid = train_test_split(range(len(o)), test_size=test_size, random_state=random_state, stratify=stratify, train_size=train_size, shuffle=shuffle)
+        train, valid = train_test_split(range_of(o), test_size=test_size, random_state=random_state,
+                                        stratify=stratify, train_size=train_size, shuffle=shuffle)
         return L(train), L(valid)
     return _inner
 
@@ -353,7 +356,7 @@ def RandomSubsetSplitter(train_sz, valid_sz, seed=None):
         if seed is not None:
             torch.manual_seed(seed)
         train_len, valid_len = int(len(o) * train_sz), int(len(o) * valid_sz)
-        idxs = L(int(i) for i in torch.randperm(len(o)))
+        idxs = L(list(torch.randperm(len(o)).numpy()))
         return idxs[:train_len], idxs[train_len:train_len + valid_len]
     return _inner
 
@@ -395,7 +398,8 @@ class RegexLabeller():
         self.matcher = self.pat.match if match else self.pat.search
 
     def __call__(self, o):
-        res = self.matcher(str(o))
+        o = str(o).replace(os.sep, posixpath.sep)
+        res = self.matcher(o)
         assert res, f'Failed to find "{self.pat}" in "{o}"'
         return res.group(1)
 
@@ -404,8 +408,13 @@ class RegexLabeller():
 #
 # For instance, here's an example the replicates the previous `parent_label` results.
 
-f = RegexLabeller(fr'{os.path.sep}(\d){os.path.sep}')
+f = RegexLabeller(fr'{posixpath.sep}(\d){posixpath.sep}')
 test_eq(f(fnames[0]), '3')
+[f(o) for o in fnames]
+
+f = RegexLabeller(fr'{posixpath.sep}(\d){posixpath.sep}')
+a1 = Path(fnames[0]).as_posix()
+test_eq(f(a1), '3')
 [f(o) for o in fnames]
 
 f = RegexLabeller(r'(\d*)', match=True)
@@ -422,7 +431,7 @@ class ColReader(DisplayedTransform):
         self.cols = L(cols)
 
     def _do_one(self, r, c):
-        o = r[c] if isinstance(c, int) else r[c] if c == 'name' else getattr(r, c)
+        o = r[c] if isinstance(c, int) else r[c] if c == 'name' or c == 'cat' else getattr(r, c)
         if len(self.pref) == 0 and len(self.suff) == 0 and self.label_delim is None:
             return o
         if self.label_delim is None:
@@ -753,6 +762,8 @@ train[:3], valid[:3]
 
 # +
 def open_img(fn: Path): return Image.open(fn).copy()
+
+
 def img2tensor(im: Image.Image): return TensorImage(array(im)[None])
 
 
@@ -870,8 +881,7 @@ assert x.std() > 0.9, x.std()
 tdl.show_batch((x, y))
 
 # hide
-# TODO: make the above check a proper test
-x, y = torch.add(x, 0), torch.add(y, 0)  # Lose type of tensors (to emulate predictions)
+x, y = cast(x, Tensor), cast(y, Tensor)  # Lose type of tensors (to emulate predictions)
 test_ne(type(x), TensorImage)
 tdl.show_batch((x, y), figsize=(1, 1))  # Check that types are put back by dl.
 

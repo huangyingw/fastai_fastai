@@ -41,7 +41,8 @@ import tempfile
 # > [Track fastai experiments](https://ui.neptune.ai/o/neptune-ai/org/fastai-integration) like in this example project.
 
 # ## Registration
-# 1. Create **free** account: [neptune.ai/register](https://neptune.ai/register).
+
+# 1. Create account: [neptune.ai/register](https://neptune.ai/register).
 # 2. Export API token to the environment variable (more help [here](https://docs.neptune.ai/python-api/tutorials/get-started.html#copy-api-token)). In your terminal run:
 #
 # ```
@@ -49,8 +50,9 @@ import tempfile
 # ```
 #
 # or append the command above to your `~/.bashrc` or `~/.bash_profile` files (**recommended**). More help is [here](https://docs.neptune.ai/python-api/tutorials/get-started.html#copy-api-token).
-#
+
 # ## Installation
+
 # 1. You need to install neptune-client. In your terminal run:
 #
 # ```
@@ -69,6 +71,7 @@ import tempfile
 # ```
 
 # ## How to use?
+
 # Key is to call `neptune.init()` before you create `Learner()` and call `neptune_create_experiment()`, before you fit the model.
 #
 # Use `NeptuneCallback` in your `Learner`, like this:
@@ -92,6 +95,7 @@ import tempfile
 # export
 class NeptuneCallback(Callback):
     "Log losses, metrics, model weights, model architecture summary to neptune"
+    order = Recorder.order + 1
 
     def __init__(self, log_model_weights=True, keep_experiment_running=False):
         self.log_model_weights = log_model_weights
@@ -148,12 +152,10 @@ class NeptuneCallback(Callback):
         if self.log_model_weights and hasattr(self.learn, 'save_model'):
             if self.learn.save_model.every_epoch:
                 _file = join_path_file(f'{self.learn.save_model.fname}_{self.learn.save_model.epoch}',
-                                       self.learn.path / self.learn.model_dir,
-                                       ext='.pth')
+                                       self.learn.path / self.learn.model_dir, ext='.pth')
             else:
                 _file = join_path_file(self.learn.save_model.fname,
-                                       self.learn.path / self.learn.model_dir,
-                                       ext='.pth')
+                                       self.learn.path / self.learn.model_dir, ext='.pth')
             self.experiment.log_artifact(_file)
 
     def after_fit(self):

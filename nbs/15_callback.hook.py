@@ -17,8 +17,8 @@
 # hide
 # skip
 from nbdev.export import notebook2script
-import math
 from fastai.test_utils import *
+import math
 from nbdev.showdoc import *
 from fastai.basics import *
 ! [-e / content] & & pip install - Uqq fastai  # upgrade fastai on colab
@@ -44,6 +44,8 @@ from fastai.basics import *
 
 # +
 tst_model = nn.Linear(5, 3)
+
+
 def example_forward_hook(m, i, o): print(m, i, o)
 
 
@@ -436,25 +438,38 @@ test_eq(total_params(nn.LSTM(20, 10, 2)), (4 * (20 * 10 + 10) + 3 * 4 * (10 * 10
 # export
 def layer_info(learn, *xb):
     "Return layer infos of `model` on `xb` (only support batch first inputs)"
-    def _track(m, i, o): return (m.__class__.__name__,) + total_params(m) + (apply(lambda x: x.shape, o),)
+    def _track(m, i, o):
+        params, trainable, shape = '', '', ''
+        same = any((x[0].shape[1:] == x[1].shape for x in zip(i, o)))
+        if hasattr(m, 'weight'):  # non activation layer
+            params, trainable = total_params(m)
+            shape = apply(lambda x: x.shape, o)
+        return (type(m).__name__, params, trainable, shape, same)
+
     with Hooks(flatten_model(learn.model), _track) as h:
         batch = apply(lambda o: o[:1], xb)
         train_only_cbs = [cb for cb in learn.cbs if hasattr(cb, '_only_train_loop')]
-        with learn.removed_cbs(train_only_cbs) as l:
-            with l:
-                r = l.get_preds(dl=[batch], inner=True, reorder=False)
+        with learn.removed_cbs(train_only_cbs), learn.no_logging(), learn as l:
+            r = l.get_preds(dl=[batch], inner=True, reorder=False)
         return h.stored
 
+
+# The output of `_track` is expected to be a `type`, the number of parameters, the shape of the layer, whether it is trainable, what layer group it belongs to, and whether or not the size changed. There are three potential groups that can show:
+# * A non-activation layer (Linear, Conv, etc)
+# * An activation layer
+# * A pooling layer
+#
+# Depending on which only part of the output is really returned, otherwise it is `''`. For non-activation layers everything is returned. Activation layers only return a name and `False` for `same`. Pooling layers will return the name, the new shape, and `False` for `same`
 
 def _m(): return nn.Sequential(nn.Linear(1, 50), nn.ReLU(), nn.BatchNorm1d(50), nn.Linear(50, 1))
 
 
 sample_input = torch.randn((16, 1))
 test_eq(layer_info(synth_learner(model=_m()), sample_input), [
-    ('Linear', 100, True, [1, 50]),
-    ('ReLU', 0, False, [1, 50]),
-    ('BatchNorm1d', 100, True, [1, 50]),
-    ('Linear', 51, True, [1, 1])
+    ('Linear', 100, True, [1, 50], False),
+    ('ReLU', '', '', '', True),
+    ('BatchNorm1d', 100, True, [1, 50], True),
+    ('Linear', 51, True, [1, 1], False)
 ])
 
 
@@ -475,10 +490,10 @@ sample_inputs = (torch.randn(16, 1), torch.randn(16, 1))
 learn = synth_learner(model=_2InpModel())
 learn.dls.n_inp = 2
 test_eq(layer_info(learn, *sample_inputs), [
-    ('Linear', 150, True, [1, 50]),
-    ('ReLU', 0, False, [1, 50]),
-    ('BatchNorm1d', 100, True, [1, 50]),
-    ('Linear', 51, True, [1, 1])
+    ('Linear', 150, True, [1, 50], False),
+    ('ReLU', '', '', '', True),
+    ('BatchNorm1d', 100, True, [1, 50], True),
+    ('Linear', 51, True, [1, 1], False)
 ])
 
 
@@ -486,7 +501,7 @@ test_eq(layer_info(learn, *sample_inputs), [
 
 # export
 def _print_shapes(o, bs):
-    if isinstance(o, torch.Size):
+    if isinstance(o, (torch.Size, tuple)):
         return ' x '.join([str(bs)] + [str(t) for t in o[1:]])
     else:
         return str([_print_shapes(x, bs) for x in o])
@@ -499,22 +514,30 @@ def module_summary(learn, *xb):
     #  thus are not counted inside the summary
     # TODO: find a way to have them counted in param number somehow
     infos = layer_info(learn, *xb)
-    n, bs = 64, find_bs(xb)
+    n, bs = 76, find_bs(xb)
     inp_sz = _print_shapes(apply(lambda x: x.shape, xb), bs)
-    res = f"{learn.model.__class__.__name__} (Input shape: {inp_sz})\n"
+    res = f"{type(learn.model).__name__} (Input shape: {inp_sz})\n"
     res += "=" * n + "\n"
     res += f"{'Layer (type)':<20} {'Output Shape':<20} {'Param #':<10} {'Trainable':<10}\n"
-    res += "=" * n + "\n"
-    ps, trn_ps = 0, 0
+    res += "=" * n
+    ps, trn_ps, j = 0, 0, 0
     infos = [o for o in infos if o is not None]  # see comment in previous cell
-    for typ, np, trn, sz in infos:
+    prev_sz = None
+    for typ, np, trn, sz, chnged in infos:
         if sz is None:
             continue
-        ps += np
-        if trn:
-            trn_ps += np
-        res += f"{typ:<20} {_print_shapes(sz, bs)[:19]:<20} {np:<10,} {str(trn):<10}\n"
-        res += "_" * n + "\n"
+        if j == 0:
+            res += f'\n{"":<20} {_print_shapes(sz, bs)[:19]:<20}'  # to avoid a double line at the top
+        if not chnged and not prev_sz == sz and j > 0:
+            res += "\n" + "_" * n + "\n" + f'{"":<20} {_print_shapes(sz, bs)[:19]:<20}'
+        j = 1
+        res += f"\n{typ:<20} {'':<20} {np:<10} {str(trn):<10}"
+        if np != '':
+            ps += np
+            if trn:
+                trn_ps += np
+        prev_sz = sz
+    res += "\n" + "_" * n + "\n"
     res += f"\nTotal params: {ps:,}\n"
     res += f"Total trainable params: {trn_ps:,}\n"
     res += f"Total non-trainable params: {ps - trn_ps:,}\n\n"
@@ -530,7 +553,7 @@ def summary(self: Learner):
     res += f"Optimizer used: {self.opt_func}\nLoss function: {self.loss_func}\n\n"
     if self.opt is not None:
         res += f"Model " + ("unfrozen\n\n" if self.opt.frozen_idx == 0 else f"frozen up to parameter group #{self.opt.frozen_idx}\n\n")
-    res += "Callbacks:\n" + '\n'.join(f"  - {cb}" for cb in sort_by_run(self.cbs))
+    res += "Callbacks:\n" + '\n'.join(f"  - {cb}" for cb in self.cbs.sorted('order'))
     return PrettyString(res)
 
 
@@ -568,7 +591,7 @@ learn.summary()  # Output Shape should be (50, 16, 256), (1, 16, 256)
 @delegates()
 class ActivationStats(HookCallback):
     "Callback that record the mean and std of activations."
-    run_before = TrainEvalCallback
+    order = -20
 
     def __init__(self, with_hist=False, **kwargs):
         super().__init__(**kwargs)
@@ -642,8 +665,8 @@ learn.fit(1)
 
 learn.activation_stats.stats
 
-# The first line contains the means of the outputs of the model for each batch in the training set, the second line their standard deviations.
 
+# The first line contains the means of the outputs of the model for each batch in the training set, the second line their standard deviations.
 
 # +
 def test_every(n_tr, every):

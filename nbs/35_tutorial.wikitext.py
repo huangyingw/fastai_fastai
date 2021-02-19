@@ -44,8 +44,6 @@ df_all = pd.concat([df_train, df_valid])
 
 df_all.head()
 
-df_train.iloc[-1].values
-
 # We could tokenize it based on spaces to compare (as is usually done) but here we'll use the standard fastai tokenizer.
 
 splits = [list(range_of(df_train)), list(range(len(df_train), len(df_all)))]
@@ -55,7 +53,7 @@ dsets = Datasets(df_all, [tfms], splits=splits, dl_type=LMDataLoader)
 bs, sl = 104, 72
 dls = dsets.dataloaders(bs=bs, seq_len=sl)
 
-dls.show_batch()
+dls.show_batch(max_n=3)
 
 # ## Model
 
@@ -64,13 +62,11 @@ config.update({'input_p': 0.6, 'output_p': 0.4, 'weight_p': 0.5, 'embed_p': 0.1,
 model = get_language_model(AWD_LSTM, len(dls.vocab), config=config)
 
 opt_func = partial(Adam, wd=0.1, eps=1e-7)
-cbs = [MixedPrecision(clip=0.1), ModelResetter, RNNRegularizer(alpha=2, beta=1)]
+cbs = [MixedPrecision(), GradientClip(0.1)] + rnn_cbs(alpha=2, beta=1)
 
 learn = Learner(dls, model, loss_func=CrossEntropyLossFlat(), opt_func=opt_func, cbs=cbs, metrics=[accuracy, Perplexity()])
 
 learn.fit_one_cycle(1, 5e-3, moms=(0.8, 0.7, 0.8), div=10)
-
-# Full training
 
 # +
 #learn.fit_one_cycle(90, 5e-3, moms=(0.8,0.7,0.8), div=10)

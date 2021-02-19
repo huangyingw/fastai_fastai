@@ -105,7 +105,7 @@ TensorTypes = (TensorImage, TensorMask, TensorPoint, TensorBBox)
 
 # -
 
-# export
+# exporti
 @patch
 def flip_lr(x: Image.Image): return x.transpose(Image.FLIP_LEFT_RIGHT)
 @patch
@@ -116,6 +116,7 @@ def flip_lr(x: TensorPoint): return TensorPoint(_neg_axis(x.clone(), 0))
 def flip_lr(x: TensorBBox): return TensorBBox(TensorPoint(x.view(-1, 2)).flip_lr().view(-1, 4))
 
 
+# hide
 _, axs = subplots(1, 2)
 show_image(img, ctx=axs[0], title='original')
 show_image(img.flip_lr(), ctx=axs[1], title='flipped')
@@ -152,15 +153,15 @@ class FlipItem(RandTransform):
     def encodes(self, x: (Image.Image, *TensorTypes)): return x.flip_lr()
 
 
+# Calls `@patch`'d `flip_lr` behaviors for `Image`, `TensorImage`, `TensorPoint`, and `TensorBBox`
+
 tflip = FlipItem(p=1.)
 test_eq(tflip(bbox, split_idx=0), tensor([[1., 0., 0., 1]]) - 1)
 
 
-# export
+# exporti
 @patch
 def dihedral(x: PILImage, k): return x if k == 0 else x.transpose(k - 1)
-
-
 @patch
 def dihedral(x: TensorImage, k):
     if k in [1, 3, 4, 7]:
@@ -187,10 +188,8 @@ def dihedral(x: TensorPoint, k):
 def dihedral(x: TensorBBox, k):
     pnts = TensorPoint(x.view(-1, 2)).dihedral(k).view(-1, 2, 2)
     tl, br = pnts.min(dim=1)[0], pnts.max(dim=1)[0]
-    return TensorBBox(torch.cat([tl, br], dim=1), img_size=x.get_meta('img_size'))
+    return TensorBBox(torch.cat([tl, br], dim=1), img_size=x.img_size)
 
-
-# By default each of the 8 dihedral transformations (including noop) have the same probability of being picked when the transform is applied. You can customize this behavior by passing your own `draw` function. To force a specific flip, you can also pass an integer between 0 and 7.
 
 # export
 class DihedralItem(RandTransform):
@@ -202,6 +201,10 @@ class DihedralItem(RandTransform):
 
     def encodes(self, x: (Image.Image, *TensorTypes)): return x.dihedral(self.k)
 
+
+# Calls `@patch`'d `dihedral` behaviors for `PILImage`, `TensorImage`, `TensorPoint`, and `TensorBBox`
+#
+# By default each of the 8 dihedral transformations (including noop) have the same probability of being picked when the transform is applied. You can customize this behavior by passing your own `draw` function. To force a specific flip, you can also pass an integer between 0 and 7.
 
 _, axs = subplots(2, 4)
 for ax in axs.flatten():
@@ -231,7 +234,7 @@ _all_ = ['PadMode']
 show_doc(PadMode, title_level=3)
 
 # +
-# export
+# exporti
 _pad_modes = {'zeros': 'constant', 'border': 'edge', 'reflection': 'reflect'}
 
 
@@ -262,7 +265,7 @@ def _do_crop_pad(x: TensorPoint, sz, tl, orig_sz, pad_mode=PadMode.Zeros, resize
 @patch
 def _do_crop_pad(x: TensorBBox, sz, tl, orig_sz, pad_mode=PadMode.Zeros, resize_to=None, **kwargs):
     bbox = TensorPoint._do_crop_pad(x.view(-1, 2), sz, tl, orig_sz, pad_mode, resize_to).view(-1, 4)
-    return TensorBBox(bbox, img_size=x.get_meta('img_size'))
+    return TensorBBox(bbox, img_size=x.img_size)
 
 
 @patch
@@ -288,36 +291,10 @@ def _get_sz(x):
         x = x[0]
     if not isinstance(x, Tensor):
         return fastuple(x.size)
-    return fastuple(x.get_meta('img_size', x.get_meta('sz', (x.shape[-1], x.shape[-2]))))
+    return fastuple(getattr(x, 'img_size', getattr(x, 'sz', (x.shape[-1], x.shape[-2]))))
 
 
 # -
-
-# export
-@delegates()
-class CropPad(RandTransform):
-    "Center crop or pad an image to `size`"
-    order = 0
-
-    def __init__(self, size, pad_mode=PadMode.Zeros, **kwargs):
-        size = _process_sz(size)
-        store_attr()
-        super().__init__(**kwargs)
-
-    def encodes(self, x: (Image.Image, TensorBBox, TensorPoint)):
-        orig_sz = _get_sz(x)
-        tl = (orig_sz - self.size) // 2
-        return x.crop_pad(self.size, tl, orig_sz=orig_sz, pad_mode=self.pad_mode)
-
-
-_, axs = plt.subplots(1, 3, figsize=(12, 4))
-for ax, sz in zip(axs.flatten(), [300, 500, 700]):
-    show_image(img.crop_pad(sz), ctx=ax, title=f'Size {sz}')
-
-_, axs = plt.subplots(1, 3, figsize=(12, 4))
-for ax, mode in zip(axs.flatten(), [PadMode.Zeros, PadMode.Border, PadMode.Reflection]):
-    show_image(img.crop_pad((600, 700), pad_mode=mode), ctx=ax, title=mode)
-
 
 # export
 @delegates()
@@ -335,6 +312,16 @@ class CropPad(DisplayedTransform):
         tl = (orig_sz - self.size) // 2
         return x.crop_pad(self.size, tl, orig_sz=orig_sz, pad_mode=self.pad_mode)
 
+
+# Calls `@patch`'d `crop_pad` behaviors for `Image`, `TensorImage`, `TensorPoint`, and `TensorBBox`
+
+_, axs = plt.subplots(1, 3, figsize=(12, 4))
+for ax, sz in zip(axs.flatten(), [300, 500, 700]):
+    show_image(img.crop_pad(sz), ctx=ax, title=f'Size {sz}')
+
+_, axs = plt.subplots(1, 3, figsize=(12, 4))
+for ax, mode in zip(axs.flatten(), [PadMode.Zeros, PadMode.Border, PadMode.Reflection]):
+    show_image(img.crop_pad((600, 700), pad_mode=mode), ctx=ax, title=mode)
 
 # hide
 ta = torch.empty(16, 16).uniform_(0, 1)
@@ -361,22 +348,21 @@ pts = TensorPoint(torch.tensor([[-1, -1], [-0.5, -0.5], [0., 0.]]), img_size=(16
 y, p1 = crop((x, pts))
 test_eq(p1, torch.tensor([[-1.6, -2], [-0.8, -1], [0, 0]]))
 
-
 # +
 # hide
 # Padding test
-# Commented out until upstream bug fixed:
-# https://github.com/pytorch/vision/issues/2512
-# t = torch.empty(10,8).uniform_(0,1)
-# x = PILImage.create(t)
-# crop = CropPad(12)
-# y = crop(x)
-# test_eq(y.size, (12,12))
-# test_eq(tensor(array(y))[1:11,2:10], t)
+t = torch.empty(10, 8).uniform_(0, 1)
+x = PILImage.create(t)
+crop = CropPad(12)
+y = crop(x)
+test_eq(y.size, (12, 12))
+test_eq(tensor(array(y))[1:11, 2:10], t)
 
-# pts = TensorPoint(torch.tensor([[-1,-1], [-0.5,-0.5], [0.,0.]]), img_size=(8,10))
-# y,p1 = crop((x,pts))
-# test_close(p1, torch.tensor([[-2/3, -5/6], [-1/3,-5/12], [0,0]]))
+pts = TensorPoint(torch.tensor([[-1, -1], [-0.5, -0.5], [0., 0.]]), img_size=(8, 10))
+y, p1 = crop((x, pts))
+test_close(p1, torch.tensor([[-2 / 3, -5 / 6], [-1 / 3, -5 / 12], [0, 0]]))
+
+
 # -
 
 # ## RandomCrop -
@@ -504,8 +490,6 @@ class Resize(RandTransform):
                           resize_mode=self.mode_mask if isinstance(x, PILMask) else self.mode, resize_to=self.size)
 
 
-Resize(224)
-
 # `size` can be an integer (in which case images will be resized to a square) or a tuple. Depending on the `method`:
 # - we squish any rectangle to `size`
 # - we resize so that the shorter dimension is a match an use padding with `pad_mode`
@@ -626,12 +610,15 @@ class RatioResize(DisplayedTransform):
 
 RatioResize(256)(img)
 
+# hide
 test_eq(RatioResize(256)(img).size[0], 256)
 test_eq(RatioResize(256)(img.dihedral(3)).size[1], 256)
 
 # ## Affine and coord tfm on the GPU
 
 timg = TensorImage(array(img)).permute(2, 0, 1).float() / 255.
+
+
 def _batch_ex(bs): return TensorImage(timg[None].expand(bs, *timg.shape).clone())
 
 
@@ -699,8 +686,13 @@ show_images(img)
 
 # `affine_coord` allows us to much more easily work with images, by allowing us to specify much smaller `mat`, by comparison to grids, which require us to specify values for every pixel.
 
-# +
 # export
+def affine_grid(theta, size, align_corners=None):
+    return TensorFlowField(F.affine_grid(theta, size, align_corners=align_corners))
+
+
+# +
+# exporti
 @patch
 def affine_coord(x: TensorImage, mat=None, coord_tfm=None, sz=None, mode='bilinear',
                  pad_mode=PadMode.Reflection, align_corners=True):
@@ -709,7 +701,7 @@ def affine_coord(x: TensorImage, mat=None, coord_tfm=None, sz=None, mode='biline
     size = tuple(x.shape[-2:]) if sz is None else (sz, sz) if isinstance(sz, int) else tuple(sz)
     if mat is None:
         mat = _init_mat(x)[:, :2]
-    coords = F.affine_grid(mat, x.shape[:2] + size, align_corners=align_corners)
+    coords = affine_grid(mat, x.shape[:2] + size, align_corners=align_corners)
     if coord_tfm is not None:
         coords = coord_tfm(coords)
     return TensorImage(_grid_sample(x, coords, mode=mode, padding_mode=pad_mode, align_corners=align_corners))
@@ -732,10 +724,11 @@ def affine_coord(x: TensorPoint, mat=None, coord_tfm=None, sz=None, mode='neares
                  pad_mode=PadMode.Zeros, align_corners=True):
     #assert pad_mode==PadMode.Zeros, "Only zero padding is supported for `TensorPoint` and `TensorBBox`"
     if sz is None:
-        sz = x.get_meta('img_size')
+        sz = getattr(x, "img_size", None)
     if coord_tfm is not None:
         x = coord_tfm(x, invert=True)
     if mat is not None:
+        mat = TensorPoint(mat)
         x = (x - mat[:, :, 2].unsqueeze(1)) @ torch.inverse(mat[:, :, :2].transpose(1, 2))
     return TensorPoint(x, sz=sz)
 
@@ -746,7 +739,7 @@ def affine_coord(x: TensorBBox, mat=None, coord_tfm=None, sz=None, mode='nearest
     if mat is None and coord_tfm is None:
         return x
     if sz is None:
-        sz = x.get_meta('img_size')
+        sz = getattr(x, "img_size", None)
     bs, n = x.shape[:2]
     pnts = stack([x[..., :2], stack([x[..., 0], x[..., 3]], dim=2),
                   stack([x[..., 2], x[..., 1]], dim=2), x[..., 2:]], dim=2)
@@ -758,35 +751,9 @@ def affine_coord(x: TensorBBox, mat=None, coord_tfm=None, sz=None, mode='nearest
 
 # -
 
-# Here are examples of how to use `affine_coord` on images. Including the identity or original image, a flip, and moving the image to the left.
-
-imgs = _batch_ex(3)
-identity = torch.tensor([[1, 0, 0], [0, 1, 0.]])
-flip = torch.tensor([[-1, 0, 0], [0, 1, 0.]])
-translation = torch.tensor([[1, 0, 1.], [0, 1, 0]])
-mats = torch.stack((identity, flip, translation))
-show_images(imgs.affine_coord(mats, pad_mode=PadMode.Zeros))  # Zeros easiest to see
-
-# Now you may be asking, "What is this ``mat``"? Well lets take a quick look at the identify below.
-
-imgs = _batch_ex(1)
-identity = torch.tensor([[1, 0, 0], [0, 1, 0.]])
-eye = identity[:, 0:2]
-bi = identity[:, 2:3]
-eye, bi
-
-# Notice the the tensor 'eye' is an identity matrix. If we multiply this by a single coordinate in our original image x,y we will simply the same values returned for x and y. bi is added after this multiplication. For example, lets flip the image so the left top corner is in the right top corner:
-
-t = torch.tensor([[-1, 0, 0], [0, 1, 0.]])
-eye = t[:, 0:2]
-bi = t[:, 2:3]
-xy = torch.tensor([-1., -1])  # upper left corner
-torch.sum(xy * eye, dim=1) + bi[0]  # now the upper right corner
-
-
 # export
 def _prepare_mat(x, mat):
-    h, w = x.get_meta('img_size', x.shape[-2:])
+    h, w = getattr(x, 'img_size', x.shape[-2:])
     mat[:, 0, 1] *= h / w
     mat[:, 1, 0] *= w / h
     return mat[:, :2]
@@ -838,7 +805,34 @@ class AffineCoordTfm(RandTransform):
     def encodes(self, x: (TensorPoint, TensorBBox)): return self._encode(x, self.mode, reverse=True)
 
 
-# Multipliy all the matrices returned by `aff_fs` before doing the corresponding affine transformation on a basic grid corresponding to `size`, then applies all `coord_fs` on the resulting flow of coordinates before finally doing an interpolation with `mode` and `pad_mode`.
+# Calls `@patch`'d `affine_coord` behaviors for `TensorImage`, `TensorMask`, `TensorPoint`, and `TensorBBox`
+#
+# Multiplies all the matrices returned by `aff_fs` before doing the corresponding affine transformation on a basic grid corresponding to `size`, then applies all `coord_fs` on the resulting flow of coordinates before finally doing an interpolation with `mode` and `pad_mode`.
+
+# Here are examples of how to use `affine_coord` on images. Including the identity or original image, a flip, and moving the image to the left.
+
+imgs = _batch_ex(3)
+identity = torch.tensor([[1, 0, 0], [0, 1, 0.]])
+flip = torch.tensor([[-1, 0, 0], [0, 1, 0.]])
+translation = torch.tensor([[1, 0, 1.], [0, 1, 0]])
+mats = torch.stack((identity, flip, translation))
+show_images(imgs.affine_coord(mats, pad_mode=PadMode.Zeros))  # Zeros easiest to see
+
+# Now you may be asking, "What is this ``mat``"? Well lets take a quick look at the identify below.
+
+imgs = _batch_ex(1)
+identity = torch.tensor([[1, 0, 0], [0, 1, 0.]])
+eye = identity[:, 0:2]
+bi = identity[:, 2:3]
+eye, bi
+
+# Notice the the tensor 'eye' is an identity matrix. If we multiply this by a single coordinate in our original image x,y we will simply the same values returned for x and y. bi is added after this multiplication. For example, lets flip the image so the left top corner is in the right top corner:
+
+t = torch.tensor([[-1, 0, 0], [0, 1, 0.]])
+eye = t[:, 0:2]
+bi = t[:, 2:3]
+xy = torch.tensor([-1., -1])  # upper left corner
+torch.sum(xy * eye, dim=1) + bi[0]  # now the upper right corner
 
 show_doc(AffineCoordTfm.compose)
 
@@ -946,11 +940,11 @@ def _draw_mask(x, def_draw, draw=None, p=0.5, neutral=0., batch=False):
     if callable(draw):
         res = draw(x)
     elif is_listy(draw):
-        test(len(draw), x.size(0), ge)
+        assert len(draw) >= x.size(0)
         res = tensor(draw[:x.size(0)], dtype=x.dtype, device=x.device)
     else:
         res = x.new_zeros(x.size(0)) + draw
-    return mask_tensor(res, p=p, neutral=neutral, batch=batch)
+    return TensorBase(mask_tensor(res, p=p, neutral=neutral, batch=batch))
 
 
 # Here we use random integers from 1 to 8 for our ```def_draw```, this example is very similar to ```Dihedral```.
@@ -983,6 +977,8 @@ with no_random():
 # Note, when using a list it can be larger than the batch size, but it cannot be smaller than the batch size. Otherwise there would not be enough augmentations for elements of the batch.
 
 x = torch.zeros(5, 2, 3)
+
+
 def def_draw(x): return torch.randint(0, 8, (x.size(0),))
 
 
@@ -1024,7 +1020,7 @@ print(affines)
 
 x = torch.eye(3, dtype=torch.int64)
 for affine in affines:
-    x @= affine
+    x @ = affine
     print(x)
 
 
@@ -1047,10 +1043,7 @@ with no_random():
     print('list : ', flip_mat(x, draw=[1, 0]))
     print('list : ', flip_mat(x[0:2], draw=[1, 0, 1, 0, 1]))
     print('funct: ', flip_mat(x, draw=lambda x: torch.ones(x.size(0))))
-    try:
-        flip_mat(x, draw=[1])
-    except AssertionError as e:
-        print(type(e), '\n', e)
+    test_fail(lambda: flip_mat(x, draw=[1]))
 
 x = flip_mat(torch.randn(100, 4, 3))
 test_eq(set(x[:, 0, 0].numpy()), {-1, 1})  # might fail with probability 2*2**(-100) (picked only 1s or -1s)
@@ -1070,7 +1063,7 @@ def _get_default(x, mode=None, pad_mode=None):
 
 # Flip images,masks,points and bounding boxes horizontally. `p` is the probability of a flip being applied. `draw` can be used to define custom flip behavior.
 
-# export
+# exporti
 @patch
 def flip_batch(x: (TensorImage, TensorMask, TensorPoint, TensorBBox), p=0.5, draw=None, size=None,
                mode=None, pad_mode=None, align_corners=True, batch=False):
@@ -1080,6 +1073,7 @@ def flip_batch(x: (TensorImage, TensorMask, TensorPoint, TensorBBox), p=0.5, dra
 
 
 # +
+# hide
 t = _pnt2tensor([[1, 0], [2, 1]], (3, 3))
 y = TensorImage(t[None, None]).flip_batch(p=1.)
 test_eq(y, _pnt2tensor([[1, 0], [0, 1]], (3, 3))[None, None])
@@ -1102,19 +1096,21 @@ class Flip(AffineCoordTfm):
         super().__init__(aff_fs, size=size, mode=mode, pad_mode=pad_mode, align_corners=align_corners, p=p)
 
 
+# Calls `@patch`'d `flip_batch` behaviors for `TensorImage`, `TensorMask`, `TensorPoint`, and `TensorBBox`
+
 # Here are some examples of using flip. Notice that a constant `draw=1`, is effectively the same as the default settings.  Also notice the fine-tune control we can get in the third example, by setting `p=1.` and defining a custom draw.
 
 with no_random(32):
     imgs = _batch_ex(5)
-    deflt = imgs.flip_batch()
-    const = imgs.flip_batch(draw=1)  # same as default
-    listy = imgs.flip_batch(p=1., draw=[1, 0, 1, 0, 1])  # completely manual!!!
-    funct = imgs.flip_batch(draw=lambda x: torch.ones(x.size(0)))  # same as default
+    deflt = Flip()
+    const = Flip(p=1., draw=1)  # same as default
+    listy = Flip(p=1., draw=[1, 0, 1, 0, 1])  # completely manual!!!
+    funct = Flip(draw=lambda x: torch.ones(x.size(0)))  # same as default
 
-    show_images(deflt, titles=[1, 2, 3, 4, 5])
-    show_images(const, titles=[1, 2, 3, 4, 5])  # same above
-    show_images(listy, titles=[1, 0, 1, 0, 1])
-    show_images(funct, titles=[1, 2, 3, 4, 5])  # same as default
+    show_images(deflt(imgs), suptitle='Default Flip')
+    show_images(const(imgs), suptitle='Constant Flip', titles=[f'Flipped' for i in['', '', '', '', '']])  # same above
+    show_images(listy(imgs), suptitle='Listy Flip', titles=[f'{i}Flipped' for i in ['', 'Not ', '', 'Not ', '']])
+    show_images(funct(imgs), suptitle='Flip By Function')  # same as default
 
 # +
 flip = Flip(p=1.)
@@ -1157,12 +1153,12 @@ class DeterministicFlip(Flip):
 
 dih = DeterministicFlip({'p': .3})
 
-t = _batch_ex(8)
+# Next we loop through multiple batches of the example images. DeterministicFlip will first not flip the images, and then on the next batch it will flip the images.
+
+b = _batch_ex(2)
 dih = DeterministicFlip()
-_, axs = plt.subplots(2, 4, figsize=(12, 6))
-for i, ax in enumerate(axs.flatten()):
-    y = dih(t)
-    show_image(y[0], ctx=ax, title=f'Call {i}')
+for i, flipped in enumerate(['Not Flipped', 'Flipped'] * 2):
+    show_images(dih(b), suptitle=f'Batch {i}', titles=[flipped] * 2)
 
 
 # ### Dihedral -
@@ -1183,7 +1179,7 @@ def dihedral_mat(x, p=0.5, draw=None, batch=False):
                       ys * m1, ys * m0, t0(xs)).float()
 
 
-# export
+# exporti
 @patch
 def dihedral_batch(x: (TensorImage, TensorMask, TensorPoint, TensorBBox), p=0.5, draw=None, size=None,
                    mode=None, pad_mode=None, batch=False, align_corners=True):
@@ -1201,15 +1197,21 @@ class Dihedral(AffineCoordTfm):
         super().__init__(aff_fs=f, size=size, mode=mode, pad_mode=pad_mode, align_corners=align_corners)
 
 
-# `draw` can be specified if you want to customize which flip is picked when the transform is applied (default is a random number between 0 and 7). It can be an integer between 0 and 7, a list of such integers (which then should have a length equal to the size of the batch) or a callable that returns an integer between 0 and 7.
+# Calls `@patch`'d `dihedral_batch` behaviors for `TensorImage`, `TensorMask`, `TensorPoint`, and `TensorBBox`
 
-t = _batch_ex(8)
-dih = Dihedral(p=1., draw=list(range(8)))
-y = dih(t)
-y = t.dihedral_batch(p=1., draw=list(range(8)))
-_, axs = plt.subplots(2, 4, figsize=(12, 5))
-for i, ax in enumerate(axs.flatten()):
-    show_image(y[i], ctx=ax, title=f'Flip {i}')
+# `draw` can be specified if you want to customize which flip is picked when the transform is applied (default is a random number between 0 and 7). It can be an integer between 0 and 7, a list of such integers (which then should have a length equal to or greater than the size of the batch) or a callable that returns a long tensor between 0 and 7.
+
+with no_random():
+    imgs = _batch_ex(5)
+    deflt = Dihedral()
+    const = Dihedral(p=1., draw=1)  # same as flip_batch
+    listy = Dihedral(p=1., draw=[0, 1, 2, 3, 4])  # completely manual!!!
+    funct = Dihedral(draw=lambda x: torch.randint(0, 8, (x.size(0),)))  # same as default
+
+    show_images(deflt(imgs), suptitle='Default Flips', titles=[i for i in range(imgs.size(0))])
+    show_images(const(imgs), suptitle='Constant Horizontal Flip', titles=[f'Flip 1' for i in [0, 1, 1, 1, 1]])
+    show_images(listy(imgs), suptitle='Manual Listy Flips', titles=[f'Flip {i}' for i in [0, 1, 2, 3, 4]])  # manually specified, not random!
+    show_images(funct(imgs), suptitle='Default Functional Flips', titles=[i for i in range(imgs.size(0))])  # same as default
 
 # +
 # hide
@@ -1242,14 +1244,14 @@ class DeterministicDihedral(Dihedral):
         super().__init__(p=1., draw=DeterministicDraw(list(range(8))), pad_mode=pad_mode, align_corners=align_corners)
 
 
-# `DeterministicDihedral` guarantees that the first call will not be flipped, then the following call will be flip in a deterministic order. After all 7 possible dihedral flips the pattern will reset to the unflipped version.
+# `DeterministicDihedral` guarantees that the first call will not be flipped, then the following call will be flip in a deterministic order. After all 7 possible dihedral flips the pattern will reset to the unflipped version. If we were to do this on a batch size of one it would look like this:
 
 t = _batch_ex(10)
 dih = DeterministicDihedral()
 _, axs = plt.subplots(2, 5, figsize=(14, 6))
 for i, ax in enumerate(axs.flatten()):
     y = dih(t)
-    show_image(y[0], ctx=ax, title=f'Call {i}')
+    show_image(y[0], ctx=ax, title=f'Batch {i}')
 
 
 # ### Rotate -
@@ -1257,16 +1259,16 @@ for i, ax in enumerate(axs.flatten()):
 # export
 def rotate_mat(x, max_deg=10, p=0.5, draw=None, batch=False):
     "Return a random rotation matrix with `max_deg` and `p`"
-    def _def_draw(x): return x.new(x.size(0)).uniform_(-max_deg, max_deg)
+    def _def_draw(x): return x.new_empty(x.size(0)).uniform_(-max_deg, max_deg)
     def _def_draw_b(x): return x.new_zeros(x.size(0)) + random.uniform(-max_deg, max_deg)
     thetas = _draw_mask(x, _def_draw_b if batch else _def_draw, draw=draw, p=p, batch=batch) * math.pi / 180
     return affine_mat(thetas.cos(), thetas.sin(), t0(thetas),
                       -thetas.sin(), thetas.cos(), t0(thetas))
 
 
-# export
-@delegates(rotate_mat)
+# exporti
 @patch
+@delegates(rotate_mat)
 def rotate(x: (TensorImage, TensorMask, TensorPoint, TensorBBox), size=None, mode=None, pad_mode=None, align_corners=True, **kwargs):
     x0, mode, pad_mode = _get_default(x, mode, pad_mode)
     mat = _prepare_mat(x, rotate_mat(x0, **kwargs))
@@ -1283,13 +1285,26 @@ class Rotate(AffineCoordTfm):
         super().__init__(aff_fs=aff_fs, size=size, mode=mode, pad_mode=pad_mode, align_corners=align_corners)
 
 
-# `draw` can be specified if you want to customize which angle is picked when the transform is applied (default is a random flaot between `-max_deg` and `max_deg`). It can be a float, a list of floats (which then should have a length equal to the size of the batch) or a callable that returns a float.
+# Calls `@patch`'d `rotate` behaviors for `TensorImage`, `TensorMask`, `TensorPoint`, and `TensorBBox`
 
-thetas = [-30, -15, 0, 15, 30]
-y = _batch_ex(5).rotate(draw=thetas, p=1.)
-_, axs = plt.subplots(1, 5, figsize=(15, 3))
-for i, ax in enumerate(axs.flatten()):
-    show_image(y[i], ctx=ax, title=f'{thetas[i]} degrees')
+# `draw` can be specified if you want to customize which angle is picked when the transform is applied (default is a random flaot between `-max_deg` and `max_deg`). It can be a float, a list of floats (which then should have a length equal to or greater than the size of the batch) or a callable that returns a float tensor.
+#
+# Rotate by default can only rotate 10 degrees, which makes the changes harder to see. This is usually combined with either `flip` or `dihedral`, which make much larger changes by default. A rotate of 180 degrees is the same as a vertical flip for example.
+
+with no_random():
+    thetas = [-30, -15, 0, 15, 30]
+    imgs = _batch_ex(5)
+    deflt = Rotate()
+    const = Rotate(p=1., draw=180)  # same as a vertical flip
+    listy = Rotate(p=1., draw=[-30, -15, 0, 15, 30])  # completely manual!!!
+    funct = Rotate(draw=lambda x: x.new_empty(x.size(0)).uniform_(-10, 10))  # same as default
+
+    show_images(deflt(imgs), suptitle='Default Rotate, notice the small rotation', titles=[i for i in range(imgs.size(0))])
+    show_images(const(imgs), suptitle='Constant 180 Rotate', titles=[f'180 Degrees' for i in range(imgs.size(0))])
+    # manually specified, not random!
+    show_images(listy(imgs), suptitle='Manual List Rotate', titles=[f'{i} Degrees' for i in [-30, -15, 0, 15, 30]])
+    # same as default
+    show_images(funct(imgs), suptitle='Default Functional Rotate', titles=[i for i in range(imgs.size(0))])
 
 
 # ### Zoom -
@@ -1297,9 +1312,9 @@ for i, ax in enumerate(axs.flatten()):
 # export
 def zoom_mat(x, min_zoom=1., max_zoom=1.1, p=0.5, draw=None, draw_x=None, draw_y=None, batch=False):
     "Return a random zoom matrix with `max_zoom` and `p`"
-    def _def_draw(x): return x.new(x.size(0)).uniform_(min_zoom, max_zoom)
+    def _def_draw(x): return x.new_empty(x.size(0)).uniform_(min_zoom, max_zoom)
     def _def_draw_b(x): return x.new_zeros(x.size(0)) + random.uniform(min_zoom, max_zoom)
-    def _def_draw_ctr(x): return x.new(x.size(0)).uniform_(0, 1)
+    def _def_draw_ctr(x): return x.new_empty(x.size(0)).uniform_(0, 1)
     def _def_draw_ctr_b(x): return x.new_zeros(x.size(0)) + random.uniform(0, 1)
     assert(min_zoom <= max_zoom)
     s = 1 / _draw_mask(x, _def_draw_b if batch else _def_draw, draw=draw, p=p, neutral=1., batch=batch)
@@ -1312,9 +1327,9 @@ def zoom_mat(x, min_zoom=1., max_zoom=1.1, p=0.5, draw=None, draw_x=None, draw_y
                       t0(s), s, row_c)
 
 
-# export
-@delegates(zoom_mat)
+# exporti
 @patch
+@delegates(zoom_mat)
 def zoom(x: (TensorImage, TensorMask, TensorPoint, TensorBBox), size=None, mode='bilinear', pad_mode=PadMode.Reflection,
          align_corners=True, **kwargs):
     x0, mode, pad_mode = _get_default(x, mode, pad_mode)
@@ -1331,23 +1346,26 @@ class Zoom(AffineCoordTfm):
         super().__init__(aff_fs, size=size, mode=mode, pad_mode=pad_mode, align_corners=align_corners)
 
 
-# `draw`, `draw_x` and `draw_y` can be specified if you want to customize which scale and center are picked when the transform is applied (default is a random float between 1 and `max_zoom` for the first, between 0 and 1 for the last two). Each can be a float, a list of floats (which then should have a length equal to the size of the batch) or a callbale that returns a float.
+# Calls `@patch`'d `zoom` behaviors for `TensorImage`, `TensorMask`, `TensorPoint`, and `TensorBBox`
+
+# `draw`, `draw_x` and `draw_y` can be specified if you want to customize which scale and center are picked when the transform is applied (default is a random float between 1 and `max_zoom` for the first, between 0 and 1 for the last two). Each can be a float, a list of floats (which then should have a length equal to or greater than the size of the batch) or a callable that returns a float tensor.
 #
 # `draw_x` and `draw_y` are expected to be the position of the center in pct, 0 meaning the most left/top possible and 1 meaning the most right/bottom possible.
+#
+# Note: By default Zooms are rather small.
 
-scales = [0.8, 1., 1.1, 1.25, 1.5]
-n = len(scales)
-y = _batch_ex(n).zoom(draw=scales, p=1., draw_x=0.5, draw_y=0.5)
-fig, axs = plt.subplots(1, n, figsize=(12, 3))
-fig.suptitle('Center zoom with different scales')
-for i, ax in enumerate(axs.flatten()):
-    show_image(y[i], ctx=ax, title=f'scale {scales[i]}')
+with no_random():
+    scales = [0.8, 1., 1.1, 1.25, 1.5]
+    imgs = _batch_ex(5)
+    deflt = Zoom()
+    const = Zoom(p=1., draw=1.5)  # 'Constant scale and different random centers'
+    listy = Zoom(p=1., draw=scales, draw_x=0.5, draw_y=0.5)  # completely manual scales, constant center
+    funct = Zoom(draw=lambda x: x.new_empty(x.size(0)).uniform_(1., 1.1))  # same as default
 
-y = _batch_ex(4).zoom(p=1., draw=1.5)
-fig, axs = plt.subplots(1, 4, figsize=(12, 3))
-fig.suptitle('Constant scale and different random centers')
-for i, ax in enumerate(axs.flatten()):
-    show_image(y[i], ctx=ax)
+    show_images(deflt(imgs), suptitle='Default Zoom, note the small zooming', titles=[i for i in range(imgs.size(0))])
+    show_images(const(imgs), suptitle='Constant Scale, Valiable Position', titles=[f'Scale 1.5x' for i in range(imgs.size(0))])
+    show_images(listy(imgs), suptitle='Manual Listy Scale, Centered', titles=[f'Scale {i}x' for i in scales])
+    show_images(funct(imgs), suptitle='Default Functional Zoom', titles=[i for i in range(imgs.size(0))])  # same as default
 
 
 # ### Warping
@@ -1388,7 +1406,7 @@ class _WarpCoord():
 
     def _def_draw(self, x):
         if not self.batch:
-            return x.new(x.size(0)).uniform_(-self.magnitude, self.magnitude)
+            return x.new_empty(x.size(0)).uniform_(-self.magnitude, self.magnitude)
         return x.new_zeros(x.size(0)) + random.uniform(-self.magnitude, self.magnitude)
 
     def before_call(self, x):
@@ -1405,9 +1423,9 @@ class _WarpCoord():
         return apply_perspective(x, coeffs)
 
 
-# export
-@delegates(_WarpCoord.__init__)
+# exporti
 @patch
+@delegates(_WarpCoord.__init__)
 def warp(x: (TensorImage, TensorMask, TensorPoint, TensorBBox), size=None, mode='bilinear',
          pad_mode=PadMode.Reflection, align_corners=True, **kwargs):
     x0, mode, pad_mode = _get_default(x, mode, pad_mode)
@@ -1445,23 +1463,16 @@ class Warp(AffineCoordTfm):
         super().__init__(coord_fs=coord_fs, size=size, mode=mode, pad_mode=pad_mode, align_corners=align_corners)
 
 
-# `draw_x` and `draw_y` can be specified if you want to customize the magnitudes that are picked when the transform is applied (default is a random float between `-magnitude` and `magnitude`. Each can be a float, a list of floats (which then should have a length equal to the size of the batch) or a callable that returns a float.
+# Calls `@patch`'d `warp` behaviors for `TensorImage`, `TensorMask`, `TensorPoint`, and `TensorBBox`
+
+# `draw_x` and `draw_y` can be specified if you want to customize the magnitudes that are picked when the transform is applied (default is a random float between `-magnitude` and `magnitude`. Each can be a float, a list of floats (which then should have a length equal to or greater than the size of the batch) or a callable that returns a float tensor.
 
 scales = [-0.4, -0.2, 0., 0.2, 0.4]
-warp = Warp(p=1., draw_y=scales, draw_x=0.)
-y = warp(_batch_ex(5), split_idx=0)
-fig, axs = plt.subplots(1, 5, figsize=(15, 3))
-fig.suptitle('Vertical warping')
-for i, ax in enumerate(axs.flatten()):
-    show_image(y[i], ctx=ax, title=f'magnitude {scales[i]}')
-
-scales = [-0.4, -0.2, 0., 0.2, 0.4]
-warp = Warp(p=1., draw_x=scales, draw_y=0.)
-y = warp(_batch_ex(5), split_idx=0)
-fig, axs = plt.subplots(1, 5, figsize=(15, 3))
-fig.suptitle('Horizontal warping')
-for i, ax in enumerate(axs.flatten()):
-    show_image(y[i], ctx=ax, title=f'magnitude {scales[i]}')
+imgs = _batch_ex(5)
+vert_warp = Warp(p=1., draw_y=scales, draw_x=0.)
+horz_warp = Warp(p=1., draw_x=scales, draw_y=0.)
+show_images(vert_warp(imgs), suptitle='Vertical warping', titles=[f'magnitude {i}' for i in scales])
+show_images(horz_warp(imgs), suptitle='Horizontal warping', titles=[f'magnitude {i}' for i in scales])
 
 # hide
 x1 = tensor([[1., 0., 0., 0., 1.], [0., 0., 0., 0., 0.], [0., 0., 0., 0., 0.], [0., 0., 0., 0., 0.], [0., 0., 0., 0., 0.]])
@@ -1493,7 +1504,11 @@ def lighting(x: TensorImage, func): return TensorImage(torch.sigmoid(func(logit(
 # Most lighting transforms work better in "logit space", as we do not want to blowout the image by going over maximum or minimum brightness. Taking the sigmoid of the logit allows us to get back to "linear space."
 
 x = TensorImage(torch.tensor([.01 * i for i in range(0, 101)]))
+
+
 def f_lin(x): return (2 * (x - 0.5) + 0.5).clamp(0, 1)  # blue line
+
+
 def f_log(x): return 2 * x  # red line
 
 
@@ -1502,13 +1517,17 @@ plt.plot(x, f_lin(x), 'b', x, x.lighting(f_log), 'r')
 
 # The above graph shows the results of doing a contrast transformation in both linear and logit space. Notice how the blue linear plot has to be clamped, and we have lost information on how large 0.0 is by comparision to 0.2. While in the red plot the values curve, so we keep this relative information.
 
+# First we create a general `SpaceTfm`. This allows us compose multiple transforms together, so that we only have to convert to a space once, before doing multiple transforms. The `space_fn` must convert from rgb to a space, apply a function, and then convert back to rgb.
+# `fs` should be list-like, and contain a functions that will be composed together.
+
 # export
-class LightingTfm(RandTransform):
+class SpaceTfm(RandTransform):
     "Apply `fs` to the logits"
     order = 40
 
-    def __init__(self, fs, **kwargs):
+    def __init__(self, fs, space_fn, **kwargs):
         super().__init__(**kwargs)
+        self.space_fn = space_fn
         self.fs = L(fs)
 
     def before_call(self, b, split_idx):
@@ -1522,7 +1541,18 @@ class LightingTfm(RandTransform):
         "Compose `self` with another `LightingTransform`"
         self.fs += tfm.fs
 
-    def encodes(self, x: TensorImage): return x.lighting(partial(compose_tfms, tfms=self.fs))
+    def encodes(self, x: TensorImage): return self.space_fn(x, partial(compose_tfms, tfms=self.fs))
+
+
+# `LightingTfm` is a `SpaceTfm` that uses `TensorImage.lighting` to convert to logit space. Use this to limit images loosing detail when they become very dark or bright.
+
+# export
+class LightingTfm(SpaceTfm):
+    "Apply `fs` to the logits"
+    order = 40
+
+    def __init__(self, fs, **kwargs):
+        super().__init__(fs, TensorImage.lighting, **kwargs)
 
 
 # Brightness refers to the amount of light on a scene. This can be zero in which the image is completely black or one where the image is completely white. This may be especially useful if you expect your dataset to have over or under exposed images.
@@ -1533,7 +1563,7 @@ class _BrightnessLogit():
 
     def _def_draw(self, x):
         if not self.batch:
-            return x.new(x.size(0)).uniform_(0.5 * (1 - self.max_lighting), 0.5 * (1 + self.max_lighting))
+            return x.new_empty(x.size(0)).uniform_(0.5 * (1 - self.max_lighting), 0.5 * (1 + self.max_lighting))
         return x.new_zeros(x.size(0)) + random.uniform(0.5 * (1 - self.max_lighting), 0.5 * (1 + self.max_lighting))
 
     def before_call(self, x):
@@ -1542,9 +1572,9 @@ class _BrightnessLogit():
     def __call__(self, x): return x.add_(logit(self.change[:, None, None, None]))
 
 
-# export
-@delegates(_BrightnessLogit.__init__)
+# exporti
 @patch
+@delegates(_BrightnessLogit.__init__)
 def brightness(x: TensorImage, **kwargs):
     func = _BrightnessLogit(**kwargs)
     func.before_call(x)
@@ -1559,7 +1589,9 @@ class Brightness(LightingTfm):
         super().__init__(_BrightnessLogit(max_lighting, p, draw, batch))
 
 
-# `draw` can be specified if you want to customize the magnitude that is picked when the transform is applied (default is a random float between `-0.5*(1-max_lighting)` and `0.5*(1+max_lighting)`. Each can be a float, a list of floats (which then should have a length equal to the size of the batch) or a callable that returns a float.
+# Calls `@patch`'d `brightness` behaviors for `TensorImage`
+
+# `draw` can be specified if you want to customize the magnitude that is picked when the transform is applied (default is a random float between `-0.5*(1-max_lighting)` and `0.5*(1+max_lighting)`. Each can be a float, a list of floats (which then should have a length equal to or greater than the size of the batch) or a callable that returns a float tensor.
 
 scales = [0.1, 0.3, 0.5, 0.7, 0.9]
 y = _batch_ex(5).brightness(draw=scales, p=1.)
@@ -1571,6 +1603,7 @@ for i, ax in enumerate(axs.flatten()):
 # hide
 x = torch.randn(5, 3, 4, 4)
 bright = Brightness(draw=scales, p=1.)
+print('***', bright.space_fn)
 y = bright(TensorImage(x), split_idx=0)
 y1 = torch.sigmoid(logit(x) + logit(tensor(scales))[:, None, None, None])
 test_close(y, y1)
@@ -1590,7 +1623,7 @@ class _ContrastLogit():
 
     def _def_draw(self, x):
         if not self.batch:
-            res = x.new(x.size(0)).uniform_(math.log(1 - self.max_lighting), -math.log(1 - self.max_lighting))
+            res = x.new_empty(x.size(0)).uniform_(math.log(1 - self.max_lighting), -math.log(1 - self.max_lighting))
         else:
             res = x.new_zeros(x.size(0)) + random.uniform(math.log(1 - self.max_lighting), -math.log(1 - self.max_lighting))
         return torch.exp(res)
@@ -1601,9 +1634,9 @@ class _ContrastLogit():
     def __call__(self, x): return x.mul_(self.change[:, None, None, None])
 
 
-# export
-@delegates(_ContrastLogit.__init__)
+# exporti
 @patch
+@delegates(_ContrastLogit.__init__)
 def contrast(x: TensorImage, **kwargs):
     func = _ContrastLogit(**kwargs)
     func.before_call(x)
@@ -1619,7 +1652,9 @@ class Contrast(LightingTfm):
         super().__init__(_ContrastLogit(max_lighting, p, draw, batch))
 
 
-# `draw` can be specified if you want to customize the magnitude that is picked when the transform is applied (default is a random float taken with the log uniform distribution between `(1-max_lighting)` and `1/(1-max_lighting)`. Each can be a float, a list of floats (which then should have a length equal to the size of the batch) or a callable that returns a float.
+# Calls `@patch`'d `contrast` behaviors for `TensorImage`
+
+# `draw` can be specified if you want to customize the magnitude that is picked when the transform is applied (default is a random float taken with the log uniform distribution between `(1-max_lighting)` and `1/(1-max_lighting)`. Each can be a float, a list of floats (which then should have a length equal to or greater than the size of the batch) or a callable that returns a float tensor.
 
 scales = [0.65, 0.8, 1., 1.25, 1.55]
 y = _batch_ex(5).contrast(p=1., draw=scales)
@@ -1659,7 +1694,7 @@ class _SaturationLogit():
 
     def _def_draw(self, x):
         if not self.batch:
-            res = x.new(x.size(0)).uniform_(math.log(1 - self.max_lighting), -math.log(1 - self.max_lighting))
+            res = x.new_empty(x.size(0)).uniform_(math.log(1 - self.max_lighting), -math.log(1 - self.max_lighting))
         else:
             res = x.new_zeros(x.size(0)) + random.uniform(math.log(1 - self.max_lighting), -math.log(1 - self.max_lighting))
         return torch.exp(res)
@@ -1675,9 +1710,9 @@ class _SaturationLogit():
         return x.add_(gs)
 
 
-# export
-@delegates(_SaturationLogit.__init__)
+# exporti
 @patch
+@delegates(_SaturationLogit.__init__)
 def saturation(x: TensorImage, **kwargs):
     func = _SaturationLogit(**kwargs)
     func.before_call(x)
@@ -1693,6 +1728,8 @@ class Saturation(LightingTfm):
         store_attr()
         super().__init__(_SaturationLogit(max_lighting, p, draw, batch))
 
+
+# Calls `@patch`'d `saturation` behaviors for `TensorImage`
 
 scales = [0., 0.5, 1., 1.5, 2.0]
 y = _batch_ex(5).saturation(p=1., draw=scales)
@@ -1715,16 +1752,22 @@ test_close(y, y1)
 test_eq(sat(TensorMask(x), split_idx=0), x)
 test_eq(sat(TensorPoint(x), split_idx=0), x)
 test_eq(sat(TensorBBox(x), split_idx=0), x)
-
-
 # -
+
+# `rgb2hsv`, and `hsv2rgb` are utilities for converting to and from hsv space. Hsv space stands for hue,saturation, and value space. This allows us to more easily perform certain transforms.
+
+torch.max(tensor([1]).as_subclass(TensorBase), dim=0)
+
 
 # export
 def rgb2hsv(img):
     "Converts a RGB image to an HSV image. Note: Will not work on logit space images."
     r, g, b = img.unbind(1)
-    maxc = torch.max(img, dim=1).values
-    minc = torch.min(img, dim=1).values
+    # temp commented out due to https://github.com/pytorch/pytorch/issues/47069
+#     maxc = torch.max(img, dim=1).values
+#     minc = torch.min(img, dim=1).values
+    maxc = torch.max(img, dim=1)[0]
+    minc = torch.min(img, dim=1)[0]
     eqc = maxc == minc
 
     cr = maxc - minc
@@ -1766,6 +1809,23 @@ def hsv2rgb(img):
     return torch.einsum("nijk, nxijk -> nxjk", mask.to(dtype=img.dtype), a4)
 
 
+# Very similar to `lighting` which is done in logit space, hsv transforms are done in hsv space. We can compose any transforms that are done in hsv space.
+
+# exporti
+@patch
+def hsv(x: TensorImage, func): return TensorImage(hsv2rgb(func(rgb2hsv(x))))
+
+
+# export
+class HSVTfm(SpaceTfm):
+    "Apply `fs` to the images in HSV space"
+
+    def __init__(self, fs, **kwargs):
+        super().__init__(fs, TensorImage.hsv, **kwargs)
+
+
+# Calls `@patch`'d `hsv` behaviors for `TensorImage`
+
 # +
 fig, axs = plt.subplots(figsize=(20, 4), ncols=5)
 axs[0].set_ylabel('Hue')
@@ -1774,14 +1834,14 @@ for ax in axs:
     ax.set_yticklabels([])
     ax.set_xticklabels([])
 
-hsv = torch.stack([torch.arange(0, 2.1, 0.01)[:, None].repeat(1, 210),
-                   torch.arange(0, 1.05, 0.005)[None].repeat(210, 1),
-                   torch.ones([210, 210])])[None]
+hsvs = torch.stack([torch.arange(0, 2.1, 0.01)[:, None].repeat(1, 210),
+                    torch.arange(0, 1.05, 0.005)[None].repeat(210, 1),
+                    torch.ones([210, 210])])[None]
 for ax, i in zip(axs, range(0, 5)):
     if i > 0:
-        hsv[:, 2].mul_(0.80)
+        hsvs[:, 2].mul_(0.80)
     ax.set_title('V=' + '%.1f' % 0.8**i)
-    ax.imshow(hsv2rgb(hsv)[0].permute(1, 2, 0))
+    ax.imshow(hsv2rgb(hsvs)[0].permute(1, 2, 0))
 
 
 # -
@@ -1792,11 +1852,11 @@ for ax, i in zip(axs, range(0, 5)):
 
 # export
 class _Hue():
-    def __init__(self, max_hue=0.2, p=0.75, draw=None, batch=False): store_attr()
+    def __init__(self, max_hue=0.1, p=0.75, draw=None, batch=False): store_attr()
 
     def _def_draw(self, x):
         if not self.batch:
-            res = x.new(x.size(0)).uniform_(math.log(1 - self.max_hue), -math.log(1 - self.max_hue))
+            res = x.new_empty(x.size(0)).uniform_(math.log(1 - self.max_hue), -math.log(1 - self.max_hue))
         else:
             res = x.new_zeros(x.size(0)) + random.uniform(math.log(1 - self.max_hue), -math.log(1 - self.max_hue))
         return torch.exp(res)
@@ -1805,32 +1865,31 @@ class _Hue():
         self.change = _draw_mask(x, self._def_draw, draw=self.draw, p=self.p, neutral=0., batch=self.batch)
 
     def __call__(self, x):
-        hsv = rgb2hsv(x)
-        h, s, v = hsv.unbind(1)
+        h, s, v = x.unbind(1)
         h += self.change[:, None, None]
         h = h % 1.0
-        hsv.set_(torch.stack((h, s, v), dim=1))
-        return x.set_(hsv2rgb(hsv))
+        return x.set_(torch.stack((h, s, v), dim=1))
 
 
-# export
-@delegates(_Hue.__init__)
+# exporti
 @patch
+@delegates(_Hue.__init__)
 def hue(x: TensorImage, **kwargs):
     func = _Hue(**kwargs)
     func.before_call(x)
-    return TensorImage(func(x))
+    return TensorImage(x.hsv(func))
 
 
 # export
-class Hue(RandTransform):
+class Hue(HSVTfm):
     "Apply change in hue of `max_hue` to batch of images with probability `p`."
     # Ref: https://pytorch.org/docs/stable/torchvision/transforms.html#torchvision.transforms.functional.adjust_hue
 
     def __init__(self, max_hue=0.1, p=0.75, draw=None, batch=False):
         super().__init__(_Hue(max_hue, p, draw, batch))
-        store_attr()
 
+
+# Calls `@patch`'d `hue` behaviors for `TensorImage`
 
 scales = [0.5, 0.75, 1., 1.5, 1.75]
 y = _batch_ex(len(scales)).hue(p=1., draw=scales)
@@ -1845,7 +1904,7 @@ test_close(y[2], _batch_ex(1))
 
 x = torch.randn(5, 3, 4, 4)
 hue = Hue(p=1., draw=scales)
-
+test_close(hue(TensorImage(x), split_idx=0), TensorImage(x).hue(p=1., draw=scales))
 test_eq(hue(TensorMask(x), split_idx=0), x)
 test_eq(hue(TensorPoint(x), split_idx=0), x)
 test_eq(hue(TensorBBox(x), split_idx=0), x)
@@ -2040,6 +2099,8 @@ camvid = untar_data(URLs.CAMVID_TINY)
 fns = get_image_files(camvid / 'images')
 cam_fn = fns[0]
 mask_fn = camvid / 'labels' / f'{cam_fn.stem}_P{cam_fn.suffix}'
+
+
 def _cam_lbl(fn): return mask_fn
 
 
@@ -2053,6 +2114,8 @@ cam_tdl.show_batch(max_n=9, vmin=1, vmax=30)
 mnist = untar_data(URLs.MNIST_TINY)
 mnist_fn = 'images/mnist3.png'
 pnts = np.array([[0, 0], [0, 35], [28, 0], [28, 35], [9, 17]])
+
+
 def _pnt_lbl(fn) -> None: return TensorPoint.create(pnts)
 
 
@@ -2071,6 +2134,8 @@ coco_fn, bbox = coco / 'train' / images[idx], lbl_bbox[idx]
 
 
 def _coco_bb(x): return TensorBBox.create(bbox[0])
+
+
 def _coco_lbl(x): return bbox[1]
 
 

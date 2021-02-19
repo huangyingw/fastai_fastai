@@ -99,10 +99,8 @@ cat_names = ['workclass', 'education', 'marital-status', 'occupation', 'relation
 cont_names = ['age', 'fnlwgt', 'education-num']
 procs = [Categorify, FillMissing, Normalize]
 
-# + tags=[]
 dls = TabularDataLoaders.from_df(df, path, procs=procs, cat_names=cat_names, cont_names=cont_names,
                                  y_names="salary", valid_idx=list(range(800, 1000)), bs=64)
-# -
 
 dls.show_batch()
 
@@ -116,7 +114,7 @@ dls = TabularDataLoaders.from_csv(path / 'adult.csv', path=path, procs=procs, ca
 
 # External structured data files can contain unexpected spaces, e.g. after a comma. We can see that in the first row of adult.csv `"49, Private,101320, ..."`. Often trimming is needed. Pandas has a convenient parameter `skipinitialspace` that is exposed by `TabularDataLoaders.from_csv()`. Otherwise category labels use for inference later such as `workclass`:`Private` will be categorized wrongly to *0* or `"#na#"` if training label was read as `" Private"`. Let's test this feature.
 
-# + tags=[]
+# +
 test_data = {
     'age': [49],
     'workclass': ['Private'],
@@ -136,7 +134,5 @@ test_ne(0, tdl.dataset.iloc[0]['workclass'])
 
 # ## Export -
 
-# + tags=[]
 # hide
 notebook2script()
-# -

@@ -16,11 +16,13 @@
 
 # hide
 # skip
+import albumentations
 from albumentations import ShiftScaleRotate
 from fastai.vision.all import *
 ! [-e / content] & & pip install - Uqq fastai  # upgrade fastai on colab
 
 # +
+# hide
 # all_slow
 # -
 
@@ -129,6 +131,8 @@ cv_source = untar_data(URLs.CAMVID_TINY)
 cv_items = get_image_files(cv_source / 'images')
 cv_splitter = RandomSplitter(seed=42)
 cv_split = cv_splitter(cv_items)
+
+
 def cv_label(o): return cv_source / 'labels' / f'{o.stem}_P{o.suffix}'
 
 
@@ -169,5 +173,144 @@ dls = cv_dsets.dataloaders(bs=64, after_item=[ImageResizer(128), ToTensor(), Int
                                               SegmentationAlbumentationsTransform(ShiftScaleRotate(p=1))])
 
 dls.show_batch(max_n=4)
+
+
+# ### Using different transform pipelines and the `DataBlock API`
+#
+# It's very common for us to use different transforms on the training dataset versus the validation dataset. Currently our `AlbumentationsTransform` will perform the same transform over both, let's see if we can make it a bit more flexible with what we want.
+#
+# Let's try to think of a scenario for our examle:
+#
+# I want to various data augmentations such as `HueSaturationValue` or `Flip` to operate similar to how fastai will do it, where they only run on the training dataset but not the validation dataset. What do we need to do to our `ALbumentationsTransform`?
+
+class AlbumentationsTransform(DisplayedTransform):
+    split_idx, order = 0, 2
+    def __init__(self, train_aug): store_attr()
+
+    def encodes(self, img: PILImage):
+        aug_img = self.train_aug(image=np.array(img))['image']
+        return PILImage.create(aug_img)
+
+
+# Here is our newly written transform. But what changed?
+#
+# We added in a `split_idx`, which is what determines what transforms are run on the validation set and the training set (0 for train, 1 for validation, `None` for both).
+#
+# Along with this we set an `order` to `2`. What this entails is if we have any fastai transforms that perform a resize operation, those are done first before our new transform. This let's us know exactly when our transform is going to be applied, and how we can work with it!
+#
+# Let's look at an example with some `Composed` albumentations transforms:
+
+
+def get_train_aug(): return albumentations.Compose([
+    albumentations.HueSaturationValue(
+        hue_shift_limit=0.2,
+        sat_shift_limit=0.2,
+        val_shift_limit=0.2,
+        p=0.5
+    ),
+    albumentations.CoarseDropout(p=0.5),
+    albumentations.Cutout(p=0.5)
+])
+
+# We can define our `ItemTransforms` with `Resize` and our new training augmentations:
+
+
+item_tfms = [Resize(224), AlbumentationsTransform(get_train_aug())]
+
+# Let's use the higher-level `DataBlock` API this time:
+
+# +
+path = untar_data(URLs.PETS) / 'images'
+
+
+def is_cat(x): return x[0].isupper()
+
+
+dls = ImageDataLoaders.from_name_func(
+    path, get_image_files(path), valid_pct=0.2, seed=42,
+    label_func=is_cat, item_tfms=item_tfms)
+# -
+
+# And take a peek at some data:
+
+dls.train.show_batch(max_n=4)
+
+dls.valid.show_batch(max_n=4)
+
+
+# We can see that our transforms were successfully only applied to our training data! Great!
+#
+# Now, what if we wanted special different behaviors applied to **both** the training and validation sets? Let's see:
+
+class AlbumentationsTransform(RandTransform):
+    "A transform handler for multiple `Albumentation` transforms"
+    split_idx, order = None, 2
+    def __init__(self, train_aug, valid_aug): store_attr()
+
+    def before_call(self, b, split_idx):
+        self.idx = split_idx
+
+    def encodes(self, img: PILImage):
+        if self.idx == 0:
+            aug_img = self.train_aug(image=np.array(img))['image']
+        else:
+            aug_img = self.valid_aug(image=np.array(img))['image']
+        return PILImage.create(aug_img)
+
+
+# So let's walk through what's happening here. We changed our `split_idx` to be `None`, which allows for us to say when we're setting our `split_idx`.
+#
+# We also inherit from `RandTransform`, which allows for us to set that `split_idx` in our `before_call`.
+#
+# Finally we check to see what the current `split_idx` *is*. If it's `0`, run the trainining augmentation, otherwise run the validation augmentation.
+#
+# Let's see an example of a typical training setup:
+
+# +
+def get_train_aug(): return albumentations.Compose([
+    albumentations.RandomResizedCrop(224, 224),
+    albumentations.Transpose(p=0.5),
+    albumentations.VerticalFlip(p=0.5),
+    albumentations.ShiftScaleRotate(p=0.5),
+    albumentations.HueSaturationValue(
+        hue_shift_limit=0.2,
+        sat_shift_limit=0.2,
+        val_shift_limit=0.2,
+        p=0.5),
+    albumentations.CoarseDropout(p=0.5),
+    albumentations.Cutout(p=0.5)
+])
+
+
+def get_valid_aug(): return albumentations.Compose([
+    albumentations.CenterCrop(224, 224, p=1.),
+    albumentations.Resize(224, 224)
+], p=1.)
+# -
+
+# Next we'll build our new `AlbumentationsTransform`:
+
+
+item_tfms = [Resize(256), AlbumentationsTransform(get_train_aug(), get_valid_aug())]
+
+# And pass this into our `DataLoaders`:
+# > Since we declared a resize already in our composed transforms, we do not need any item transforms present here
+
+dls = ImageDataLoaders.from_name_func(
+    path, get_image_files(path), valid_pct=0.2, seed=42,
+    label_func=is_cat, item_tfms=item_tfms)
+
+# We can compare our training and validation augmentation again to find that they are indeed different:
+
+dls.train.show_batch(max_n=4)
+
+dls.valid.show_batch(max_n=4)
+
+# And looking at the shapes of the validation `DataLoader`'s `x`'s we'll find our `CenterCrop` was applied as well:
+
+x, _ = dls.valid.one_batch()
+print(x.shape)
+
+# > Note: We used fastai's crop first as some padding is needed due to some image sizes being too small.
 
 # ## fin -

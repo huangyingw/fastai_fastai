@@ -455,6 +455,8 @@ def gan_loss_from_func(loss_gen, loss_crit, weights_gen=None):
 
 # export
 def _tk_mean(fake_pred, output, target): return fake_pred.mean()
+
+
 def _tk_diff(real_pred, fake_pred): return real_pred.mean() - fake_pred.mean()
 
 

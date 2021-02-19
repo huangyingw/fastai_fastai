@@ -154,9 +154,13 @@ for n in range(1, 5):
 # ## Head and model
 
 # export
-def create_head(nf, n_out, lin_ftrs=None, ps=0.5, concat_pool=True, bn_final=False, lin_first=False, y_range=None):
+def create_head(nf, n_out, lin_ftrs=None, ps=0.5, concat_pool=True, first_bn=True, bn_final=False,
+                lin_first=False, y_range=None):
     "Model head that takes `nf` features, runs through `lin_ftrs`, and out `n_out` classes."
+    if concat_pool:
+        nf *= 2
     lin_ftrs = [nf, 512, n_out] if lin_ftrs is None else [nf] + lin_ftrs + [n_out]
+    bns = [first_bn] + [True] * len(lin_ftrs[1:])
     ps = L(ps)
     if len(ps) == 1:
         ps = [ps[0] / 2] * (len(lin_ftrs) - 2) + ps
@@ -165,8 +169,8 @@ def create_head(nf, n_out, lin_ftrs=None, ps=0.5, concat_pool=True, bn_final=Fal
     layers = [pool, Flatten()]
     if lin_first:
         layers.append(nn.Dropout(ps.pop(0)))
-    for ni, no, p, actn in zip(lin_ftrs[:-1], lin_ftrs[1:], ps, actns):
-        layers += LinBnDrop(ni, no, bn=True, p=p, act=actn, lin_first=lin_first)
+    for ni, no, bn, p, actn in zip(lin_ftrs[:-1], lin_ftrs[1:], bns, ps, actns):
+        layers += LinBnDrop(ni, no, bn=bn, p=p, act=actn, lin_first=lin_first)
     if lin_first:
         layers.append(nn.Linear(lin_ftrs[-2], n_out))
     if bn_final:
@@ -180,7 +184,7 @@ def create_head(nf, n_out, lin_ftrs=None, ps=0.5, concat_pool=True, bn_final=Fal
 #
 # Those blocks start at `nf`, then every element of `lin_ftrs` (defaults to `[512]`) and end at `n_out`. `ps` is a list of probabilities used for the dropouts (if you only pass 1, it will use half the value then that value as many times as necessary).
 #
-# If `bn_final=True`, a final `BatchNorm` layer is added. If `y_range` is passed, the function adds a `SigmoidRange` to that range.
+# If `first_bn=True`, a `BatchNorm` added just after the pooling operations. If `bn_final=True`, a final `BatchNorm` layer is added. If `y_range` is passed, the function adds a `SigmoidRange` to that range.
 
 tst = create_head(5, 10)
 tst
@@ -196,51 +200,22 @@ tst = create_head(5, 10, lin_first=True)
 mods = list(tst.children())
 test_eq(len(mods), 8)
 assert isinstance(mods[2], nn.Dropout)
+
+tst = create_head(5, 10, first_bn=False)
+mods = list(tst.children())
+test_eq(len(mods), 8)
+assert isinstance(mods[2], nn.Dropout)
+
+tst = create_head(5, 10, concat_pool=True)
+modes = list(tst.children())
+test_eq(modes[4].in_features, 10)
+
+tst = create_head(5, 10, concat_pool=False)
+modes = list(tst.children())
+test_eq(modes[4].in_features, 5)
 # -
 
 # export
-
-
-# export
-@delegates(create_head)
-def create_cnn_model(arch, n_out, cut=None, pretrained=True, n_in=3, init=nn.init.kaiming_normal_, custom_head=None,
-                     concat_pool=True, **kwargs):
-    "Create custom convnet architecture using `arch`, `n_in` and `n_out`"
-    body = create_body(arch, n_in, pretrained, cut)
-    if custom_head is None:
-        nf = num_features_model(nn.Sequential(*body.children())) * (2 if concat_pool else 1)
-        head = create_head(nf, n_out, concat_pool=concat_pool, **kwargs)
-    else:
-        head = custom_head
-    model = nn.Sequential(body, head)
-    if init is not None:
-        apply_init(model[1], init)
-    return model
-
-
-show_doc(create_cnn_model)
-
-# The model is cut according to `cut` and it may be `pretrained`, in which case, the proper set of weights is downloaded then loaded. `init` is applied to the head of the model, which is either created by `create_head` (with `lin_ftrs`, `ps`, `concat_pool`, `bn_final`, `lin_first` and `y_range`) or is `custom_head`.
-
-tst = create_cnn_model(models.resnet18, 10, None, True)
-tst = create_cnn_model(models.resnet18, 10, None, True, n_in=1)
-
-
-# export
-@delegates(create_cnn_model)
-def cnn_config(**kwargs):
-    "Convenience function to easily create a config for `create_cnn_model`"
-    return kwargs
-
-
-# +
-pets = DataBlock(blocks=(ImageBlock, CategoryBlock),
-                 get_items=get_image_files,
-                 splitter=RandomSplitter(),
-                 get_y=RegexLabeller(pat=r'/([^/]+)_\d+.jpg$'))
-
-dls = pets.dataloaders(untar_data(URLs.PETS) / "images", item_tfms=RandomResizedCrop(300, min_scale=0.5), bs=64,
-                       batch_tfms=[*aug_transforms(size=224)])
 
 
 # +
@@ -262,10 +237,20 @@ def default_split(m):
 # +
 # export
 def _xresnet_split(m): return L(m[0][:3], m[0][3:], m[1:]).map(params)
+
+
 def _resnet_split(m): return L(m[0][:6], m[0][6:], m[1:]).map(params)
+
+
 def _squeezenet_split(m: nn.Module): return L(m[0][0][:5], m[0][0][5:], m[1:]).map(params)
+
+
 def _densenet_split(m: nn.Module): return L(m[0][0][:7], m[0][0][7:], m[1:]).map(params)
+
+
 def _vgg_split(m: nn.Module): return L(m[0][0][:22], m[0][0][22:], m[1:]).map(params)
+
+
 def _alexnet_split(m: nn.Module): return L(m[0][0][:6], m[0][0][6:], m[1:]).map(params)
 
 
@@ -297,6 +282,43 @@ model_meta = {
     models.alexnet: {**_alexnet_meta}}
 
 
+# export
+@delegates(create_head)
+def create_cnn_model(arch, n_out, pretrained=True, cut=None, n_in=3, init=nn.init.kaiming_normal_, custom_head=None,
+                     concat_pool=True, **kwargs):
+    "Create custom convnet architecture"
+    meta = model_meta.get(arch, _default_meta)
+    body = create_body(arch, n_in, pretrained, ifnone(cut, meta['cut']))
+    if custom_head is None:
+        nf = num_features_model(nn.Sequential(*body.children()))
+        head = create_head(nf, n_out, concat_pool=concat_pool, **kwargs)
+    else:
+        head = custom_head
+    model = nn.Sequential(body, head)
+    if init is not None:
+        apply_init(model[1], init)
+    return model
+
+
+show_doc(create_cnn_model)
+
+# The model is cut according to `cut` and it may be `pretrained`, in which case, the proper set of weights is downloaded then loaded. `init` is applied to the head of the model, which is either created by `create_head` (with `lin_ftrs`, `ps`, `concat_pool`, `bn_final`, `lin_first` and `y_range`) or is `custom_head`.
+
+tst = create_cnn_model(models.resnet18, 10, True)
+tst = create_cnn_model(models.resnet18, 10, True, n_in=1)
+
+# +
+pets = DataBlock(blocks=(ImageBlock, CategoryBlock),
+                 get_items=get_image_files,
+                 splitter=RandomSplitter(),
+                 get_y=RegexLabeller(pat=r'/([^/]+)_\d+.jpg$'))
+
+dls = pets.dataloaders(untar_data(URLs.PETS) / "images", item_tfms=RandomResizedCrop(300, min_scale=0.5), bs=64,
+                       batch_tfms=[*aug_transforms(size=224)])
+
+
+# -
+
 # ## `Learner` convenience functions
 
 # export
@@ -313,31 +335,40 @@ def _add_norm(dls, meta, pretrained):
 
 
 # export
-@log_args(to_return=True, but_as=Learner.__init__)
-@delegates(Learner.__init__)
-def cnn_learner(dls, arch, loss_func=None, pretrained=True, cut=None, splitter=None,
-                y_range=None, config=None, n_out=None, normalize=True, **kwargs):
+@delegates(create_cnn_model)
+def cnn_learner(dls, arch, normalize=True, n_out=None, pretrained=True, config=None,
+                # learner args
+                loss_func=None, opt_func=Adam, lr=defaults.lr, splitter=None, cbs=None, metrics=None, path=None,
+                model_dir='models', wd=None, wd_bn_bias=False, train_bn=True, moms=(0.95, 0.85, 0.95),
+                # other model args
+                **kwargs):
     "Build a convnet style learner from `dls` and `arch`"
-    if config is None:
-        config = {}
+
+    if config:
+        warnings.warn('config param is deprecated. Pass your args directly to cnn_learner.')
+        kwargs = {**config, **kwargs}
+
     meta = model_meta.get(arch, _default_meta)
+    if normalize:
+        _add_norm(dls, meta, pretrained)
+
     if n_out is None:
         n_out = get_c(dls)
     assert n_out, "`n_out` is not defined, and could not be inferred from data, set `dls.c` or pass `n_out`"
-    if normalize:
-        _add_norm(dls, meta, pretrained)
-    if y_range is None and 'y_range' in config:
-        y_range = config.pop('y_range')
-    model = create_cnn_model(arch, n_out, ifnone(cut, meta['cut']), pretrained, y_range=y_range, **config)
-    learn = Learner(dls, model, loss_func=loss_func, splitter=ifnone(splitter, meta['split']), **kwargs)
+    model = create_cnn_model(arch, n_out, pretrained=pretrained, **kwargs)
+
+    splitter = ifnone(splitter, meta['split'])
+    learn = Learner(dls=dls, model=model, loss_func=loss_func, opt_func=opt_func, lr=lr, splitter=splitter, cbs=cbs,
+                    metrics=metrics, path=path, model_dir=model_dir, wd=wd, wd_bn_bias=wd_bn_bias, train_bn=train_bn,
+                    moms=moms)
     if pretrained:
         learn.freeze()
+    # keep track of args for loggers
+    store_attr('arch,normalize,n_out,pretrained', self=learn, **kwargs)
     return learn
 
 
 # The model is built from `arch` using the number of final activations inferred from `dls` if possible (otherwise pass a value to `n_out`). It might be `pretrained` and the architecture is cut and split using the default metadata of the model architecture (this can be customized by passing a `cut` or a `splitter`).
-#
-# To customize the model creation, use `cnn_config` and pass the result to the `config` argument. There is just easy access to `y_range` because this argument is often used.
 #
 # If `normalize` and `pretrained` are `True`, this function adds a `Normalization` transform to the `dls` (if there is not already one) using the statistics of the pretrained model. That way, you won't ever forget to normalize your data in transfer learning.
 #
@@ -348,7 +379,11 @@ fnames = get_image_files(path / "images")
 pat = r'^(.*)_\d+.jpg$'
 dls = ImageDataLoaders.from_name_re(path, fnames, pat, item_tfms=Resize(224))
 
-learn = cnn_learner(dls, models.resnet34, loss_func=CrossEntropyLossFlat(), config=cnn_config(ps=0.25))
+learn = cnn_learner(dls, models.resnet34, loss_func=CrossEntropyLossFlat(), ps=0.25)
+
+# hide
+learn = cnn_learner(dls, models.resnet34, loss_func=CrossEntropyLossFlat(), ps=0.25, concat_pool=False)
+test_ne(learn.cbs, None)
 
 # hide
 test_eq(to_cpu(dls.after_batch[1].mean[0].squeeze()), tensor(imagenet_stats[0]))
@@ -356,37 +391,55 @@ test_eq(to_cpu(dls.after_batch[1].mean[0].squeeze()), tensor(imagenet_stats[0]))
 
 # export
 @delegates(models.unet.DynamicUnet.__init__)
-def unet_config(**kwargs):
-    "Convenience function to easily create a config for `DynamicUnet`"
-    return kwargs
+def create_unet_model(arch, n_out, img_size, pretrained=True, cut=None, n_in=3, **kwargs):
+    "Create custom unet architecture"
+    meta = model_meta.get(arch, _default_meta)
+    body = create_body(arch, n_in, pretrained, ifnone(cut, meta['cut']))
+    model = models.unet.DynamicUnet(body, n_out, img_size, **kwargs)
+    return model
+
+
+show_doc(create_unet_model)
+
+tst = create_unet_model(models.resnet18, 10, (24, 24), True, n_in=1)
 
 
 # export
-@log_args(to_return=True, but_as=Learner.__init__)
-@delegates(Learner.__init__)
-def unet_learner(dls, arch, loss_func=None, pretrained=True, cut=None, splitter=None, config=None, n_in=3, n_out=None,
-                 normalize=True, **kwargs):
+@delegates(create_unet_model)
+def unet_learner(dls, arch, normalize=True, n_out=None, pretrained=True, config=None,
+                 # learner args
+                 loss_func=None, opt_func=Adam, lr=defaults.lr, splitter=None, cbs=None, metrics=None, path=None,
+                 model_dir='models', wd=None, wd_bn_bias=False, train_bn=True, moms=(0.95, 0.85, 0.95),
+                 # other model args
+                 **kwargs):
     "Build a unet learner from `dls` and `arch`"
-    if config is None:
-        config = unet_config()
+
+    if config:
+        warnings.warn('config param is deprecated. Pass your args directly to unet_learner.')
+        kwargs = {**config, **kwargs}
+
     meta = model_meta.get(arch, _default_meta)
-    body = create_body(arch, n_in, pretrained, ifnone(cut, meta['cut']))
-    size = dls.one_batch()[0].shape[-2:]
-    if n_out is None:
-        n_out = get_c(dls)
-    assert n_out, "`n_out` is not defined, and could not be inferred from data, set `dls.c` or pass `n_out`"
     if normalize:
         _add_norm(dls, meta, pretrained)
-    model = models.unet.DynamicUnet(body, n_out, size, **config)
-    learn = Learner(dls, model, loss_func=loss_func, splitter=ifnone(splitter, meta['split']), **kwargs)
+
+    n_out = ifnone(n_out, get_c(dls))
+    assert n_out, "`n_out` is not defined, and could not be inferred from data, set `dls.c` or pass `n_out`"
+    img_size = dls.one_batch()[0].shape[-2:]
+    assert img_size, "image size could not be inferred from data"
+    model = create_unet_model(arch, n_out, img_size, pretrained=pretrained, **kwargs)
+
+    splitter = ifnone(splitter, meta['split'])
+    learn = Learner(dls=dls, model=model, loss_func=loss_func, opt_func=opt_func, lr=lr, splitter=splitter, cbs=cbs,
+                    metrics=metrics, path=path, model_dir=model_dir, wd=wd, wd_bn_bias=wd_bn_bias, train_bn=train_bn,
+                    moms=moms)
     if pretrained:
         learn.freeze()
+    # keep track of args for loggers
+    store_attr('arch,normalize,n_out,pretrained', self=learn, **kwargs)
     return learn
 
 
 # The model is built from `arch` using the number of final filters inferred from `dls` if possible (otherwise pass a value to `n_out`). It might be `pretrained` and the architecture is cut and split using the default metadata of the model architecture (this can be customized by passing a `cut` or a `splitter`).
-#
-# To customize the model creation, use `unet_config` and pass the result to the `config` argument.
 #
 # If `normalize` and `pretrained` are `True`, this function adds a `Normalization` transform to the `dls` (if there is not already one) using the statistics of the pretrained model. That way, you won't ever forget to normalize your data in transfer learning.
 #
@@ -395,6 +448,8 @@ def unet_learner(dls, arch, loss_func=None, pretrained=True, cut=None, splitter=
 # +
 path = untar_data(URLs.CAMVID_TINY)
 fnames = get_image_files(path / 'images')
+
+
 def label_func(x): return path / 'labels' / f'{x.stem}_P{x.suffix}'
 
 
@@ -403,10 +458,10 @@ codes = np.loadtxt(path / 'codes.txt', dtype=str)
 dls = SegmentationDataLoaders.from_label_func(path, fnames, label_func, codes=codes)
 # -
 
-learn = unet_learner(dls, models.resnet34, loss_func=CrossEntropyLossFlat(axis=1))
+learn = unet_learner(dls, models.resnet34, loss_func=CrossEntropyLossFlat(axis=1), y_range=(0, 1))
 
 # hide
-learn = unet_learner(dls, models.resnet34, pretrained=True, n_in=4)
+test_ne(learn.cbs, None)
 
 
 # ## Show functions -
@@ -477,6 +532,22 @@ def plot_top_losses(x: TensorImage, y: TensorMultiCategory, samples, outs, raws,
     for i, l in enumerate(["target", "predicted", "probabilities", "loss"]):
         rows = [b.show(ctx=r, label=l, **kwargs) for b, r in zip(outs.itemgot(i), rows)]
     display_df(pd.DataFrame(rows))
+
+
+# export
+@typedispatch
+def plot_top_losses(x: TensorImage, y: TensorMask, samples, outs, raws, losses, nrows=None, ncols=None, figsize=None, **kwargs):
+    axes = get_grid(len(samples) * 3, nrows=len(samples), ncols=3, add_vert=1, figsize=figsize, flatten=False, title="Input | Target | Prediction")
+    if axes.ndim == 1:
+        axes = (axes,)
+    titles = ["input", "target", "pred"]
+    for axs, s, o, l in zip(axes, samples, outs, losses):
+        imgs = (s[0], s[1], o[0])
+        for ax, im, title in zip(axs, imgs, titles):
+            if title == "pred":
+                title += f"; loss = {l:.4f}"
+            im.show(ctx=ax)
+            ax.set_title(title)
 
 
 # ## Export -

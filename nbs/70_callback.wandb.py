@@ -17,6 +17,7 @@
 # hide
 # skip
 from nbdev.export import *
+import tempfile
 from fastai.vision.all import *
 import wandb
 from nbdev.showdoc import *
@@ -59,7 +60,7 @@ from fastai.basics import *
 # export
 class WandbCallback(Callback):
     "Saves model topology, losses & metrics"
-    toward_end, remove_on_fetch, run_after = True, True, FetchPredsCallback
+    remove_on_fetch, order = True, Recorder.order + 1
     # Record if watch has been called previously (even in another instance)
     _wandb_watch_called = False
 
@@ -167,6 +168,7 @@ class WandbCallback(Callback):
         if self.log_preds:
             self.remove_cb(FetchPredsCallback)
         wandb.log({})  # ensure sync of last step
+        self._wandb_step += 1
 
 
 # Optionally logs weights and or gradients depending on `log` (can be "gradients", "parameters", "all" or None), sample predictions if ` log_preds=True` that will come from `valid_dl` or a random sample pf the validation set (determined by `seed`). `n_preds` are logged in this case.
@@ -180,6 +182,36 @@ class WandbCallback(Callback):
 # * *Note: the subfolder "models" is always ignored*
 #
 # For custom scenarios, you can also manually use functions `log_dataset` and `log_model` to respectively log your own datasets and models.
+
+# export
+@patch
+def gather_args(self: Learner):
+    "Gather config parameters accessible to the learner"
+    # args stored by `store_attr`
+    cb_args = {f'{cb}': getattr(cb, '__stored_args__', True) for cb in self.cbs}
+    args = {'Learner': self, **cb_args}
+    # input dimensions
+    try:
+        n_inp = self.dls.train.n_inp
+        args['n_inp'] = n_inp
+        xb = self.dls.train.one_batch()[:n_inp]
+        args.update({f'input {n+1} dim {i+1}': d for n in range(n_inp) for i, d in enumerate(list(detuplify(xb[n]).shape))})
+    except:
+        print(f'Could not gather input dimensions')
+    # other useful information
+    with ignore_exceptions():
+        args['batch size'] = self.dls.bs
+        args['batch per epoch'] = len(self.dls.train)
+        args['model parameters'] = total_params(self.model)[0]
+        args['device'] = self.dls.device.type
+        args['frozen'] = bool(self.opt.frozen_idx)
+        args['frozen idx'] = self.opt.frozen_idx
+        args['dataset.tfms'] = f'{self.dls.dataset.tfms}'
+        args['dls.after_item'] = f'{self.dls.after_item}'
+        args['dls.before_batch'] = f'{self.dls.before_batch}'
+        args['dls.after_batch'] = f'{self.dls.after_batch}'
+    return args
+
 
 # export
 def _make_plt(img):
@@ -196,28 +228,23 @@ def _make_plt(img):
 
 
 # export
-def _format_config_value(config_value):
-    "Format a single config parameter value before logging it"
-    if callable(config_value):
-        config_value = (
-            f'{config_value.__module__}.{config_value.__qualname__}'
-            if hasattr(config_value, '__qualname__') and hasattr(config_value, '__module__')
-            else str(config_value)
-        )
-    return config_value
+def _format_config_value(v):
+    if isinstance(v, list):
+        return [_format_config_value(item) for item in v]
+    elif hasattr(v, '__stored_args__'):
+        return {**_format_config(v.__stored_args__), '_name': v}
+    return v
 
 
 # export
-def _format_config(log_config):
+def _format_config(config):
     "Format config parameters before logging them"
-    for k, v in log_config.items():
-        if isinstance(v, slice):
-            v = dict(slice_start=v.start, slice_step=v.step, slice_stop=v.stop)
-        elif isinstance(v, list):
-            v = [_format_config_value(item) for item in v]
+    for k, v in config.items():
+        if isinstance(v, dict):
+            config[k] = _format_config(v)
         else:
-            v = _format_config_value(v)
-        log_config[k] = v
+            config[k] = _format_config_value(v)
+    return config
 
 
 # export
@@ -228,7 +255,7 @@ def _format_metadata(metadata):
 
 
 # export
-def log_dataset(path, name=None, metadata={}):
+def log_dataset(path, name=None, metadata={}, description='raw dataset'):
     "Log dataset folder"
     # Check if wandb.init has been called in case datasets are logged manually
     if wandb.run is None:
@@ -238,7 +265,7 @@ def log_dataset(path, name=None, metadata={}):
         raise f'path must be a valid directory: {path}'
     name = ifnone(name, path.name)
     _format_metadata(metadata)
-    artifact_dataset = wandb.Artifact(name=name, type='dataset', description='raw dataset', metadata=metadata)
+    artifact_dataset = wandb.Artifact(name=name, type='dataset', metadata=metadata, description=description)
     # log everything except "models" folder
     for p in path.ls():
         if p.is_dir():
@@ -250,7 +277,7 @@ def log_dataset(path, name=None, metadata={}):
 
 
 # export
-def log_model(path, name=None, metadata={}):
+def log_model(path, name=None, metadata={}, description='trained model'):
     "Log model file"
     if wandb.run is None:
         raise ValueError('You must call wandb.init() before log_model()')
@@ -259,7 +286,7 @@ def log_model(path, name=None, metadata={}):
         raise f'path must be a valid file: {path}'
     name = ifnone(name, f'run-{wandb.run.id}-model')
     _format_metadata(metadata)
-    artifact_model = wandb.Artifact(name=name, type='model', description='trained model', metadata=metadata)
+    artifact_model = wandb.Artifact(name=name, type='model', metadata=metadata, description=description)
     with artifact_model.new_file(name, mode='wb') as fa:
         fa.write(path.read_bytes())
     wandb.run.log_artifact(artifact_model)
@@ -294,7 +321,8 @@ def wandb_process(x: TensorImage, y: (TensorCategory, TensorMultiCategory), samp
 @typedispatch
 def wandb_process(x: TensorImage, y: TensorMask, samples, outs):
     res = []
-    class_labels = {i: f'{c}' for i, c in enumerate(y.get_meta('codes'))} if y.get_meta('codes') is not None else None
+    codes = getattr(y, 'codes', None)
+    class_labels = {i: f'{c}' for i, c in enumerate(codes)} if codes is not None else None
     for s, o in zip(samples, outs):
         img = s[0].permute(1, 2, 0)
         masks = {}
@@ -355,13 +383,17 @@ tds = Datasets(items, [PILImageBW.create, [parent_label, Categorize()]], splits=
 dls = tds.dataloaders(after_item=[ToTensor(), IntToFloatTensor()])
 
 os.environ['WANDB_MODE'] = 'dryrun'  # run offline
-wandb.init(anonymous='allow')
-learn = cnn_learner(dls, resnet18, loss_func=CrossEntropyLossFlat(), cbs=WandbCallback(log_model=False))
-learn.fit(1)
+with tempfile.TemporaryDirectory() as wandb_local_dir:
+    wandb.init(anonymous='allow', dir=wandb_local_dir)
+    learn = cnn_learner(dls, resnet18, loss_func=CrossEntropyLossFlat(), cbs=WandbCallback(log_model=False))
+    learn.fit(1)
 
-# add more data from a new learner on same run
-learn = cnn_learner(dls, resnet18, loss_func=CrossEntropyLossFlat(), cbs=WandbCallback(log_model=False))
-learn.fit(1, lr=slice(0.05))
+    # add more data from a new learner on same run
+    learn = cnn_learner(dls, resnet18, loss_func=CrossEntropyLossFlat(), cbs=WandbCallback(log_model=False))
+    learn.fit(1, lr=slice(0.005))
+
+    # finish writing files to temporary folder
+    wandb.finish()
 # -
 
 # export

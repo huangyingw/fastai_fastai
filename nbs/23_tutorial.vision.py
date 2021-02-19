@@ -125,7 +125,7 @@ learn.lr_find()
 
 # It plots the graph of the learning rate finder and gives us two suggestions (minimum divided by 10 and steepest gradient). Let's use `3e-3` here. We will also do a bit more epochs:
 
-learn.fine_tune(4, 3e-3)
+learn.fine_tune(2, 3e-3)
 
 # Again, we can have a look at some predictions with `show_results`:
 
@@ -203,7 +203,7 @@ learn.lr_find()
 
 # We can pick the suggested learning rate and fine-tune our pretrained model:
 
-learn.fine_tune(4, 3e-2)
+learn.fine_tune(2, 3e-2)
 
 # Like before, we can easily have a look at the results:
 
@@ -299,11 +299,16 @@ dls.show_batch(max_n=6)
 # A traditional CNN won't work for segmentation, we have to use a special kind of model called a UNet, so we use `unet_learner` to define our `Learner`:
 
 learn = unet_learner(dls, resnet34)
-learn.fine_tune(8)
+learn.fine_tune(6)
 
 # And as before, we can get some idea of the predicted results with `show_results`
 
 learn.show_results(max_n=6, figsize=(7, 8))
+
+# We can also sort the model's errors on the validation set using the `SegmentationInterpretation` class and then plot the instances with the `k` highest contributions to the validation loss.
+
+interp = SegmentationInterpretation.from_learner(learn)
+interp.plot_top_losses(k=3)
 
 # ### Segmentation - With the data block API
 
@@ -346,6 +351,8 @@ path.ls()
 # Inside the subdirectories, we have different frames, each of them come with an image (`\_rgb.jpg`) and a pose file (`\_pose.txt`). We can easily get all the image files recursively with `get_image_files`, then write a function that converts an image filename to its associated pose file.
 
 img_files = get_image_files(path)
+
+
 def img2pose(x): return Path(f'{str(x)[:-7]}pose.txt')
 
 
@@ -400,7 +407,7 @@ learn.lr_find()
 
 # Then we can train our model:
 
-learn.fine_tune(4, 5e-3)
+learn.fine_tune(1, 5e-3)
 
 # The loss is the mean squared error, so that means we make on average an error of
 

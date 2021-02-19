@@ -350,7 +350,7 @@ def _tokenize_files(func, files, path, output_dir=None, output_names=None, n_wor
     lengths, counter = {}, Counter()
     for i, tok in parallel_tokenize(files, tok, rules, n_workers=n_workers):
         out = func(i, output_dir)
-        out.mk_write(' '.join(tok))
+        out.mk_write(' '.join(tok), encoding=encoding)
         lengths[str(files[i].relative_to(path))] = len(tok)
         counter.update(tok)
 
@@ -418,8 +418,8 @@ def tokenize_texts(texts, n_workers=defaults.cpus, rules=None, tok=None):
 
 # export
 def tokenize_df(df, text_cols, n_workers=defaults.cpus, rules=None, mark_fields=None,
-                tok=None, res_col_name="text"):
-    "Tokenize texts in `df[text_cols]` in parallel using `n_workers`"
+                tok=None, tok_text_col="text"):
+    "Tokenize texts in `df[text_cols]` in parallel using `n_workers` and stores them in `df[tok_text_col]`"
     text_cols = [df.columns[c] if isinstance(c, int) else c for c in L(text_cols)]
     # mark_fields defaults to False if there is one column of texts, True if there are multiple
     if mark_fields is None:
@@ -431,8 +431,8 @@ def tokenize_df(df, text_cols, n_workers=defaults.cpus, rules=None, mark_fields=
 
     other_cols = df.columns[~df.columns.isin(text_cols)]
     res = df[other_cols].copy()
-    res[res_col_name] = outputs
-    res[f'{res_col_name}_length'] = [len(o) for o in outputs]
+    res[tok_text_col] = outputs
+    res[f'{tok_text_col}_length'] = [len(o) for o in outputs]
     return res, Counter(outputs.concat())
 
 
@@ -464,7 +464,7 @@ def load_tokenized_csv(fname):
     fname = Path(fname)
     out = pd.read_csv(fname)
     for txt_col in out.columns[1:-1]:
-        out[txt_col] = out[txt_col].str.split(' ')
+        out[txt_col] = tuple(out[txt_col].str.split(' '))
     return out, load_pickle(fname.with_suffix('.pkl'))
 
 
@@ -523,12 +523,13 @@ with tempfile.TemporaryDirectory() as tmp_d:
     out, cnt_b = tokenize_df(df, text_cols='text')
     test_eq(list(out.columns), ['label', 'text', 'text_length'])
     test_eq(out['label'].values, df['label'].values)
-    test_eq(out['text'], [(outp / d / f'text{i}.txt').read_text().split(' ') for i in range(5) for d in ['a', 'b', 'c']])
+    test_eq(list(out['text']), [(outp / d / f'text{i}.txt').read_text().split(' ') for i in range(5) for d in ['a', 'b', 'c']])
     test_eq(cnt_a, cnt_b)
 
     # Tokenize as a csv
     out_fname = Path(tmp_d) / 'output.csv'
     tokenize_csv(csv_fname, text_cols='text', outname=out_fname)
+    a, b = load_tokenized_csv(out_fname)
     test_eq((out, cnt_b), load_tokenized_csv(out_fname))
 
 
@@ -578,7 +579,7 @@ class Tokenizer(Transform):
     def encodes(self, o: Path):
         if self.mode == 'folder' and str(o).startswith(str(self.path)):
             tok = self.output_dir / o.relative_to(self.path)
-            return L(tok.read_text().split(' '))
+            return L(tok.read_text(encoding='UTF-8').split(' '))
         else:
             return self._tokenize1(o.read_text())
 
@@ -708,7 +709,6 @@ with tempfile.TemporaryDirectory() as tmp_d:
     print(dsets.train[0][0])
 
 with warnings.catch_warnings():
-    warnings.simplefilter("ignore", category=np.VisibleDeprecationWarning)
     dsets = Datasets(df, [Tokenizer.from_df('text', tok=tok)], splits=splits)
     print(dsets.train[0][0].text)
 # -

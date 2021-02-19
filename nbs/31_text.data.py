@@ -101,8 +101,8 @@ LMTensorText.__doc__ = "Semantic type for a tensor representing text in language
 class Numericalize(Transform):
     "Reversible transform of tokenized texts to numericalized ids"
 
-    def __init__(self, vocab=None, min_freq=3, max_vocab=60000, special_toks=None, pad_tok=None):
-        store_attr('vocab,min_freq,max_vocab,special_toks,pad_tok')
+    def __init__(self, vocab=None, min_freq=3, max_vocab=60000, special_toks=None):
+        store_attr('vocab,min_freq,max_vocab,special_toks')
         self.o2i = None if vocab is None else defaultdict(int, {v: k for k, v in enumerate(vocab)})
 
     def setups(self, dsets):
@@ -116,8 +116,13 @@ class Numericalize(Transform):
             self.o2i = defaultdict(int, {v: k for k, v in enumerate(self.vocab) if v != 'xxfake'})
 
     def encodes(self, o): return TensorText(tensor([self.o2i[o_] for o_ in o]))
-    def decodes(self, o): return L(self.vocab[o_] for o_ in o if self.vocab[o_] != self.pad_tok)
+    def decodes(self, o): return L(self.vocab[o_] for o_ in o)
 
+
+num = Numericalize(min_freq=2)
+num.setup(L('This is an example of text'.split(), 'this is another text'.split()))
+
+start = 'This is an example of text '
 
 # If no `vocab` is passed, one is created at setup from the data, using `make_vocab` with `min_freq` and `max_vocab`.
 
@@ -176,7 +181,6 @@ def _get_lengths(ds):
 
 # export
 # TODO: add backward
-@log_args(but_as=TfmdDL.__init__)
 @delegates()
 class LMDataLoader(TfmdDL):
     "A `DataLoader` suitable for language modeling"
@@ -206,6 +210,8 @@ class LMDataLoader(TfmdDL):
         return idxs
 
     def create_item(self, seq):
+        if seq is None:
+            seq = 0
         if seq >= self.n:
             raise IndexError
         sl = self.last_len if seq // self.bs == self.n_batches - 1 else self.seq_len
@@ -299,25 +305,33 @@ def show_batch(x: LMTensorText, y, samples, ctxs=None, max_n=10, trunc_at=150, *
 # For classification, we deal with the fact that texts don't all have the same length by using padding.
 
 # export
-def pad_input(samples, pad_idx=1, pad_fields=0, pad_first=False, backwards=False):
-    "Function that collect `samples` and adds padding"
-    pad_fields = L(pad_fields)
-    max_len_l = pad_fields.map(lambda f: max([len(s[f]) for s in samples]))
-    if backwards:
-        pad_first = not pad_first
-
-    def _f(field_idx, x):
-        if field_idx not in pad_fields:
-            return x
-        idx = pad_fields.items.index(field_idx)  # TODO: remove items if L.index is fixed
-        sl = slice(-len(x), sys.maxsize) if pad_first else slice(0, len(x))
-        pad = x.new_zeros(max_len_l[idx] - x.shape[0]) + pad_idx
-        x1 = torch.cat([pad, x] if pad_first else [x, pad])
+class Pad_Input(ItemTransform):
+    def encodes(self, samples, pad_idx=1, pad_fields=0, pad_first=False, backwards=False):
+        "Function that collect `samples` and adds padding"
+        self.pad_idx = pad_idx
+        pad_fields = L(pad_fields)
+        max_len_l = pad_fields.map(lambda f: max([len(s[f]) for s in samples]))
         if backwards:
-            x1 = x1.flip(0)
-        return retain_type(x1, x)
-    return [tuple(map(lambda idxx: _f(*idxx), enumerate(s))) for s in samples]
+            pad_first = not pad_first
 
+        def _f(field_idx, x):
+            if field_idx not in pad_fields:
+                return x
+            idx = pad_fields.items.index(field_idx)  # TODO: remove items if L.index is fixed
+            sl = slice(-len(x), sys.maxsize) if pad_first else slice(0, len(x))
+            pad = x.new_zeros(max_len_l[idx] - x.shape[0]) + pad_idx
+            x1 = torch.cat([pad, x] if pad_first else [x, pad])
+            if backwards:
+                x1 = x1.flip(0)
+            return retain_type(x1, x)
+        return [tuple(map(lambda idxx: _f(*idxx), enumerate(s))) for s in samples]
+
+    def decodes(self, o: TensorText):
+        pad_idx = self.pad_idx if hasattr(self, 'pad_idx') else 1
+        return o[o != pad_idx]
+
+
+pad_input = Pad_Input()
 
 # `pad_idx` is used for the padding, and the padding is applied to the `pad_fields` of the samples. The padding is applied at the beginning if `pad_first` is `True`, and if `backwards` is added, the tensors are flipped.
 
@@ -329,8 +343,9 @@ test_eq(pad_input([(tensor([1, 2, 3]), 1), (tensor([4, 5]), 2), (tensor([6]), 3)
         [(tensor([1, 2, 3]), 1), (tensor([0, 4, 5]), 2), (tensor([0, 0, 6]), 3)])
 test_eq(pad_input([(tensor([1, 2, 3]), 1), (tensor([4, 5]), 2), (tensor([6]), 3)], pad_idx=0, backwards=True),
         [(tensor([3, 2, 1]), 1), (tensor([5, 4, 0]), 2), (tensor([6, 0, 0]), 3)])
-x = test_eq(pad_input([(tensor([1, 2, 3]), 1), (tensor([4, 5]), 2), (tensor([6]), 3)], pad_idx=0, backwards=True),
-            [(tensor([3, 2, 1]), 1), (tensor([5, 4, 0]), 2), (tensor([6, 0, 0]), 3)])
+x = pad_input([(TensorText([1, 2, 3]), 1), (TensorText([4, 5]), 2), (TensorText([6]), 3)], pad_idx=0)
+test_eq(x, [(tensor([1, 2, 3]), 1), (tensor([4, 5, 0]), 2), (tensor([6, 0, 0]), 3)])
+test_eq(pad_input.decode(x[1][0]), tensor([4, 5]))
 
 # hide
 # Check retain type
@@ -340,28 +355,100 @@ for s in y:
     test_eq(type(s[0]), TensorText)
 
 
-# export
-def pad_input_chunk(samples, pad_idx=1, pad_first=True, seq_len=72):
-    "Pad `samples` by adding padding by chunks of size `seq_len`"
-    max_len = max([len(s[0]) for s in samples])
+# Pads `x` with `pad_idx` to length `pad_len`. If `pad_first` is false, all padding is appended to `x`, until `x` is len `pad_len`. Otherwise ff `pad_first` is true, then chunks of size `seq_len` are prepended to `x`, the remainder of the padding is appended to `x`.
 
-    def _f(x):
-        l = max_len - x.shape[0]
-        pad_chunk = x.new_zeros((l // seq_len) * seq_len) + pad_idx
-        pad_res = x.new_zeros(l % seq_len) + pad_idx
-        x1 = torch.cat([pad_chunk, x, pad_res]) if pad_first else torch.cat([x, pad_res, pad_chunk])
-        return retain_type(x1, x)
-    return [(_f(s[0]), *s[1:]) for s in samples]
+# export
+def pad_chunk(x, pad_idx=1, pad_first=True, seq_len=72, pad_len=10):
+    "Pad `x` by adding padding by chunks of size `seq_len`"
+    l = pad_len - x.shape[0]
+    pad_chunk = x.new_zeros((l // seq_len) * seq_len) + pad_idx
+    pad_res = x.new_zeros(l % seq_len) + pad_idx
+    x1 = torch.cat([pad_chunk, x, pad_res]) if pad_first else torch.cat([x, pad_chunk, pad_res])
+    return retain_type(x1, x)
+
+
+print('pad_first: ', pad_chunk(torch.tensor([1, 2, 3]), seq_len=3, pad_idx=0, pad_len=8))
+print('pad_last:  ', pad_chunk(torch.tensor([1, 2, 3]), seq_len=3, pad_idx=0, pad_len=8, pad_first=False))
+
+
+# `pad_input_chunk` is the version of `pad_chunk` that works over a list of lists.
+
+# export
+@delegates(pad_chunk)
+def pad_input_chunk(samples, n_inp=1, **kwargs):
+    "Pad `samples` by adding padding by chunks of size `seq_len`"
+    max_len = max([len(s[n]) for s in samples for n in range(n_inp)])
+    padeds = [[pad_chunk(s[n], pad_len=max_len, **kwargs) for n in range(n_inp)] for s in samples]
+    return [(*p, *s[n_inp:]) for p, s in zip(padeds, samples)]
 
 
 # The difference with the base `pad_input` is that most of the padding is applied first (if `pad_first=True`) or at the end (if `pad_first=False`) but only by a round multiple of `seq_len`. The rest of the padding is applied to the end (or the beginning if `pad_first=False`). This is to work with `SequenceEncoder` with recurrent models.
 
+pad_input_chunk([(TensorText([1, 2, 3, 4, 5, 6]), TensorText([1, 2]), 1)], pad_idx=0, seq_len=3, n_inp=2)
+
+# +
 test_eq(pad_input_chunk([(tensor([1, 2, 3, 4, 5, 6]), 1), (tensor([1, 2, 3]), 2), (tensor([1, 2]), 3)], pad_idx=0, seq_len=2),
         [(tensor([1, 2, 3, 4, 5, 6]), 1), (tensor([0, 0, 1, 2, 3, 0]), 2), (tensor([0, 0, 0, 0, 1, 2]), 3)])
 test_eq(pad_input_chunk([(tensor([1, 2, 3, 4, 5, 6]),), (tensor([1, 2, 3]),), (tensor([1, 2]),)], pad_idx=0, seq_len=2),
         [(tensor([1, 2, 3, 4, 5, 6]),), (tensor([0, 0, 1, 2, 3, 0]),), (tensor([0, 0, 0, 0, 1, 2]),)])
 test_eq(pad_input_chunk([(tensor([1, 2, 3, 4, 5, 6]),), (tensor([1, 2, 3]),), (tensor([1, 2]),)], pad_idx=0, seq_len=2, pad_first=False),
         [(tensor([1, 2, 3, 4, 5, 6]),), (tensor([1, 2, 3, 0, 0, 0]),), (tensor([1, 2, 0, 0, 0, 0]),)])
+
+test_eq(pad_input_chunk([(TensorText([1, 2, 3, 4, 5, 6]), TensorText([1, 2]), 1)], pad_idx=0, seq_len=2, n_inp=2),
+        [(TensorText([1, 2, 3, 4, 5, 6]), TensorText([0, 0, 0, 0, 1, 2]), 1)])
+
+
+# -
+
+# `Transform` version of `pad_input_chunk`. This version supports types, decoding, and the other functionality of `Transform`
+
+# export
+class Pad_Chunk(DisplayedTransform):
+    "Pad `samples` by adding padding by chunks of size `seq_len`"
+
+    def __init__(self, pad_idx=1, pad_first=True, seq_len=72, decode=True, **kwargs):
+        store_attr('pad_idx, pad_first, seq_len,seq_len')
+        super().__init__(**kwargs)
+
+    def before_call(self, b):
+        "Set `self.max_len` before encodes"
+        self.max_len = max([x.shape[0] for xs in b for x in xs if isinstance(x, TensorText)])
+
+    def __call__(self, b, **kwargs):
+        self.before_call(b)
+        return super().__call__(tuple(b), **kwargs)
+
+    def encodes(self, x: TensorText):
+        return pad_chunk(x, pad_idx=self.pad_idx, pad_first=self.pad_first, seq_len=self.seq_len, pad_len=self.max_len)
+
+    def decodes(self, o: TensorText):
+        return o[o != self.pad_idx] if self.decode else o
+
+
+# Here is an example of `Pad_Chunk`
+
+pc = Pad_Chunk(pad_idx=0, seq_len=3)
+out = pc([(TensorText([1, 2, 3, 4, 5, 6]), TensorText([1, 2]), 1)])
+print('Inputs:  ', *[(TensorText([1, 2, 3, 4, 5, 6]), TensorText([1, 2]), 1)])
+print('Encoded: ', *out)
+print('Decoded: ', *pc.decode(out))
+
+# +
+pc = Pad_Chunk(pad_idx=0, seq_len=2)
+test_eq(pc([(TensorText([1, 2, 3, 4, 5, 6]), 1), (TensorText([1, 2, 3]), 2), (TensorText([1, 2]), 3)]),
+        [(tensor([1, 2, 3, 4, 5, 6]), 1), (tensor([0, 0, 1, 2, 3, 0]), 2), (tensor([0, 0, 0, 0, 1, 2]), 3)])
+
+pc = Pad_Chunk(pad_idx=0, seq_len=2)
+test_eq(pc([(TensorText([1, 2, 3, 4, 5, 6]),), (TensorText([1, 2, 3]),), (TensorText([1, 2]),)]),
+        [(tensor([1, 2, 3, 4, 5, 6]),), (tensor([0, 0, 1, 2, 3, 0]),), (tensor([0, 0, 0, 0, 1, 2]),)])
+
+pc = Pad_Chunk(pad_idx=0, seq_len=2, pad_first=False)
+test_eq(pc([(TensorText([1, 2, 3, 4, 5, 6]),), (TensorText([1, 2, 3]),), (TensorText([1, 2]),)]),
+        [(tensor([1, 2, 3, 4, 5, 6]),), (tensor([1, 2, 3, 0, 0, 0]),), (tensor([1, 2, 0, 0, 0, 0]),)])
+
+pc = Pad_Chunk(pad_idx=0, seq_len=2)
+test_eq(pc([(TensorText([1, 2, 3, 4, 5, 6]), TensorText([1, 2]), 1)]),
+        [(TensorText([1, 2, 3, 4, 5, 6]), TensorText([0, 0, 0, 0, 1, 2]), 1)])
 
 
 # +
@@ -462,7 +549,7 @@ class TextBlock(TransformBlock):
             type_tfms += [reverse_text]
         return super().__init__(type_tfms=type_tfms,
                                 dl_type=LMDataLoader if is_lm else SortedDL,
-                                dls_kwargs={'seq_len': seq_len} if is_lm else {'before_batch': partial(pad_input_chunk, seq_len=seq_len)})
+                                dls_kwargs={'seq_len': seq_len} if is_lm else {'before_batch': Pad_Chunk(seq_len=seq_len)})
 
     @classmethod
     @delegates(Tokenizer.from_df, keep=True)
@@ -531,7 +618,7 @@ class TextDataLoaders(DataLoaders):
     @classmethod
     @delegates(DataLoaders.from_dblock)
     def from_df(cls, df, path='.', valid_pct=0.2, seed=None, text_col=0, label_col=1, label_delim=None, y_block=None,
-                text_vocab=None, is_lm=False, valid_col=None, tok_tfm=None, seq_len=72, backwards=False, **kwargs):
+                text_vocab=None, is_lm=False, valid_col=None, tok_tfm=None, tok_text_col="text", seq_len=72, backwards=False, **kwargs):
         "Create from `df` in `path` with `valid_pct`"
         blocks = [TextBlock.from_df(text_col, text_vocab, is_lm, seq_len, backwards) if tok_tfm is None else TextBlock(tok_tfm, text_vocab, is_lm, seq_len, backwards)]
         if y_block is None and not is_lm:
@@ -540,7 +627,7 @@ class TextDataLoaders(DataLoaders):
             blocks += (y_block if is_listy(y_block) else [y_block])
         splitter = RandomSplitter(valid_pct, seed=seed) if valid_col is None else ColSplitter(valid_col)
         dblock = DataBlock(blocks=blocks,
-                           get_x=ColReader("text"),
+                           get_x=ColReader(tok_text_col),
                            get_y=None if is_lm else ColReader(label_col, label_delim=label_delim),
                            splitter=splitter)
         return cls.from_dblock(dblock, df, path=path, seq_len=seq_len, **kwargs)
@@ -582,8 +669,26 @@ show_doc(TextDataLoaders.from_df)
 
 # `seed` can optionally be passed for reproducibility. `text_col`, `label_col` and optionally `valid_col` are indices or names of columns for texts/labels and the validation flag. `label_delim` can be passed for a multi-label problem if your labels are in one column, separated by a particular char. `y_block` should be passed to indicate your type of targets, in case the library did no infer it properly.
 #
+# Along with this, you can specify the specific column the tokenized text are sent to with `tok_text_col`. By default they are stored in a column named `text` after tokenizing.
+#
 # Here are examples on subsets of IMDB:
 
+path = untar_data(URLs.IMDB_SAMPLE)
+
+df = pd.read_csv(path / "texts.csv")
+df.head()
+
+# hide
+path = untar_data(URLs.IMDB_SAMPLE)
+df = pd.read_csv(path / "texts.csv")
+df.columns = ['label', 'text_col', 'is_valid']  # to test tok_text_col is working properly
+dls = TextDataLoaders.from_df(df, path=path, text_col='text_col', label_col='label', valid_col='is_valid')
+dl = dls.test_dl(["This movie was bad"])
+x, = dl.one_batch()
+test_eq(x.cpu(), TensorText([[2, 8, 21, 29, 25, 97]]))
+
+path = untar_data(URLs.IMDB_SAMPLE)
+df = pd.read_csv(path / "texts.csv")
 dls = TextDataLoaders.from_df(df, path=path, text_col='text', label_col='label', valid_col='is_valid')
 dls.show_batch(max_n=3)
 

@@ -61,7 +61,11 @@ to = TabularPandas(df, procs=[Categorify, FillMissing, Normalize],
                    y_names='salary',
                    splits=splits)
 
-# Before finally building our `DataLoaders` again:
+# Once we build our `TabularPandas` object, our data is completely preprocessed as seen below:
+
+to.xs.iloc[:2]
+
+# Now we can build our `DataLoaders` again:
 
 dls = to.dataloaders(bs=64)
 
@@ -103,15 +107,12 @@ dl = learn.dls.test_dl(test_df)
 
 learn.get_preds(dl=dl)
 
+# > Note: Since machine learning models can't magically understand categories it was never trained on, the data should reflect this. If there are different missing values in your test data you should address this before training
+
 # ## `fastai` with Other Libraries
 #
 # As mentioned earlier, `TabularPandas` is a powerful and easy preprocessing tool for tabular data. Integration with libraries such as Random Forests and XGBoost requires only one extra step, that the `.dataloaders` call did for us. Let's look at our `to` again. It's values are stored in a `DataFrame` like object, where we can extract the `cats`, `conts,` `xs` and `ys` if we want to:
 
-to.xs[:3]
-
-# To then preprocess our data, all we need to do is call `process` to apply all of our `procs` inplace:
-
-to.process()
 to.xs[:3]
 
 # Now that everything is encoded, you can then send this off to XGBoost or Random Forests by extracting the train and validation sets and their values:

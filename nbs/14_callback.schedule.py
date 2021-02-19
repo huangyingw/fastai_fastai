@@ -18,6 +18,7 @@
 # hide
 # skip
 from nbdev.export import notebook2script
+from fastai.vision.all import *
 from fastai.test_utils import *
 from nbdev.showdoc import *
 from fastai.basics import *
@@ -74,14 +75,26 @@ def annealer(f):
 # +
 # export
 def sched_lin(start, end, pos): return start + pos * (end - start)
+
+
 def sched_cos(start, end, pos): return start + (1 + math.cos(math.pi * (1 - pos))) * (end - start) / 2
+
+
 def sched_no(start, end, pos): return start
+
+
 def sched_exp(start, end, pos): return start * (end / start) ** pos
 
 
 def SchedLin(start, end): return _Annealer(sched_lin, start, end)
+
+
 def SchedCos(start, end): return _Annealer(sched_cos, start, end)
+
+
 def SchedNo(start, end): return _Annealer(sched_no, start, end)
+
+
 def SchedExp(start, end): return _Annealer(sched_exp, start, end)
 
 
@@ -206,7 +219,7 @@ for a, b in zip([f(0.), f(0.1), f(0.25), f(0.5), f(1.)],
 @docs
 class ParamScheduler(Callback):
     "Schedule hyper-parameters according to `scheds`"
-    run_after, run_valid = TrainEvalCallback, False
+    order, run_valid = 60, False
 
     def __init__(self, scheds): self.scheds = scheds
     def before_fit(self): self.hps = {p: [] for p in self.scheds.keys()}
@@ -259,7 +272,6 @@ show_doc(ParamScheduler.after_fit)
 
 # export
 @patch
-@log_args(but_as=Learner.fit)
 def fit_one_cycle(self: Learner, n_epoch, lr_max=None, div=25., div_final=1e5, pct_start=0.25, wd=None,
                   moms=None, cbs=None, reset_opt=False):
     "Fit `self.model` for `n_epoch` using the 1cycle policy."
@@ -320,7 +332,6 @@ learn.recorder.plot_sched()
 
 # export
 @patch
-@log_args(but_as=Learner.fit)
 def fit_flat_cos(self: Learner, n_epoch, lr=None, div_final=1e5, pct_start=0.75, wd=None,
                  cbs=None, reset_opt=False):
     "Fit `self.model` for `n_epoch` at flat `lr` before a cosine annealing."
@@ -340,7 +351,6 @@ learn.recorder.plot_sched()
 
 # export
 @patch
-@log_args(but_as=Learner.fit)
 def fit_sgdr(self: Learner, n_cycles, cycle_len, lr_max=None, cycle_mult=2, cbs=None, reset_opt=False, wd=None):
     "Fit `self.model` for `n_cycles` of `cycle_len` using SGDR."
     if self.opt is None:
@@ -375,7 +385,6 @@ learn.recorder.plot_sched()
 
 # export
 @patch
-@log_args(but_as=Learner.fit)
 @delegates(Learner.fit_one_cycle)
 def fine_tune(self: Learner, epochs, base_lr=2e-3, freeze_epochs=1, lr_mult=100,
               pct_start=0.3, div=5.0, **kwargs):
@@ -396,7 +405,6 @@ learn.fine_tune(1)
 @docs
 class LRFinder(ParamScheduler):
     "Training with exponentially growing learning rate"
-    run_after = Recorder
 
     def __init__(self, start_lr=1e-7, end_lr=10, num_it=100, stop_div=True):
         if is_listy(start_lr):
@@ -428,7 +436,7 @@ class LRFinder(ParamScheduler):
         self.learn.opt.zero_grad()  # Need to zero the gradients of the model before detaching the optimizer for future fits
         tmp_f = self.path / self.model_dir / '_tmp.pth'
         if tmp_f.exists():
-            self.learn.load('_tmp')
+            self.learn.load('_tmp', with_opt=True)
             os.remove(tmp_f)
 
     _docs = {"before_fit": "Initialize container for hyper-parameters and save the model",
@@ -437,6 +445,39 @@ class LRFinder(ParamScheduler):
              "after_fit": "Save the hyper-parameters in the recorder if there is one and load the original model",
              "before_validate": "Skip the validation part of training"}
 
+
+# +
+set_seed(99, True)
+path = untar_data(URLs.PETS) / 'images'
+
+image_files = get_image_files(path)
+if sys.platform == "win32" and IN_NOTEBOOK:
+    image_files = random.choices(image_files, k=int(len(image_files) / 8))
+    print("Randomly select 1/8 files in NOTEBOOK on Windows to save time")
+
+# pickle can't serializer lamda function.
+
+
+def _label_func(x):
+    return x[0].isupper()
+
+
+dls = ImageDataLoaders.from_name_func(
+    path, image_files, valid_pct=0.2,
+    label_func=_label_func, item_tfms=Resize(224))
+
+learn = cnn_learner(dls, resnet18)
+learn.fit(1)
+learn.opt.state_dict()['state'][1]['grad_avg']
+# -
+
+# slow
+learn.lr_find()
+learn.opt.state_dict()['state'][1]['grad_avg']
+
+# slow
+learn.lr_find()
+learn.opt.state_dict()['state'][1]['grad_avg']
 
 # slow
 with tempfile.TemporaryDirectory() as d:

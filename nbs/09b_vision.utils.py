@@ -18,12 +18,14 @@
 # skip
 from nbdev.export import notebook2script
 from nbdev.showdoc import *
+from pathlib import Path
 from fastai.vision.core import *
 from fastai.data.all import *
 from fastai.torch_basics import *
 ! [-e / content] & & pip install - Uqq fastai  # upgrade fastai on colab
 
 # +
+# all_slow
 # default_exp vision.utils
 # -
 
@@ -32,45 +34,68 @@ from fastai.torch_basics import *
 # hide
 
 
-# +
-# path = untar_data(URLs.IMAGENETTE)
-
-# +
-# path
-# -
-
 # # Vision utils
 #
 # > Some utils function to quickly download a bunch of images, check them and pre-resize them
 
 # export
-def _download_image_inner(dest, inp, timeout=4):
+def _get_downloaded_image_filename(dest, name, suffix):
+    start_index = 1
+    candidate_name = name
+
+    while (dest / f"{candidate_name}{suffix}").is_file():
+        candidate_name = f"{candidate_name}{start_index}"
+        start_index += 1
+
+    return candidate_name
+
+
+# export
+def _download_image_inner(dest, inp, timeout=4, preserve_filename=False):
     i, url = inp
-    suffix = re.findall(r'\.\w+?(?=(?:\?|$))', url)
-    suffix = suffix[0] if len(suffix) > 0 else '.jpg'
+    url_path = Path(url)
+    suffix = url_path.suffix if url_path.suffix else '.jpg'
+    name = _get_downloaded_image_filename(dest, url_path.stem, suffix) if preserve_filename else f"{i:08d}"
     try:
-        download_url(url, dest / f"{i:08d}{suffix}", overwrite=True, show_progress=False, timeout=timeout)
+        download_url(url, dest / f"{name}{suffix}", overwrite=True, show_progress=False, timeout=timeout)
     except Exception as e:
         f"Couldn't download {url}."
 
 
+# +
 with tempfile.TemporaryDirectory() as d:
     d = Path(d)
     url = "https://www.fast.ai/images/jh-head.jpg"
     _download_image_inner(d, (125, url))
     assert (d / '00000125.jpg').is_file()
 
+with tempfile.TemporaryDirectory() as d:
+    d = Path(d)
+    url = "https://www.fast.ai/images/jh-head.jpg"
+
+    _download_image_inner(d, (125, url), preserve_filename=True)
+    assert (d / 'jh-head.jpg').is_file()
+    assert not (d / 'jh-head.jpg1').exists()
+
+    _download_image_inner(d, (125, url), preserve_filename=True)
+    assert (d / 'jh-head.jpg').is_file()
+    assert (d / 'jh-head1.jpg').is_file()
+
+
+# -
 
 # export
-def download_images(dest, url_file=None, urls=None, max_pics=1000, n_workers=8, timeout=4):
+def download_images(dest, url_file=None, urls=None, max_pics=1000, n_workers=8, timeout=4, preserve_filename=False):
     "Download images listed in text file `url_file` to path `dest`, at most `max_pics`"
     if urls is None:
         urls = url_file.read_text().strip().split("\n")[:max_pics]
     dest = Path(dest)
     dest.mkdir(exist_ok=True)
-    parallel(partial(_download_image_inner, dest, timeout=timeout), list(enumerate(urls)), n_workers=n_workers)
+    parallel(partial(_download_image_inner, dest, timeout=timeout, preserve_filename=preserve_filename),
+             list(enumerate(urls)), n_workers=n_workers, threadpool=True)
 
 
+# +
 with tempfile.TemporaryDirectory() as d:
     d = Path(d)
     url_file = d / 'urls.txt'
@@ -80,6 +105,29 @@ with tempfile.TemporaryDirectory() as d:
         assert (d / f'0000000{i}.jpg').is_file()
     assert (d / f'00000001.JPG').is_file()
 
+with tempfile.TemporaryDirectory() as d:
+    d = Path(d)
+    url_file = d / 'urls.txt'
+    url_file.write_text("\n".join([f"https://www.fast.ai/images/{n}" for n in "jh-head.jpg thomas.JPG sg-head.jpg".split()]))
+
+    download_images(d, url_file, preserve_filename=True)
+    assert (d / 'jh-head.jpg').is_file()
+    assert (d / 'thomas.JPG').is_file()
+    assert (d / 'sg-head.jpg').is_file()
+    assert not (d / 'jh-head1.jpg').exists()
+    assert not (d / 'thomas1.JPG').exists()
+    assert not (d / 'sg-head1.jpg').exists()
+
+    download_images(d, url_file, preserve_filename=True)
+    assert (d / 'jh-head.jpg').is_file()
+    assert (d / 'thomas.JPG').is_file()
+    assert (d / 'sg-head.jpg').is_file()
+    assert (d / 'jh-head1.jpg').is_file()
+    assert (d / 'thomas1.JPG').is_file()
+    assert (d / 'sg-head1.jpg').is_file()
+
+
+# -
 
 # export
 def resize_to(img, targ_sz, use_min=False):

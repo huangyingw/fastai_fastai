@@ -16,7 +16,6 @@
 
 # hide
 # skip
-from torch.utils.data.dataloader import _MultiProcessingDataLoaderIter, _SingleProcessDataLoaderIter, _DatasetKind
 from nbdev.export import notebook2script
 from nbdev.showdoc import *
 from fastai.data.all import *
@@ -62,15 +61,14 @@ def add_datepart(df, field_name, prefix=None, drop=True, time=False):
     make_date(df, field_name)
     field = df[field_name]
     prefix = ifnone(prefix, re.sub('[Dd]ate$', '', field_name))
-    attr = ['Year', 'Month', 'Day', 'Dayofweek', 'Dayofyear', 'Is_month_end', 'Is_month_start',
+    attr = ['Year', 'Month', 'Week', 'Day', 'Dayofweek', 'Dayofyear', 'Is_month_end', 'Is_month_start',
             'Is_quarter_end', 'Is_quarter_start', 'Is_year_end', 'Is_year_start']
     if time:
         attr = attr + ['Hour', 'Minute', 'Second']
-    for n in attr:
-        df[prefix + n] = getattr(field.dt, n.lower())
     # Pandas removed `dt.week` in v1.1.10
-    week = field.dt.isocalendar().week if hasattr(field.dt, 'isocalendar') else field.dt.week
-    df.insert(3, prefix + 'Week', week)
+    week = field.dt.isocalendar().week.astype(field.dt.day.dtype) if hasattr(field.dt, 'isocalendar') else field.dt.week
+    for n in attr:
+        df[prefix + n] = getattr(field.dt, n.lower()) if n != 'Week' else week
     mask = ~field.isna()
     df[prefix + 'Elapsed'] = np.where(mask, field.values.astype(np.int64) // 10 ** 9, None)
     if drop:
@@ -78,13 +76,39 @@ def add_datepart(df, field_name, prefix=None, drop=True, time=False):
     return df
 
 
+# For example if we have a series of dates we can then generate features such as `Year`, `Month`, `Day`, `Dayofweek`, `Is_month_start`, etc as shown below:
+
 df = pd.DataFrame({'date': ['2019-12-04', None, '2019-11-15', '2019-10-24']})
 df = add_datepart(df, 'date')
+df.head()
+
+# +
+# hide
 test_eq(df.columns, ['Year', 'Month', 'Week', 'Day', 'Dayofweek', 'Dayofyear', 'Is_month_end', 'Is_month_start',
                      'Is_quarter_end', 'Is_quarter_start', 'Is_year_end', 'Is_year_start', 'Elapsed'])
 test_eq(df[df.Elapsed.isna()].shape, (1, 13))
+
+# Test that week dtype is consistent with other datepart fields
+test_eq(df['Year'].dtype, df['Week'].dtype)
+# -
+
+# hide
+df = pd.DataFrame({'f1': [1.], 'f2': [2.], 'f3': [3.], 'f4': [4.], 'date': ['2019-12-04']})
+df = add_datepart(df, 'date')
 df.head()
 
+# +
+# hide
+# Test Order of columns when date isn't in first position
+test_eq(df.columns, ['f1', 'f2', 'f3', 'f4', 'Year', 'Month', 'Week', 'Day',
+                     'Dayofweek', 'Dayofyear', 'Is_month_end', 'Is_month_start',
+                     'Is_quarter_end', 'Is_quarter_start', 'Is_year_end', 'Is_year_start', 'Elapsed'])
+
+# Test that week dtype is consistent with other datepart fields
+test_eq(df['Year'].dtype, df['Week'].dtype)
+
+
+# -
 
 # export
 def _get_elapsed(df, field_names, date_field, base_field, prefix):
@@ -133,7 +157,7 @@ def add_elapsed_times(df, field_names, date_field, base_field):
 df = pd.DataFrame({'date': ['2019-12-04', '2019-11-29', '2019-11-15', '2019-10-24'],
                    'event': [False, True, False, True], 'base': [1, 1, 2, 2]})
 df = add_elapsed_times(df, ['event'], 'date', 'base')
-df
+df.head()
 
 
 # export
@@ -143,35 +167,72 @@ def cont_cat_split(df, max_card=20, dep_var=None):
     for label in df:
         if label in L(dep_var):
             continue
-        if df[label].dtype == int and df[label].unique().shape[0] > max_card or df[label].dtype == float:
+        if ((pd.api.types.is_integer_dtype(df[label].dtype) and
+             df[label].unique().shape[0] > max_card) or
+                pd.api.types.is_float_dtype(df[label].dtype)):
             cont_names.append(label)
         else:
             cat_names.append(label)
     return cont_names, cat_names
 
 
-# +
-df = pd.DataFrame({'cat1': [1, 2, 3, 4], 'cont1': [1., 2., 3., 2.], 'cat2': ['a', 'b', 'b', 'a'],
-                   'y1': [1, 0, 1, 0], 'y2': [1, 1, 1, 0]})
+# This function works by determining if a column is continuous or categorical based on the cardinality of its values. If it is above the `max_card` parameter (or a `float` datatype) then it will be added to the `cont_names` else `cat_names`. An example is below:
 
+# Example with simple numpy types
+df = pd.DataFrame({'cat1': [1, 2, 3, 4], 'cont1': [1., 2., 3., 2.], 'cat2': ['a', 'b', 'b', 'a'],
+                   'i8': pd.Series([1, 2, 3, 4], dtype='int8'),
+                   'u8': pd.Series([1, 2, 3, 4], dtype='uint8'),
+                   'f16': pd.Series([1, 2, 3, 4], dtype='float16'),
+                   'y1': [1, 0, 1, 0], 'y2': [2, 1, 1, 0]})
+cont_names, cat_names = cont_cat_split(df)
+
+# hide_input
+print(f'cont_names: {cont_names}\ncat_names: {cat_names}`')
+
+# +
+# hide
 # Test all columns
 cont, cat = cont_cat_split(df)
-test_eq((cont, cat), (['cont1'], ['cat1', 'cat2', 'y1', 'y2']))
+test_eq((cont, cat), (['cont1', 'f16'], ['cat1', 'cat2', 'i8', 'u8', 'y1', 'y2']))
 
 # Test exclusion of dependent variable
 cont, cat = cont_cat_split(df, dep_var='y1')
-test_eq((cont, cat), (['cont1'], ['cat1', 'cat2', 'y2']))
+test_eq((cont, cat), (['cont1', 'f16'], ['cat1', 'cat2', 'i8', 'u8', 'y2']))
 
 # Test exclusion of multi-label dependent variables
 cont, cat = cont_cat_split(df, dep_var=['y1', 'y2'])
-test_eq((cont, cat), (['cont1'], ['cat1', 'cat2']))
+test_eq((cont, cat), (['cont1', 'f16'], ['cat1', 'cat2', 'i8', 'u8']))
 
 # Test maximal cardinality bound for int variable
-cont, cat = cont_cat_split(df, max_card=2, dep_var=['y1', 'y2'])
-test_eq((cont, cat), (['cat1', 'cont1'], ['cat2']))
-
-
+cont, cat = cont_cat_split(df, max_card=3)
+test_eq((cont, cat), (['cat1', 'cont1', 'i8', 'u8', 'f16'], ['cat2', 'y1', 'y2']))
+cont, cat = cont_cat_split(df, max_card=2)
+test_eq((cont, cat), (['cat1', 'cont1', 'i8', 'u8', 'f16', 'y2'], ['cat2', 'y1']))
+cont, cat = cont_cat_split(df, max_card=1)
+test_eq((cont, cat), (['cat1', 'cont1', 'i8', 'u8', 'f16', 'y1', 'y2'], ['cat2']))
 # -
+
+# Example with pandas types and generated columns
+df = pd.DataFrame({'cat1': pd.Series(['l', 'xs', 'xl', 's'], dtype='category'),
+                   'ui32': pd.Series([1, 2, 3, 4], dtype='UInt32'),
+                   'i64': pd.Series([1, 2, 3, 4], dtype='Int64'),
+                   'f16': pd.Series([1, 2, 3, 4], dtype='Float64'),
+                   'd1_date': ['2021-02-09', None, '2020-05-12', '2020-08-14'],
+                   })
+df = add_datepart(df, 'd1_date', drop=False)
+df['cat1'].cat.set_categories(['xl', 'l', 'm', 's', 'xs'], ordered=True, inplace=True)
+cont_names, cat_names = cont_cat_split(df, max_card=0)
+
+# hide_input
+print(f'cont_names: {cont_names}\ncat_names: {cat_names}')
+
+# hide
+cont, cat = cont_cat_split(df, max_card=0)
+test_eq((cont, cat), (
+    ['ui32', 'i64', 'f16', 'd1_Year', 'd1_Month', 'd1_Week', 'd1_Day', 'd1_Dayofweek', 'd1_Dayofyear'],
+    ['cat1', 'd1_date', 'd1_Is_month_end', 'd1_Is_month_start', 'd1_Is_quarter_end', 'd1_Is_quarter_start', 'd1_Is_year_end', 'd1_Is_year_start', 'd1_Elapsed']
+))
+
 
 # export
 def df_shrink_dtypes(df, skip=[], obj2cat=True, int2uint=False):
@@ -211,10 +272,19 @@ def df_shrink_dtypes(df, skip=[], obj2cat=True, int2uint=False):
 
 show_doc(df_shrink_dtypes, title_level=3)
 
-# +
+# For example we will make a sample `DataFrame` with `int`, `float`, `bool`, and `object` datatypes:
+
 df = pd.DataFrame({'i': [-100, 0, 100], 'f': [-100.0, 0.0, 100.0], 'e': [True, False, True],
                    'date': ['2019-12-04', '2019-11-29', '2019-11-15', ]})
+df.dtypes
+
+# We can then call `df_shrink_dtypes` to find the smallest possible datatype that can support the data:
+
 dt = df_shrink_dtypes(df)
+dt
+
+# +
+# hide
 test_eq(df['i'].dtype, 'int64')
 test_eq(dt['i'], 'int8')
 
@@ -251,11 +321,24 @@ show_doc(df_shrink, title_level=3)
 # To get only new column data types without actually casting a DataFrame,
 # use `df_shrink_dtypes()` with all the same parameters for `df_shrink()`.
 
-# +
 df = pd.DataFrame({'i': [-100, 0, 100], 'f': [-100.0, 0.0, 100.0], 'u': [0, 10, 254],
                    'date': ['2019-12-04', '2019-11-29', '2019-11-15']})
 df2 = df_shrink(df, skip=['date'])
 
+# Let's compare the two:
+
+df.dtypes
+
+df2.dtypes
+
+# We can see that the datatypes changed, and even further we can look at their relative memory usages:
+
+# hide_input
+print(f'Initial Dataframe: {df.memory_usage().sum()} bytes')
+print(f'Reduced Dataframe: {df2.memory_usage().sum()} bytes')
+
+# +
+# hide
 test_eq(df['i'].dtype == 'int64' and df2['i'].dtype == 'int8', True)
 test_eq(df['f'].dtype == 'float64' and df2['f'].dtype == 'float32', True)
 test_eq(df['u'].dtype == 'int64' and df2['u'].dtype == 'int16', True)
@@ -273,13 +356,18 @@ test_eq(df['i'].dtype, df4['i'].dtype)
 test_eq(df4['u'].dtype, 'int64')
 # -
 
-# Here's an example using the `ADULT_SAMPLE` dataset:
+# Here's another example using the `ADULT_SAMPLE` dataset:
 
 path = untar_data(URLs.ADULT_SAMPLE)
 df = pd.read_csv(path / 'adult.csv')
 new_df = df_shrink(df, int2uint=True)
-print(f"Memory usage: {df.memory_usage().sum()} --> {new_df.memory_usage().sum()}")
 
+# hide_input
+print(f'Initial Dataframe: {df.memory_usage().sum() / 1000000} megabytes')
+print(f'Reduced Dataframe: {new_df.memory_usage().sum() / 1000000} megabytes')
+
+
+# We reduced the overall memory used by 79%!
 
 # ## Tabular -
 
@@ -410,6 +498,7 @@ _add_prop(Tabular, 'x')
 _add_prop(Tabular, 'all_col')
 # -
 
+# hide
 df = pd.DataFrame({'a': [0, 1, 2, 0, 2], 'b': [0, 0, 0, 0, 1]})
 to = TabularPandas(df, cat_names='a')
 t = pickle.loads(pickle.dumps(to))
@@ -430,6 +519,8 @@ class TabularProc(InplaceTransform):
     def name(self): return f"{super().name} -- {getattr(self,'__stored_args__',{})}"
 
 
+# These transforms are applied as soon as the data is available rather than as data is called from the `DataLoader`
+
 # export
 def _apply_cats(voc, add, c):
     if not is_categorical_dtype(c):
@@ -446,7 +537,7 @@ class Categorify(TabularProc):
     order = 1
 
     def setups(self, to):
-        store_attr(classes={n: CategoryMap(to.iloc[:, n].items, add_na=(n in to.cat_names)) for n in to.cat_names})
+        store_attr(classes={n: CategoryMap(to.iloc[:, n].items, add_na=(n in to.cat_names)) for n in to.cat_names}, but='to')
 
     def encodes(self, to): to.transform(to.cat_names, partial(_apply_cats, self.classes, 1))
     def decodes(self, to): to.transform(to.cat_names, partial(_decode_cats, self.classes))
@@ -454,7 +545,7 @@ class Categorify(TabularProc):
 
 
 # +
-# export
+# exporti
 @Categorize
 def setups(self, to: Tabular):
     if len(to.y_names) > 0:
@@ -482,65 +573,90 @@ def decodes(self, to: Tabular):
 
 show_doc(Categorify, title_level=3)
 
+# While visually in the `DataFrame` you will not see a change, the classes are stored in `to.procs.categorify` as we can see below on a dummy `DataFrame`:
+
 df = pd.DataFrame({'a': [0, 1, 2, 0, 2]})
 to = TabularPandas(df, Categorify, 'a')
-cat = to.procs.categorify
-test_eq(cat['a'], ['#na#', 0, 1, 2])
-test_eq(to['a'], [1, 2, 3, 1, 3])
 to.show()
 
+# Each column's unique values are stored in a dictionary of `column:[values]`:
+
+cat = to.procs.categorify
+cat.classes
+
+
+# hide
+def test_series(a, b): return test_eq(list(a), b)
+
+
+test_series(cat['a'], ['#na#', 0, 1, 2])
+test_series(to['a'], [1, 2, 3, 1, 3])
+
+# hide
 df1 = pd.DataFrame({'a': [1, 0, 3, -1, 2]})
 to1 = to.new(df1)
 to1.process()
 # Values that weren't in the training df are sent to 0 (na)
-test_eq(to1['a'], [2, 1, 0, 0, 3])
+test_series(to1['a'], [2, 1, 0, 0, 3])
 to2 = cat.decode(to1)
-test_eq(to2['a'], [1, 0, '#na#', '#na#', 2])
+test_series(to2['a'], [1, 0, '#na#', '#na#', 2])
 
+# hide
 # test with splits
 cat = Categorify()
 df = pd.DataFrame({'a': [0, 1, 2, 3, 2]})
 to = TabularPandas(df, cat, 'a', splits=[[0, 1, 2], [3, 4]])
-test_eq(cat['a'], ['#na#', 0, 1, 2])
-test_eq(to['a'], [1, 2, 3, 0, 3])
+test_series(cat['a'], ['#na#', 0, 1, 2])
+test_series(to['a'], [1, 2, 3, 0, 3])
 
+# hide
 df = pd.DataFrame({'a': pd.Categorical(['M', 'H', 'L', 'M'], categories=['H', 'M', 'L'], ordered=True)})
 to = TabularPandas(df, Categorify, 'a')
 cat = to.procs.categorify
-test_eq(cat['a'], ['#na#', 'H', 'M', 'L'])
-test_eq(to.items.a, [2, 1, 3, 2])
+test_series(cat['a'], ['#na#', 'H', 'M', 'L'])
+test_series(to.items.a, [2, 1, 3, 2])
 to2 = cat.decode(to)
-test_eq(to2['a'], ['M', 'H', 'L', 'M'])
+test_series(to2['a'], ['M', 'H', 'L', 'M'])
 
+# hide
 # test with targets
 cat = Categorify()
 df = pd.DataFrame({'a': [0, 1, 2, 3, 2], 'b': ['a', 'b', 'a', 'b', 'b']})
 to = TabularPandas(df, cat, 'a', splits=[[0, 1, 2], [3, 4]], y_names='b')
-test_eq(to.vocab, ['a', 'b'])
-test_eq(to['b'], [0, 1, 0, 1, 1])
+test_series(to.vocab, ['a', 'b'])
+test_series(to['b'], [0, 1, 0, 1, 1])
 to2 = to.procs.decode(to)
-test_eq(to2['b'], ['a', 'b', 'a', 'b', 'b'])
+test_series(to2['b'], ['a', 'b', 'a', 'b', 'b'])
 
+# hide
 cat = Categorify()
 df = pd.DataFrame({'a': [0, 1, 2, 3, 2], 'b': ['a', 'b', 'a', 'b', 'b']})
 to = TabularPandas(df, cat, 'a', splits=[[0, 1, 2], [3, 4]], y_names='b')
-test_eq(to.vocab, ['a', 'b'])
-test_eq(to['b'], [0, 1, 0, 1, 1])
+test_series(to.vocab, ['a', 'b'])
+test_series(to['b'], [0, 1, 0, 1, 1])
 to2 = to.procs.decode(to)
-test_eq(to2['b'], ['a', 'b', 'a', 'b', 'b'])
+test_series(to2['b'], ['a', 'b', 'a', 'b', 'b'])
 
+# hide
 # test with targets and train
 cat = Categorify()
 df = pd.DataFrame({'a': [0, 1, 2, 3, 2], 'b': ['a', 'b', 'a', 'c', 'b']})
 to = TabularPandas(df, cat, 'a', splits=[[0, 1, 2], [3, 4]], y_names='b')
-test_eq(to.vocab, ['a', 'b'])
+test_series(to.vocab, ['a', 'b'])
+
+# hide
+# test to ensure no copies of the dataframe are stored
+cat = Categorify()
+df = pd.DataFrame({'a': [0, 1, 2, 3, 4]})
+to = TabularPandas(df, cat, cont_names='a', splits=[[0, 1, 2], [3, 4]])
+test_eq(hasattr(to.categorify, 'to'), False)
 
 
 # +
-# export
+# exporti
 @Normalize
 def setups(self, to: Tabular):
-    store_attr(means=dict(getattr(to, 'train', to).conts.mean()),
+    store_attr(but='to', means=dict(getattr(to, 'train', to).conts.mean()),
                stds=dict(getattr(to, 'train', to).conts.std(ddof=0) + 1e-7))
     return self(to)
 
@@ -559,6 +675,7 @@ def decodes(self, to: Tabular):
 
 # -
 
+# hide
 norm = Normalize()
 df = pd.DataFrame({'a': [0, 1, 2, 3, 4]})
 to = TabularPandas(df, norm, cont_names='a')
@@ -568,6 +685,7 @@ test_eq(norm.means['a'], m)
 test_close(norm.stds['a'], s)
 test_close(to['a'].values, (x - m) / s)
 
+# hide
 df1 = pd.DataFrame({'a': [5, 6, 7]})
 to1 = to.new(df1)
 to1.process()
@@ -575,6 +693,7 @@ test_close(to1['a'].values, (np.array([5, 6, 7]) - m) / s)
 to2 = norm.decode(to1)
 test_close(to2['a'].values, [5, 6, 7])
 
+# hide
 norm = Normalize()
 df = pd.DataFrame({'a': [0, 1, 2, 3, 4]})
 to = TabularPandas(df, norm, cont_names='a', splits=[[0, 1, 2], [3, 4]])
@@ -583,6 +702,12 @@ m, s = x.mean(), x.std()
 test_eq(norm.means['a'], m)
 test_close(norm.stds['a'], s)
 test_close(to['a'].values, (np.array([0, 1, 2, 3, 4]) - m) / s)
+
+# hide
+norm = Normalize()
+df = pd.DataFrame({'a': [0, 1, 2, 3, 4]})
+to = TabularPandas(df, norm, cont_names='a', splits=[[0, 1, 2], [3, 4]])
+test_eq(hasattr(to.procs.normalize, 'to'), False)
 
 
 # export
@@ -606,8 +731,8 @@ class FillMissing(TabularProc):
 
     def setups(self, dsets):
         missing = pd.isnull(dsets.conts).any()
-        store_attr(na_dict={n: self.fill_strategy(dsets[n], self.fill_vals[n])
-                            for n in missing[missing].keys()})
+        store_attr(but='to', na_dict={n: self.fill_strategy(dsets[n], self.fill_vals[n])
+                                      for n in missing[missing].keys()})
         self.fill_strategy = self.fill_strategy.__name__
 
     def encodes(self, to):
@@ -625,6 +750,7 @@ class FillMissing(TabularProc):
 show_doc(FillMissing, title_level=3)
 
 # +
+# hide
 fill1, fill2, fill3 = (FillMissing(fill_strategy=s)
                        for s in [FillStrategy.median, FillStrategy.constant, FillStrategy.mode])
 df = pd.DataFrame({'a': [0, 1, np.nan, 1, 2, 3, 4]})
@@ -645,6 +771,7 @@ for to_, v in zip(tos, [1.5, 0., 1.]):
     test_eq(to_['a_na'].values, np.array([0, 0, 1, 0, 0, 0, 0]))
 # -
 
+# hide
 fill = FillMissing()
 df = pd.DataFrame({'a': [0, 1, np.nan, 1, 2, 3, 4], 'b': [0, 1, 2, 3, 4, 5, 6]})
 to = TabularPandas(df, fill, cont_names=['a', 'b'])
@@ -654,31 +781,39 @@ test_eq(to['a'].values, np.array([0, 1, 1.5, 1, 2, 3, 4]))
 test_eq(to['a_na'].values, np.array([0, 0, 1, 0, 0, 0, 0]))
 test_eq(to['b'].values, np.array([0, 1, 2, 3, 4, 5, 6]))
 
+# hide
+fill = FillMissing()
+df = pd.DataFrame({'a': [0, 1, np.nan, 1, 2, 3, 4], 'b': [0, 1, 2, 3, 4, 5, 6]})
+to = TabularPandas(df, fill, cont_names=['a', 'b'])
+test_eq(hasattr(to.procs.fill_missing, 'to'), False)
+
 # ## TabularPandas Pipelines -
 
 # +
+# hide
 procs = [Normalize, Categorify, FillMissing, noop]
 df = pd.DataFrame({'a': [0, 1, 2, 1, 1, 2, 0], 'b': [0, 1, np.nan, 1, 2, 3, 4]})
 to = TabularPandas(df, procs, cat_names='a', cont_names='b')
 
 # Test setup and apply on df_main
-test_eq(to.cat_names, ['a', 'b_na'])
-test_eq(to['a'], [1, 2, 3, 2, 2, 3, 1])
-test_eq(to['b_na'], [1, 1, 2, 1, 1, 1, 1])
+test_series(to.cat_names, ['a', 'b_na'])
+test_series(to['a'], [1, 2, 3, 2, 2, 3, 1])
+test_series(to['b_na'], [1, 1, 2, 1, 1, 1, 1])
 x = np.array([0, 1, 1.5, 1, 2, 3, 4])
 m, s = x.mean(), x.std()
 test_close(to['b'].values, (x - m) / s)
 test_eq(to.classes, {'a': ['#na#', 0, 1, 2], 'b_na': ['#na#', False, True]})
 
 # +
+# hide
 # Test apply on y_names
 df = pd.DataFrame({'a': [0, 1, 2, 1, 1, 2, 0], 'b': [0, 1, np.nan, 1, 2, 3, 4], 'c': ['b', 'a', 'b', 'a', 'a', 'b', 'a']})
 to = TabularPandas(df, procs, 'a', 'b', y_names='c')
 
-test_eq(to.cat_names, ['a', 'b_na'])
-test_eq(to['a'], [1, 2, 3, 2, 2, 3, 1])
-test_eq(to['b_na'], [1, 1, 2, 1, 1, 1, 1])
-test_eq(to['c'], [1, 0, 1, 0, 0, 1, 0])
+test_series(to.cat_names, ['a', 'b_na'])
+test_series(to['a'], [1, 2, 3, 2, 2, 3, 1])
+test_series(to['b_na'], [1, 1, 2, 1, 1, 1, 1])
+test_series(to['c'], [1, 0, 1, 0, 0, 1, 0])
 x = np.array([0, 1, 1.5, 1, 2, 3, 4])
 m, s = x.mean(), x.std()
 test_close(to['b'].values, (x - m) / s)
@@ -686,24 +821,26 @@ test_eq(to.classes, {'a': ['#na#', 0, 1, 2], 'b_na': ['#na#', False, True]})
 test_eq(to.vocab, ['a', 'b'])
 
 # +
+# hide
 df = pd.DataFrame({'a': [0, 1, 2, 1, 1, 2, 0], 'b': [0, 1, np.nan, 1, 2, 3, 4], 'c': ['b', 'a', 'b', 'a', 'a', 'b', 'a']})
 to = TabularPandas(df, procs, 'a', 'b', y_names='c')
 
-test_eq(to.cat_names, ['a', 'b_na'])
-test_eq(to['a'], [1, 2, 3, 2, 2, 3, 1])
-test_eq(df.a.dtype, int)
-test_eq(to['b_na'], [1, 1, 2, 1, 1, 1, 1])
-test_eq(to['c'], [1, 0, 1, 0, 0, 1, 0])
+test_series(to.cat_names, ['a', 'b_na'])
+test_series(to['a'], [1, 2, 3, 2, 2, 3, 1])
+test_eq(df.a.dtype, np.int64 if sys.platform == "win32" else int)
+test_series(to['b_na'], [1, 1, 2, 1, 1, 1, 1])
+test_series(to['c'], [1, 0, 1, 0, 0, 1, 0])
 
 # +
+# hide
 df = pd.DataFrame({'a': [0, 1, 2, 1, 1, 2, 0], 'b': [0, np.nan, 1, 1, 2, 3, 4], 'c': ['b', 'a', 'b', 'a', 'a', 'b', 'a']})
 to = TabularPandas(df, procs, cat_names='a', cont_names='b', y_names='c', splits=[[0, 1, 4, 6], [2, 3, 5]])
 
-test_eq(to.cat_names, ['a', 'b_na'])
-test_eq(to['a'], [1, 2, 2, 1, 0, 2, 0])
-test_eq(df.a.dtype, int)
-test_eq(to['b_na'], [1, 2, 1, 1, 1, 1, 1])
-test_eq(to['c'], [1, 0, 0, 0, 1, 0, 1])
+test_series(to.cat_names, ['a', 'b_na'])
+test_series(to['a'], [1, 2, 2, 1, 0, 2, 0])
+test_eq(df.a.dtype, np.int64 if sys.platform == "win32" else int)
+test_series(to['b_na'], [1, 2, 1, 1, 1, 1, 1])
+test_series(to['c'], [1, 0, 0, 0, 1, 0, 1])
 
 
 # -
@@ -714,7 +851,9 @@ def _maybe_expand(o): return o[:, None] if o.ndim == 1 else o
 
 # export
 class ReadTabBatch(ItemTransform):
-    def __init__(self, to): self.to = to
+    "Transform `TabularPandas` values into a `Tensor` with the ability to decode"
+
+    def __init__(self, to): self.to = to.new_empty()
 
     def encodes(self, to):
         if not to.with_cont:
@@ -745,15 +884,11 @@ def show_batch(x: Tabular, y, its, max_n=10, ctxs=None):
     x.show()
 
 
-_loaders = (_MultiProcessingDataLoaderIter, _SingleProcessDataLoaderIter)
-
-
 # +
 # export
 @delegates()
 class TabDataLoader(TfmdDL):
     "A transformed `DataLoader` for Tabular data"
-    do_item = noops
 
     def __init__(self, dataset, bs=16, shuffle=False, after_batch=None, num_workers=0, **kwargs):
         if after_batch is None:
@@ -761,6 +896,7 @@ class TabDataLoader(TfmdDL):
         super().__init__(dataset, bs=bs, shuffle=shuffle, after_batch=after_batch, num_workers=num_workers, **kwargs)
 
     def create_batch(self, b): return self.dataset.iloc[b]
+    def do_item(self, s): return 0 if s is None else s
 
 
 TabularPandas._dl_type = TabDataLoader
@@ -793,9 +929,14 @@ to.show()
 row = to.items.iloc[0]
 to.decode_row(row)
 
+# We can make new test datasets based on the training data with the `to.new()`
+# > Note: Since machine learning models can't magically understand categories it was never trained on, the data should reflect this. If there are different missing values in your test data you should address this before training
+
 to_tst = to.new(df_test)
 to_tst.process()
 to_tst.items.head()
+
+# We can then convert it to a `DataLoader`:
 
 tst_dl = dls.valid.new(to_tst)
 tst_dl.show_batch()
@@ -828,7 +969,7 @@ df_main.head()
 
 
 # +
-# export
+# exporti
 @EncodedMultiCategorize
 def setups(self, to: Tabular):
     self.c = len(self.vocab)
@@ -912,7 +1053,7 @@ to.procs[2].vocab
 # ### Regression
 
 # +
-# export
+# exporti
 @RegressionSetup
 def setups(self, to: Tabular):
     if self.c is not None:

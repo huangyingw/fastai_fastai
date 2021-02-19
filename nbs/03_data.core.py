@@ -76,7 +76,6 @@ _batch_tfms = ('after_item', 'before_batch', 'after_batch')
 
 
 # export
-@log_args(but_as=DataLoader.__init__)
 @delegates()
 class TfmdDL(DataLoader):
     "Transformed `DataLoader`"
@@ -93,7 +92,7 @@ class TfmdDL(DataLoader):
                 kwargs[nm].setup(self)
 
     def _one_pass(self):
-        b = self.do_batch([self.do_item(0)])
+        b = self.do_batch([self.do_item(None)])
         if self.device is not None:
             b = to_device(b, self.device)
         its = self.after_batch(b)
@@ -126,12 +125,13 @@ class TfmdDL(DataLoader):
             if isinstance(f, Pipeline):
                 f.split_idx = split_idx
 
-    def decode(self, b): return self.before_batch.decode(to_cpu(self.after_batch.decode(self._retain_dl(b))))
+    def decode(self, b): return to_cpu(self.after_batch.decode(self._retain_dl(b)))
     def decode_batch(self, b, max_n=9, full=True): return self._decode_batch(self.decode(b), max_n, full)
 
     def _decode_batch(self, b, max_n=9, full=True):
         f = self.after_item.decode
-        f = compose(f, partial(getattr(self.dataset, 'decode', noop), full=full))
+        f1 = self.before_batch.decode
+        f = compose(f1, f, partial(getattr(self.dataset, 'decode', noop), full=full))
         return L(batch_to_samples(b, max_n=max_n)).map(f)
 
     def _pre_show_batch(self, b, max_n=9):
@@ -330,8 +330,8 @@ class DataLoaders(GetAttr):
         return cls(*[dl_type(d, bs=bs, **k) for d, k in zip(ds, kwargs)], path=path, device=device)
 
     @classmethod
-    def from_dblock(cls, dblock, source, path='.', bs=64, val_bs=None, shuffle_train=True, device=None, **kwargs):
-        return dblock.dataloaders(source, path=path, bs=bs, val_bs=val_bs, shuffle_train=shuffle_train, device=device, **kwargs)
+    def from_dblock(cls, dblock, source, path='.', bs=64, val_bs=None, shuffle=True, device=None, **kwargs):
+        return dblock.dataloaders(source, path=path, bs=bs, val_bs=val_bs, shuffle=shuffle, device=device, **kwargs)
 
     _docs = dict(__getitem__="Retrieve `DataLoader` at `i` (`0` is training, `1` is validation)",
                  train="Training `DataLoader`",
@@ -391,26 +391,33 @@ class FilteredBase:
     def _new(self, items, **kwargs): return super()._new(items, splits=self.splits, **kwargs)
     def subset(self): raise NotImplemented
 
-    def dataloaders(self, bs=64, val_bs=None, shuffle_train=True, n=None, path='.', dl_type=None, dl_kwargs=None,
-                    device=None, **kwargs):
+    def dataloaders(self, bs=64, shuffle_train=None, shuffle=True, val_shuffle=False, n=None, path='.', dl_type=None, dl_kwargs=None,
+                    device=None, drop_last=None, val_bs=None, **kwargs):
+        if shuffle_train is not None:
+            shuffle = shuffle_train
+            warnings.warn('`shuffle_train` is deprecated. Use `shuffle` instead.', DeprecationWarning)
         if device is None:
             device = default_device()
         if dl_kwargs is None:
             dl_kwargs = [{}] * self.n_subsets
         if dl_type is None:
             dl_type = self._dl_type
-        drop_last = kwargs.pop('drop_last', shuffle_train)
-        dl = dl_type(self.subset(0), bs=bs, shuffle=shuffle_train, drop_last=drop_last, n=n, device=device,
-                     **merge(kwargs, dl_kwargs[0]))
-        dls = [dl] + [dl.new(self.subset(i), bs=(bs if val_bs is None else val_bs), shuffle=False, drop_last=False,
-                             n=None, **dl_kwargs[i]) for i in range(1, self.n_subsets)]
+        if drop_last is None:
+            drop_last = shuffle
+        val_kwargs = {k[4:]: v for k, v in kwargs.items() if k.startswith('val_')}
+        def_kwargs = {'bs': bs, 'shuffle': shuffle, 'drop_last': drop_last, 'n': n, 'device': device}
+        dl = dl_type(self.subset(0), **merge(kwargs, def_kwargs, dl_kwargs[0]))
+        def_kwargs = {'bs': bs if val_bs is None else val_bs, 'shuffle': val_shuffle, 'n': None, 'drop_last': False}
+        dls = [dl] + [dl.new(self.subset(i), **merge(kwargs, def_kwargs, val_kwargs, dl_kwargs[i]))
+                      for i in range(1, self.n_subsets)]
         return self._dbunch_type(*dls, path=path, device=device)
 
 
 FilteredBase.train, FilteredBase.valid = add_props(lambda i, x: x.subset(i))
-
-
 # -
+
+show_doc(FilteredBase().dataloaders)
+
 
 # export
 class TfmdLists(FilteredBase, L, GetAttr):
@@ -703,7 +710,6 @@ class Datasets(FilteredBase):
     def split_idx(self): return self.tls[0].tfms.split_idx
     @property
     def items(self): return self.tls[0].items
-
     @items.setter
     def items(self, v):
         for tl in self.tls:
@@ -911,7 +917,7 @@ class _Tfm(Transform):
 
 
 dsets = Datasets(range(8), [None], splits=[[1, 2, 5, 7], [0, 3, 4, 6]])
-dls = dsets.dataloaders(bs=4, after_batch=_Tfm(), shuffle_train=False, device=torch.device('cpu'))
+dls = dsets.dataloaders(bs=4, after_batch=_Tfm(), shuffle=False, device=torch.device('cpu'))
 test_eq(dls.train, [(tensor([1, 2, 5, 7]),)])
 test_eq(dls.valid, [(tensor([0, 6, 8, 12]),)])
 test_eq(dls.n_inp, 1)
@@ -925,6 +931,8 @@ dsets = Datasets(items, [[neg_tfm, int2f_tfm]])
 # hide_input
 _dsrc = Datasets([1, 2])
 show_doc(_dsrc.dataloaders, name="Datasets.dataloaders")
+
+# Used to create dataloaders. You may prepend 'val_' as in `val_shuffle` to override functionality for the validation set. `dl_kwargs` gives finer per dataloader control if you need to work with more than one dataloader.
 
 show_doc(Datasets.decode)
 
@@ -1045,8 +1053,8 @@ test_eq(tst, [(2, 4), (4, 8), (6, 12)])
 # -
 
 # export
-@delegates(TfmdDL.__init__)
 @patch
+@delegates(TfmdDL.__init__)
 def test_dl(self: DataLoaders, test_items, rm_type_tfms=None, with_labels=False, **kwargs):
     "Create a test dataloader from `test_items` using validation transforms of `dls`"
     test_ds = test_set(self.valid_ds, test_items, rm_tfms=rm_type_tfms, with_labels=with_labels

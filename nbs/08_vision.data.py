@@ -18,6 +18,7 @@
 # skip
 from nbdev.export import notebook2script
 from nbdev.showdoc import *
+import types
 from fastai.vision.core import *
 from fastai.data.all import *
 from fastai.torch_basics import *
@@ -41,35 +42,40 @@ from fastai.torch_basics import *
 # ## Helper functions
 
 # export
-
-
 @delegates(subplots)
-def get_grid(n, nrows=None, ncols=None, add_vert=0, figsize=None, double=False, title=None, return_fig=False, **kwargs):
+def get_grid(n, nrows=None, ncols=None, add_vert=0, figsize=None, double=False, title=None, return_fig=False,
+             flatten=True, **kwargs):
     "Return a grid of `n` axes, `rows` by `cols`"
-    nrows = nrows or int(math.sqrt(n))
-    ncols = ncols or int(np.ceil(n / nrows))
+    if nrows:
+        ncols = ncols or int(np.ceil(n / nrows))
+    elif ncols:
+        nrows = nrows or int(np.ceil(n / ncols))
+    else:
+        nrows = int(math.sqrt(n))
+        ncols = int(np.ceil(n / nrows))
     if double:
         ncols *= 2
         n *= 2
     fig, axs = subplots(nrows, ncols, figsize=figsize, **kwargs)
-    axs = [ax if i < n else ax.set_axis_off() for i, ax in enumerate(axs.flatten())][:n]
+    if flatten:
+        axs = [ax if i < n else ax.set_axis_off() for i, ax in enumerate(axs.flatten())][:n]
     if title is not None:
         fig.suptitle(title, weight='bold', size=14)
     return (fig, axs) if return_fig else axs
 
 
-# This is used by the type-dispatched versions of `show_batch` and `show_results` for the vision application. By default, there will be `int(math.sqrt(n))` rows and `ceil(n/rows)` columns. `double` will double the number of columns and `n`. The default `figsize` is `(cols*imsize, rows*imsize+add_vert)`. If a `title` is passed it is set to the figure. `sharex`, `sharey`, `squeeze`, `subplot_kw` and `gridspec_kw` are all passed down to `plt.subplots`. If `return_fig` is `True`, returns `fig,axs`, otherwise just `axs`.
+# This is used by the type-dispatched versions of `show_batch` and `show_results` for the vision application. By default, there will be `int(math.sqrt(n))` rows and `ceil(n/rows)` columns. `double` will double the number of columns and `n`. The default `figsize` is `(cols*imsize, rows*imsize+add_vert)`. If a `title` is passed it is set to the figure. `sharex`, `sharey`, `squeeze`, `subplot_kw` and `gridspec_kw` are all passed down to `plt.subplots`. If `return_fig` is `True`, returns `fig,axs`, otherwise just `axs`. `flatten` will flatten the matplot axes such that they can be iterated over with a single loop.
 
 # export
 def clip_remove_empty(bbox, label):
     "Clip bounding boxes with image border and label background the empty ones"
     bbox = torch.clamp(bbox, -1, 1)
-    empty = ((bbox[..., 2] - bbox[..., 0]) * (bbox[..., 3] - bbox[..., 1]) < 0.)
+    empty = ((bbox[..., 2] - bbox[..., 0]) * (bbox[..., 3] - bbox[..., 1]) <= 0.)
     return (bbox[~empty], label[~empty])
 
 
-bb = tensor([[-2, -0.5, 0.5, 1.5], [-0.5, -0.5, 0.5, 0.5], [1, 0.5, 0.5, 0.75], [-0.5, -0.5, 0.5, 0.5]])
-bb, lbl = clip_remove_empty(bb, tensor([1, 2, 3, 2]))
+bb = tensor([[-2, -0.5, 0.5, 1.5], [-0.5, -0.5, 0.5, 0.5], [1, 0.5, 0.5, 0.75], [-0.5, -0.5, 0.5, 0.5], [-2, -0.5, -1.5, 0.5]])
+bb, lbl = clip_remove_empty(bb, tensor([1, 2, 3, 2, 5]))
 test_eq(bb, tensor([[-1, -0.5, 0.5, 1.], [-0.5, -0.5, 0.5, 0.5], [-0.5, -0.5, 0.5, 0.5]]))
 test_eq(lbl, tensor([1, 2, 2]))
 
@@ -197,6 +203,9 @@ class ImageDataLoaders(DataLoaders):
     @classmethod
     def from_name_func(cls, path, fnames, label_func, **kwargs):
         "Create from the name attrs of `fnames` in `path`s with `label_func`"
+        if sys.platform == 'win32' and isinstance(label_func, types.LambdaType) and label_func.__name__ == '<lambda>':
+            # https://medium.com/@jwnx/multiprocessing-serialization-in-python-with-pickle-9844f6fa1812
+            raise ValueError("label_func couldn't be lambda function on Windows")
         f = using_attr(label_func, 'name')
         return cls.from_path_func(path, fnames, f, **kwargs)
 
@@ -286,6 +295,8 @@ show_doc(ImageDataLoaders.from_path_func)
 # Here is how to create the same `DataLoaders` on the MNIST dataset as the previous example with a `label_func`:
 
 fnames = get_image_files(path)
+
+
 def label_func(x): return x.parent.name
 
 
@@ -379,6 +390,8 @@ show_doc(SegmentationDataLoaders.from_label_func)
 # +
 path = untar_data(URLs.CAMVID_TINY)
 fnames = get_image_files(path / 'images')
+
+
 def label_func(x): return path / 'labels' / f'{x.stem}_P{x.suffix}'
 
 

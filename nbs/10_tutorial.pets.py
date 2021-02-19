@@ -388,6 +388,8 @@ cv_source = untar_data(URLs.CAMVID_TINY)
 cv_items = get_image_files(cv_source / 'images')
 cv_splitter = RandomSplitter(seed=42)
 cv_split = cv_splitter(cv_items)
+
+
 def cv_label(o): return cv_source / 'labels' / f'{o.stem}_P{o.suffix}'
 
 

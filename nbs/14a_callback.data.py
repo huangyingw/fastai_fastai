@@ -64,7 +64,6 @@ test_eq(next(learn.model.parameters()).device.type, 'cuda')
 
 
 # export
-@log_args(but_as=TfmdDL.__init__)
 @delegates()
 class WeightedDL(TfmdDL):
     def __init__(self, dataset=None, bs=None, wgts=None, **kwargs):
@@ -95,11 +94,10 @@ learn = synth_learner(data=dls, cbs=CollectDataCallback)
 
 learn.fit(1)
 t = concat(*learn.collect_data.data.itemgot(0, 0))
-plt.hist(t)
+plt.hist(t.numpy())
 
 
 # export
-@log_args(but_as=TfmdDL.__init__)
 @delegates()
 class PartialDL(TfmdDL):
     "Select randomly partial quantity of data at each epoch"

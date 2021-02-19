@@ -31,7 +31,7 @@ from fastai.torch_basics import *
 # hide
 
 
-# # Optimizer
+# # Optimizers
 #
 # > Define the general fastai optimizer and the variants
 
@@ -85,7 +85,6 @@ class _BaseOptimizer():
 
     @property
     def param_groups(self): return [{**{'params': pg}, **hp} for pg, hp in zip(self.param_lists, self.hypers)]
-
     @param_groups.setter
     def param_groups(self, v):
         for pg, v_ in zip(self.param_lists, v):
@@ -118,7 +117,6 @@ def _update(state, new=None):
 # ## `Optimizer` -
 
 # export
-@log_args(but='params,cbs,defaults')
 class Optimizer(_BaseOptimizer):
     "Base optimizer class for the fastai library, updating `params` with `cbs`"
     _keep_on_clear = ['force_train', 'do_wd']
@@ -297,6 +295,8 @@ show_doc(Optimizer.step)
 # +
 # test basic step
 r = L.range(4)
+
+
 def tst_params(): return r.map(tst_param)
 
 
@@ -527,7 +527,6 @@ def momentum_step(p, lr, grad_avg, **kwargs):
 
 
 # export
-@log_args(to_return=True, but_as=Optimizer.__init__)
 def SGD(params, lr, mom=0., wd=0., decouple_wd=True):
     "A `Optimizer` for SGD with `lr` and `mom` and `params`"
     cbs = [weight_decay] if decouple_wd else [l2_reg]
@@ -591,7 +590,6 @@ rms_prop_step.defaults = dict(eps=1e-8)
 # -
 
 # export
-@log_args(to_return=True, but_as=Optimizer.__init__)
 def RMSProp(params, lr, sqr_mom=0.99, mom=0., wd=0., decouple_wd=True):
     "A `Optimizer` for RMSProp with `lr`, `sqr_mom`, `mom` and `params`"
     cbs = [weight_decay] if decouple_wd else [l2_reg]
@@ -659,7 +657,6 @@ adam_step._defaults = dict(eps=1e-5)
 # -
 
 # export
-@log_args(to_return=True, but_as=Optimizer.__init__)
 def Adam(params, lr, mom=0.9, sqr_mom=0.99, eps=1e-5, wd=0.01, decouple_wd=True):
     "A `Optimizer` for Adam with `lr`, `mom`, `sqr_mom`, `eps` and `params`"
     cbs = [weight_decay] if decouple_wd else [l2_reg]
@@ -715,7 +712,6 @@ radam_step._defaults = dict(eps=1e-5)
 # -
 
 # export
-@log_args(to_return=True, but_as=Optimizer.__init__)
 def RAdam(params, lr, mom=0.9, sqr_mom=0.99, eps=1e-5, wd=0., beta=0., decouple_wd=True):
     "A `Optimizer` for Adam with `lr`, `mom`, `sqr_mom`, `eps` and `params`"
     cbs = [weight_decay] if decouple_wd else [l2_reg]
@@ -783,7 +779,6 @@ qhadam_step._defaults = dict(eps=1e-8)
 # -
 
 # export
-@log_args(to_return=True, but_as=Optimizer.__init__)
 def QHAdam(params, lr, mom=0.999, sqr_mom=0.999, nu_1=0.7, nu_2=1.0, eps=1e-8, wd=0., decouple_wd=True):
     "An `Optimizer` for Adam with `lr`, `mom`, `sqr_mom`, `nus`, eps` and `params`"
     cbs = [weight_decay] if decouple_wd else [l2_reg]
@@ -825,7 +820,6 @@ def larc_step(p, local_lr, grad_avg=None, **kwargs):
 
 
 # export
-@log_args(to_return=True, but_as=Optimizer.__init__)
 def Larc(params, lr, mom=0.9, clip=True, trust_coeff=0.02, eps=1e-8, wd=0., decouple_wd=True):
     "A `Optimizer` for Adam with `lr`, `mom`, `sqr_mom`, `eps` and `params`"
     cbs = [weight_decay] if decouple_wd else [l2_reg]
@@ -880,7 +874,6 @@ lamb_step._defaults = dict(eps=1e-6, wd=0.)
 # -
 
 # export
-@log_args(to_return=True, but_as=Optimizer.__init__)
 def Lamb(params, lr, mom=0.9, sqr_mom=0.99, eps=1e-5, wd=0., decouple_wd=True):
     "A `Optimizer` for Adam with `lr`, `mom`, `sqr_mom`, `eps` and `params`"
     cbs = [weight_decay] if decouple_wd else [l2_reg]
@@ -903,7 +896,6 @@ test_close(params[0], tensor([0.7840, 1.7840, 2.7840]), eps=1e-3)
 # Lookahead was introduced by Zhang et al. in [Lookahead Optimizer: k steps forward, 1 step back](https://arxiv.org/abs/1907.08610). It can be run on top of any optimizer and consists in having the final weights of the model be a moving average. In practice, we update our model using the internal optimizer but keep a copy of old weights that and every `k` steps, we change the weights by a moving average of the *fast weights* (the ones updated by the inner optimizer) with the *slow weights* (the copy of old weights). Those *slow weights* act like a stability mechanism.
 
 # export
-@log_args(but='opt')
 class Lookahead(Optimizer, GetAttr):
     "Wrap `opt` in a lookahead optimizer"
     _default = 'opt'
@@ -1032,7 +1024,6 @@ class OptimWrapper(_BaseOptimizer, GetAttr):
 
     @property
     def param_lists(self): return [pg['params'] for pg in self.opt.param_groups]
-
     @param_lists.setter
     def param_lists(self, v):
         for pg, v_ in zip(self.opt.param_groups, v):

@@ -16,12 +16,13 @@
 
 # hide
 # skip
+from torch.cuda.amp import GradScaler, autocast
 from nbdev.export import *
 from torch.nn.utils import parameters_to_vector
 from fastai.fp16_utils import convert_network, model_grads_to_master_grads, master_params_to_model_params
 from nbdev.showdoc import *
 from fastai.test_utils import *
-from torch.cuda.amp import GradScaler, autocast
+from torch.cuda.amp.grad_scaler import OptState
 from fastai.callback.progress import *
 from fastai.basics import *
 ! [-e / content] & & pip install - Uqq fastai  # upgrade fastai on colab
@@ -38,6 +39,7 @@ from fastai.basics import *
 # -
 
 # hide
+
 
 # # Mixed precision training
 #
@@ -105,6 +107,88 @@ from fastai.basics import *
 # This value will be perfectly fitted to our model and can continue to be dynamically adjusted as the training goes, if it's still too high, by just halving it each time we overflow. After a while though, training will converge and gradients will start to get smaller, so we al
 # so need a mechanism to get this dynamic loss scale larger if it's safe to do so. The strategy used in the Apex library is to multiply the loss scale by 2 each time we had a given number of iterations without overflowing.
 
+# ## MixedPrecision -
+
+# export
+@delegates(GradScaler)
+class MixedPrecision(Callback):
+    "Mixed precision training using Pytorch's `autocast` and `GradScaler`"
+    order = 10
+    def __init__(self, **kwargs): self.kwargs, self.autocast = kwargs, autocast()
+    def before_fit(self): self.learn.scaler, self.scales = GradScaler(**self.kwargs), L()
+    def before_batch(self): self.autocast.__enter__()
+
+    def after_pred(self):
+        if listify(self.pred)[0].dtype == torch.float16:
+            self.learn.pred = to_float(self.pred)
+
+    def after_loss(self): self.autocast.__exit__()
+    def before_backward(self): self.learn.loss_grad = self.scaler.scale(self.loss_grad)
+
+    def before_step(self):
+        self.skipped = True
+        self.scaler.step(self)
+        if self.skipped:
+            raise CancelStepException()
+        self.scales.append(self.scaler.get_scale())
+
+    def after_step(self): self.learn.scaler.update()
+
+    @property  # pretend to be an optimizer for `GradScaler`
+    def param_groups(self): return self.opt.param_groups
+    def step(self, *args, **kwargs): self.skipped = False
+
+
+# export
+class FP16TestCallback(Callback):
+    "Asserts that predictions are `float16` values"
+    order = 9
+    def after_pred(self): assert listify(self.pred)[0].dtype == torch.float16
+
+
+# cuda
+set_seed(99, True)
+learn = synth_learner(cbs=[MixedPrecision, FP16TestCallback], cuda=True)
+learn.model = nn.Sequential(nn.Linear(1, 1), nn.Linear(1, 1)).cuda()
+learn.opt_func = partial(SGD, mom=0.)
+learn.splitter = lambda m: [list(m[0].parameters()), list(m[1].parameters())]
+learn.fit(3)
+assert learn.recorder.values[-1][-1] < learn.recorder.values[0][-1]
+
+# hide
+# cuda
+# Multioutput version
+set_seed(99, True)
+learn = synth_learner(cbs=[MixedPrecision, FP16TestCallback], cuda=True)
+
+
+class MultiOutputModel(Module):
+    def __init__(self): self.linear1, self.linear2 = nn.Linear(1, 1), nn.Linear(1, 1)
+    def forward(self, x): return self.linear1(x), self.linear2(x)
+
+
+def multioutputloss(pred, val): return (val - pred[0]).abs() + 0.5 * (val - pred[1]).abs()
+
+
+learn.model = MultiOutputModel()
+learn.opt_func = partial(SGD, mom=0.)
+learn.splitter = lambda m: [list(m.linear1.parameters()), list(m.linear2.parameters())]
+learn.loss_func = multioutputloss
+learn.fit(3)
+assert learn.recorder.values[-1][-1] < learn.recorder.values[0][-1]
+
+
+# export
+@patch
+@delegates(GradScaler)
+def to_fp16(self: Learner, **kwargs): return self.add_cb(MixedPrecision(**kwargs))
+
+
+# export
+@patch
+def to_fp32(self: Learner): return self.remove_cb(MixedPrecision)
+
+
 # ## Util functions
 
 # Before going in the main `Callback` we will need some helper functions. We use the ones from the [APEX library](https://github.com/NVIDIA/apex).
@@ -145,7 +229,7 @@ for i, t in enumerate([torch.float16, torch.float32, torch.float16]):
 
 # export
 def get_master(opt, flat_master=False):
-    model_params = [[param for param in pg if param.requires_grad] for pg in opt.param_lists]
+    model_params = [[param for param in pg if getattr(param, 'requires_grad', False) and hasattr(param, 'data')] for pg in opt.param_lists]
     if flat_master:
         master_params = []
         for pg in model_params:
@@ -226,14 +310,14 @@ def to_model_params(model_pgs, master_pgs, flat_master=False) -> None:
 learn.opt.params = master_p
 learn.opt.step()
 to_model_params(model_p, master_p)
-test_close([[p.float() for p in pg] for pg in model_p], [[p for p in pg] for pg in master_p], eps=1e-3)
+test_close([p.float() for pg in model_p for p in pg], [p for pg in master_p for p in pg], eps=1e-3)
 
 # hide
 # cuda
 learn.opt.params = master_pf
 learn.opt.step()
 to_model_params(model_pf, master_pf, flat_master=True)
-test_close([[p.float().squeeze() for p in pg] for pg in model_pf], [[p for p in pg[0]] for pg in master_pf], eps=1e-3)
+test_close([p.float().squeeze() for pg in model_pf for p in pg], [p for pg in master_pf for p in pg[0]], eps=1e-3)
 
 
 # ### Checking for overflow
@@ -273,7 +357,7 @@ assert grad_overflow(model_p)
 assert grad_overflow(model_pf)
 
 
-# ## MixedPrecision -
+# ## NonNativeMixedPrecision -
 
 # export
 def copy_clone(d):
@@ -290,18 +374,17 @@ def _copy_state(opt, pgs1, pgs2):
 
 # export
 class ModelToHalf(Callback):
-    "Use with MixedPrecision callback (but it needs to run at the very beginning)"
-    run_before = TrainEvalCallback
+    "Use with NonNativeMixedPrecision callback (but it needs to run at the very beginning)"
+    order = -50
     def before_fit(self): self.learn.model = convert_network(self.model, dtype=torch.float16)
     def after_fit(self): self.learn.model = convert_network(self.model, dtype=torch.float32)
 
 
 # export
 @docs
-@log_args
-class MixedPrecision(Callback):
+class NonNativeMixedPrecision(Callback):
     "Run training in mixed precision"
-    toward_end = True
+    order = 10
 
     def __init__(self, loss_scale=512, flat_master=False, dynamic=True, max_loss_scale=2.**24,
                  div_factor=2., scale_wait=500, clip=None):
@@ -323,16 +406,15 @@ class MixedPrecision(Callback):
 
     def before_batch(self): self.learn.xb = to_half(self.xb)
     def after_pred(self): self.learn.pred = to_float(self.pred)
-    def before_backward(self): self.learn.loss *= self.loss_scale
+    def before_backward(self): self.learn.loss_grad *= self.loss_scale
 
-    def after_backward(self):
-        self.learn.loss /= self.loss_scale  # To record the real loss
+    def before_step(self):
         # First, check for an overflow
         if self.dynamic and grad_overflow(self.model_pgs):
             self.loss_scale /= self.div_factor
+            self.learn.loss_grad /= self.div_factor  # to record correct loss
             self.model.zero_grad()
             raise CancelBatchException()  # skip step and zero_grad
-
         to_master_grads(self.model_pgs, self.master_pgs, self.flat_master)
         for master_params in self.master_pgs:
             for param in master_params:
@@ -352,6 +434,10 @@ class MixedPrecision(Callback):
         self.model.zero_grad()  # Zero the gradients of the model manually (optimizer disconnected)
         to_model_params(self.model_pgs, self.master_pgs, self.flat_master)
 
+    def after_batch(self):
+        if self.training:
+            self.learn.loss_grad /= self.loss_scale  # Log correct loss
+
     def after_fit(self):
         if not hasattr(self, 'master_pgs'):
             return
@@ -365,93 +451,92 @@ class MixedPrecision(Callback):
                  before_batch="Put the input in FP16",
                  after_pred="Put the output back to FP32 so that the loss is computed in FP32",
                  before_backward="Apply loss scaling to avoid gradient underflow",
-                 after_backward="Copy the gradients to the master param and undo the loss scaling",
+                 before_step="Copy the gradients to the master param and undo the loss scaling",
                  after_step="Copy the master params to the model params",
-                 after_fit="Put the model back in FP32"
-                 )
+                 after_batch="Ensure loss is logged correctly",
+                 after_fit="Put the model back in FP32")
 
 
 # +
 # hide
 class TestBeforeMixedPrecision(Callback):
-    run_before = ModelToHalf
+    order = -55
     def before_fit(self): test_eq(first(self.model.parameters()).dtype, torch.float32)
     def before_batch(self): test_eq(self.x.dtype, torch.float32)
     def after_pred(self): test_eq(self.pred.dtype, torch.float16)
-    def after_loss(self): self.tst_loss = self.learn.loss.detach().clone()
+    def after_loss(self): self.tst_loss = self.learn.loss_grad.detach().clone()
 
-    def after_backward(self):
-        self.has_overflown = grad_overflow(self.mixed_precision.model_pgs)
+    def before_step(self):
+        self.learn.has_overflown = grad_overflow(self.non_native_mixed_precision.model_pgs)
         self.grads = [p.grad.data.clone() for p in self.model.parameters()]
         self.old_params = [p.data.clone() for p in self.model.parameters()]
 
-    def after_step(self): assert not self.has_overflown
-    def after_cancel_batch(self): assert self.has_overflown
+    def after_cancel_step(self): assert self.has_overflown
 
 
 class TestAfterMixedPrecision(Callback):
-    run_after = MixedPrecision
+    order = 65
     def before_fit(self): test_eq(first(self.model.parameters()).dtype, torch.float16)
     def after_fit(self): test_eq(first(self.model.parameters()).dtype, torch.float32)
     def before_batch(self): test_eq(self.x.dtype, torch.float16)
     def after_pred(self): test_eq(self.pred.dtype, torch.float32)
 
     def before_backward(self):
-        loss_scale = self.mixed_precision.loss_scale if self.training else 1.
-        test_eq(self.loss, self.test_before_mixed_precision.tst_loss * loss_scale)
+        loss_scale = self.non_native_mixed_precision.loss_scale if self.training else 1.
+        test_eq(self.loss_grad, self.test_before_mixed_precision.tst_loss * loss_scale)
 
-    def after_backward(self):
+    def before_step(self):
         tbmp = self.test_before_mixed_precision
-        test_eq(self.loss, tbmp.loss)
+        test_eq(self.loss_grad, tbmp.loss_grad)
         # Test gradients have been copied and scaled back
-        test_close(sum([[p.grad.data for p in pg] for pg in self.mixed_precision.master_pgs], []),
-                   [g.float() / self.mixed_precision.loss_scale for g in tbmp.grads])
+        test_close(sum([[p.grad.data for p in pg] for pg in self.non_native_mixed_precision.master_pgs], []),
+                   [g.float() / self.non_native_mixed_precision.loss_scale for g in tbmp.grads])
 
-    def after_step(self):
-        tbmp, mp = self.test_before_mixed_precision, self.mixed_precision
+    def after_batch(self):
+        if self.has_overflown:
+            return
+        tbmp, mp = self.test_before_mixed_precision, self.non_native_mixed_precision
         # Test master params have been copied to model
         test_close(sum([[p.data for p in pg] for pg in mp.master_pgs], []),
                    [p.data.float() for p in self.model.parameters()], eps=1e-3)
         # Test update has been done properly
         for p, g, op in zip(self.model.parameters(), tbmp.grads, tbmp.old_params):
-            test_close(p.data.float(), op.float() - self.lr * g.float() / self.mixed_precision.loss_scale, eps=1e-3)
+            test_close(p.data.float(), op.float() - self.lr * g.float() / self.non_native_mixed_precision.loss_scale, eps=1e-3)
 
 
 # -
 
 # hide
 # cuda
-learn = synth_learner(cbs=[ModelToHalf(), MixedPrecision()], cuda=True)
+learn = synth_learner(cbs=[ModelToHalf(), NonNativeMixedPrecision()], cuda=True)
 learn.model = nn.Sequential(nn.Linear(1, 1), nn.Linear(1, 1)).cuda()
 learn.opt_func = partial(SGD, mom=0.)
 learn.splitter = lambda m: [list(m[0].parameters()), list(m[1].parameters())]
 learn.fit(3, cbs=[TestAfterMixedPrecision(), TestBeforeMixedPrecision()])
 # Check loss scale did change
-assert 1 < learn.mixed_precision.loss_scale < 2**24
+assert 1 < learn.non_native_mixed_precision.loss_scale < 2**24
 # Check the model did train
 for v1, v2 in zip(learn.recorder.values[0], learn.recorder.values[-1]):
     assert v2 < v1
 
 # hide
 # cuda
-learn = synth_learner(cbs=[ModelToHalf(), MixedPrecision(dynamic=False)], cuda=True)
+learn = synth_learner(cbs=[ModelToHalf(), NonNativeMixedPrecision(dynamic=False)], cuda=True)
 learn.model = nn.Sequential(nn.Linear(1, 1), nn.Linear(1, 1)).cuda()
 learn.opt_func = partial(SGD, mom=0.)
 learn.splitter = lambda m: [list(m[0].parameters()), list(m[1].parameters())]
 learn.fit(3, cbs=[TestAfterMixedPrecision(), TestBeforeMixedPrecision()])
 # Check loss scale did mot change
-test_eq(learn.mixed_precision.loss_scale, 512)
+test_eq(learn.non_native_mixed_precision.loss_scale, 512)
 # Check the model did train
 for v1, v2 in zip(learn.recorder.values[0], learn.recorder.values[-1]):
     assert v2 < v1
 
 
 # export
-@delegates(MixedPrecision.__init__)
 @patch
-def to_fp16(self: Learner, **kwargs):
-    self.add_cbs([ModelToHalf(), MixedPrecision(**kwargs)])
-    return self
+@delegates(NonNativeMixedPrecision.__init__)
+def to_non_native_fp16(self: Learner, **kwargs): return self.add_cbs([ModelToHalf(), NonNativeMixedPrecision(**kwargs)])
 
 
 # cuda
@@ -459,7 +544,7 @@ learn = synth_learner(cuda=True)
 learn.model = nn.Sequential(nn.Linear(1, 1), nn.Linear(1, 1)).cuda()
 learn.opt_func = partial(SGD, mom=0.)
 learn.splitter = lambda m: [list(m[0].parameters()), list(m[1].parameters())]
-learn.to_fp16()
+learn.to_non_native_fp16()
 learn.fit(3, cbs=[TestAfterMixedPrecision(), TestBeforeMixedPrecision()])
 # Check the model did train
 for v1, v2 in zip(learn.recorder.values[0], learn.recorder.values[-1]):
@@ -471,7 +556,7 @@ learn = synth_learner(cuda=True)
 learn.model = nn.Sequential(nn.Linear(1, 1), nn.Linear(1, 1)).cuda()
 learn.opt_func = partial(SGD, mom=0.9)
 learn.splitter = lambda m: [list(m[0].parameters()), list(m[1].parameters())]
-learn.to_fp16()
+learn.to_non_native_fp16()
 learn.freeze()
 learn.create_opt()
 init_ps = [p for pg in learn.opt.param_groups for p in pg]
@@ -479,7 +564,7 @@ learn.fit(3)
 final_ps = [p for pg in learn.opt.param_groups for p in pg]
 for p1, p2 in zip(init_ps, final_ps):
     test_is(p1, p2)
-# First param groups has no state cause not trained
+# First param groups has no state because not trained
 test_eq([learn.opt.state[p] for p in learn.opt.param_lists[0]], [{}, {'do_wd': False}])
 # Second param groups has state
 for p in learn.opt.param_lists[1]:
@@ -488,58 +573,11 @@ for p in learn.opt.param_lists[1]:
 
 # export
 @patch
-def to_fp32(self: Learner):
-    self.remove_cbs([ModelToHalf, MixedPrecision])
-    return self
+def to_non_native_fp32(self: Learner): return self.remove_cbs([ModelToHalf, NonNativeMixedPrecision])
 
 
 # cuda
-learn = learn.to_fp32()
-
-
-# export
-class NativeMixedPrecision(Callback):
-    "Mixed precision training using Pytorch's `autocast` and `GradScaler`"
-    @delegates(GradScaler.__init__)
-    def __init__(self, **kwargs): self.scaler_kwargs, self.autocast = kwargs, autocast()
-
-    def before_fit(self):
-        self.learn.scaler = GradScaler(**self.scaler_kwargs)
-        self.learn._step, self.learn._backward = self._step, self._backward
-
-    def before_batch(self): self.autocast.__enter__()
-    def after_step(self): self.learn.scaler.update()
-    def after_loss(self): self.autocast.__exit__()
-    def _backward(self): self.scaler.scale(self.loss).backward()
-    def _step(self): self.scaler.step(self.opt)
-
-
-# hide
-# cuda
-learn = synth_learner(cbs=[NativeMixedPrecision], cuda=True)
-learn.model = nn.Sequential(nn.Linear(1, 1), nn.Linear(1, 1)).cuda()
-learn.opt_func = partial(SGD, mom=0.)
-learn.splitter = lambda m: [list(m[0].parameters()), list(m[1].parameters())]
-learn.fit(3)
-# Check the model did train
-for v1, v2 in zip(learn.recorder.values[0], learn.recorder.values[-1]):
-    assert v2 < v1
-
-
-# export
-@delegates(GradScaler.__init__)
-@patch
-def to_native_fp16(self: Learner, **kwargs):
-    self.add_cb(NativeMixedPrecision(**kwargs))
-    return self
-
-
-# export
-@patch
-def to_native_fp32(self: Learner):
-    self.remove_cb(NativeMixedPrecision)
-    return self
-
+learn = learn.to_non_native_fp32()
 
 # ## Export -
 

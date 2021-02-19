@@ -27,7 +27,21 @@ from fastai.basics import *
 ! [-e / content] & & pip install - Uqq fastai  # upgrade fastai on colab
 
 # +
+# hide
 # all_slow
+# -
+
+# To use `fastai.medical.imaging` you'll need to:
+#
+# ```bash
+# conda install pyarrow
+# pip install pydicom kornia opencv-python scikit-image
+# ```
+
+# To run this tutorial on Google Colab, you'll need to uncomment the following two lines and run the cell:
+
+# +
+# #!conda install pyarrow
 
 # +
 
@@ -39,13 +53,6 @@ from fastai.basics import *
 # # Tutorial - Binary classification of chest X-rays
 #
 # > In this tutorial we will build a classifier that distinguishes between chest X-rays with pneumothorax and chest X-rays without pneumothorax. The image data is loaded directly from the DICOM source files, so no prior DICOM data handling is needed. This tutorial also goes through what DICOM images are and review at a high level how to evaluate the results of the classifier.
-
-# To use `fastai.medical.imaging` you'll need to:
-#
-# ```bash
-# conda install pyarrow
-# pip install pydicom kornia opencv-python scikit-image
-# ```
 
 # ## Download and import of X-ray DICOM files
 
@@ -62,7 +69,7 @@ pneumothorax_source = untar_data(URLs.SIIM_SMALL)
 
 # **DICOM**(**D**igital **I**maging and **CO**mmunications in **M**edicine) is the de-facto standard that establishes rules that allow medical images(X-Ray, MRI, CT) and associated information to be exchanged between imaging equipment from different vendors, computers, and hospitals. The DICOM format provides a suitable means that meets health infomation exchange (HIE) standards for transmision of health related data among facilites and HL7 standards which is the messaging standard that enables clinical applications to exchange data
 #
-# DICOM files typically have a `.dcm` extension and provides a means of storing data in seperate ‘tags’ such as patient information as well as image/pixel data. A DICOM file consists of a header and image data sets packed into a single file. By extracting data from these tags one can access important information regarding the patient demographics, study parameters, etc.
+# DICOM files typically have a `.dcm` extension and provides a means of storing data in separate ‘tags’ such as patient information as well as image/pixel data. A DICOM file consists of a header and image data sets packed into a single file. By extracting data from these tags one can access important information regarding the patient demographics, study parameters, etc.
 #
 # 16 bit DICOM images have values ranging from `-32768` to `32768` while 8-bit greyscale images store values from `0` to `255`. The value ranges in DICOM images are useful as they correlate with the [Hounsfield Scale](https://en.wikipedia.org/wiki/Hounsfield_scale) which is a quantitative scale for describing radiodensity
 
@@ -81,7 +88,7 @@ trn, val = RandomSplitter()(items)
 # To plot an X-ray, we can select an entry in the `items` list and load the DICOM file with `dcmread`.
 
 patient = 7
-xray_sample = dcmread(items[patient])
+xray_sample = items[patient].dcmread()
 
 # To view the `header`
 

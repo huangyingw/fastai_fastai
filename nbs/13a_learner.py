@@ -20,6 +20,7 @@ from nbdev.export import notebook2script
 from fastprogress.fastprogress import format_time
 from torch.utils.data import TensorDataset
 from nbdev.showdoc import *
+import pickle
 from fastai.callback.core import *
 from fastai.optimizer import *
 from fastai.data.all import *
@@ -34,9 +35,9 @@ from fastai.data.all import *
 # hide
 
 # export
-_all_ = ['CancelFitException', 'CancelEpochException', 'CancelTrainException', 'CancelValidException', 'CancelBatchException']
+_all_ = ['CancelStepException', 'CancelFitException', 'CancelEpochException', 'CancelTrainException', 'CancelValidException', 'CancelBatchException']
 
-# # Learner
+# # Learner, Metrics, and Basic Callbacks
 #
 # > Basic class for handling the training loop
 
@@ -104,6 +105,8 @@ test_eq(a.a, 42)
 # export
 def mk_metric(m):
     "Convert `m` to an `AvgMetric`, unless it's already a `Metric`"
+    if isinstance(m, type):
+        m = m()
     return m if isinstance(m, Metric) else AvgMetric(m)
 
 
@@ -125,7 +128,7 @@ def save_model(file, model, opt, with_opt=True, pickle_protocol=2):
 # `file` can be a `Path` object, a string or an opened file object. `pickle_protocol` is passed along to `torch.save`
 
 # export
-def load_model(file, model, opt, with_opt=None, device=None, strict=True):
+def load_model(file, model, opt, with_opt=True, device=None, strict=True):
     "Load `model` from `file` along with `opt` (if available, and if `with_opt`)"
     distrib_barrier()
     if isinstance(device, int):
@@ -136,7 +139,7 @@ def load_model(file, model, opt, with_opt=None, device=None, strict=True):
     hasopt = set(state) == {'model', 'opt'}
     model_state = state['model'] if hasopt else state
     get_model(model).load_state_dict(model_state, strict=strict)
-    if hasopt and ifnone(with_opt, True):
+    if hasopt and with_opt:
         try:
             opt.load_state_dict(state['opt'])
         except:
@@ -175,7 +178,7 @@ class _ConstantFunc():
 
 # export
 _loop = ['Start Fit', 'before_fit', 'Start Epoch Loop', 'before_epoch', 'Start Train', 'before_train',
-         'Start Batch Loop', 'before_batch', 'after_pred', 'after_loss', 'before_backward', 'after_backward',
+         'Start Batch Loop', 'before_batch', 'after_pred', 'after_loss', 'before_backward', 'before_step',
          'after_step', 'after_cancel_batch', 'after_batch', 'End Batch Loop', 'End Train',
          'after_cancel_train', 'after_train', 'Start Valid', 'before_validate', 'Start Batch Loop',
          '**CBs same as train batch**', 'End Batch Loop', 'End Valid', 'after_cancel_validate',
@@ -185,8 +188,9 @@ _loop = ['Start Fit', 'before_fit', 'Start Epoch Loop', 'before_epoch', 'Start T
 
 # +
 # export
-@log_args(but='dls,model,opt_func,cbs')
-class Learner():
+class Learner(GetAttr):
+    _default = 'model'
+
     def __init__(self, dls, model, loss_func=None, opt_func=Adam, lr=defaults.lr, splitter=trainable_params, cbs=None,
                  metrics=None, path=None, model_dir='models', wd=None, wd_bn_bias=False, train_bn=True,
                  moms=(0.95, 0.85, 0.95)):
@@ -197,7 +201,7 @@ class Learner():
         self.dls, self.model = dls, model
         store_attr(but='dls,model,cbs')
         self.training, self.create_mbar, self.logger, self.opt, self.cbs = False, True, print, None, L()
-        self.add_cbs([(cb() if isinstance(cb, type) else cb) for cb in L(defaults.callbacks) + L(cbs)])
+        self.add_cbs(L(defaults.callbacks) + L(cbs))
         self("after_create")
 
     @property
@@ -206,12 +210,18 @@ class Learner():
     def metrics(self, v): self._metrics = L(v).map(mk_metric)
 
     def _grab_cbs(self, cb_cls): return L(cb for cb in self.cbs if isinstance(cb, cb_cls))
-    def add_cbs(self, cbs): L(cbs).map(self.add_cb)
-    def remove_cbs(self, cbs): L(cbs).map(self.remove_cb)
+
+    def add_cbs(self, cbs):
+        L(cbs).map(self.add_cb)
+        return self
+
+    def remove_cbs(self, cbs):
+        L(cbs).map(self.remove_cb)
+        return self
 
     def add_cb(self, cb):
-        old = getattr(self, cb.name, None)
-        assert not old or isinstance(old, type(cb)), f"self.{cb.name} already registered"
+        if isinstance(cb, type):
+            cb = cb()
         cb.learn = self
         setattr(self, cb.name, cb)
         self.cbs.append(cb)
@@ -226,6 +236,7 @@ class Learner():
                 delattr(self, cb.name)
             if cb in self.cbs:
                 self.cbs.remove(cb)
+        return self
 
     @contextmanager
     def added_cbs(self, cbs):
@@ -243,13 +254,14 @@ class Learner():
         finally:
             self.add_cbs(cbs)
 
-    def ordered_cbs(self, event): return [cb for cb in sort_by_run(self.cbs) if hasattr(cb, event)]
-
+    def ordered_cbs(self, event): return [cb for cb in self.cbs.sorted('order') if hasattr(cb, event)]
     def __call__(self, event_name): L(event_name).map(self._call_one)
 
     def _call_one(self, event_name):
-        assert hasattr(event, event_name), event_name
-        [cb(event_name) for cb in sort_by_run(self.cbs)]
+        if not hasattr(event, event_name):
+            raise Exception(f'missing {event_name}')
+        for cb in self.cbs.sorted('order'):
+            cb(event_name)
 
     def _bn_bias_state(self, with_bias): return norm_bias_params(self.model, with_bias).map(self.opt.state)
 
@@ -266,18 +278,14 @@ class Learner():
         i = getattr(self.dls, 'n_inp', 1 if len(b) == 1 else len(b) - 1)
         self.xb, self.yb = b[:i], b[i:]
 
-    def _step(self): self.opt.step()
-    def _backward(self): self.loss.backward()
-
     def _with_events(self, f, event_type, ex, final=noop):
         try:
             self(f'before_{event_type}')
             f()
         except ex:
             self(f'after_cancel_{event_type}')
-        finally:
-            self(f'after_{event_type}')
-            final()
+        self(f'after_{event_type}')
+        final()
 
     def all_batches(self):
         self.n_iter = len(self.dl)
@@ -288,15 +296,14 @@ class Learner():
         self.pred = self.model(*self.xb)
         self('after_pred')
         if len(self.yb):
-            self.loss = self.loss_func(self.pred, *self.yb)
+            self.loss_grad = self.loss_func(self.pred, *self.yb)
+            self.loss = self.loss_grad.clone()
         self('after_loss')
         if not self.training or not len(self.yb):
             return
         self('before_backward')
-        self._backward()
-        self('after_backward')
-        self._step()
-        self('after_step')
+        self.loss_grad.backward()
+        self._with_events(self.opt.step, 'step', CancelStepException)
         self.opt.zero_grad()
 
     def one_batch(self, i, b):
@@ -324,7 +331,6 @@ class Learner():
             self.epoch = epoch
             self._with_events(self._do_epoch, 'epoch', CancelEpochException)
 
-    @log_args(but='cbs')
     def fit(self, n_epoch, lr=None, wd=None, cbs=None, reset_opt=False):
         with self.added_cbs(cbs):
             if reset_opt or not self.opt:
@@ -338,7 +344,8 @@ class Learner():
             self._with_events(self._do_fit, 'fit', CancelFitException, self._end_cleanup)
 
     def _end_cleanup(self): self.dl, self.xb, self.yb, self.pred, self.loss = None, (None,), (None,), None, None
-    def __enter__(self): self(_before_epoch); return self
+    def __enter__(self): self(_before_epoch)
+    return self
     def __exit__(self, exc_type, exc_value, tb): self(_after_epoch)
 
     def validation_context(self, cbs=None, inner=False):
@@ -361,6 +368,11 @@ class Learner():
                   inner=False, reorder=True, cbs=None, **kwargs):
         if dl is None:
             dl = self.dls[ds_idx].new(shuffled=False, drop_last=False)
+        else:
+            try:
+                len(dl)
+            except TypeError as e:
+                raise TypeError("`dl` is something other than a single `DataLoader` object")
         if reorder and hasattr(dl, 'get_idxs'):
             idxs = dl.get_idxs()
             dl = dl.new(get_idxs=_ConstantFunc(idxs))
@@ -426,22 +438,6 @@ class Learner():
         else:
             return replacing_yield(self, 'loss_func', partial(self.loss_func, reduction='none'))
 
-    @delegates(save_model)
-    def save(self, file, **kwargs):
-        file = join_path_file(file, self.path / self.model_dir, ext='.pth')
-        save_model(file, self.model, getattr(self, 'opt', None), **kwargs)
-        return file
-
-    @delegates(load_model)
-    def load(self, file, with_opt=None, device=None, **kwargs):
-        if device is None and hasattr(self.dls, 'device'):
-            device = self.dls.device
-        if self.opt is None:
-            self.create_opt()
-        file = join_path_file(file, self.path / self.model_dir, ext='.pth')
-        load_model(file, self.model, self.opt, device=device, **kwargs)
-        return self
-
     def to_detach(self, b, cpu=True, gather=True):
         return self.dl.to_detach(b, cpu, gather) if hasattr(getattr(self, 'dl', None), 'to_detach') else to_detach(b, cpu, gather)
 
@@ -471,8 +467,6 @@ add_docs(Learner, "Group together a `model`, some `dls` and a `loss_func` to han
          no_logging="Context manager to temporarily remove `logger`",
          no_mbar="Context manager to temporarily prevent the master progress bar from being created",
          loss_not_reduced="A context manager to evaluate `loss_func` with reduction set to none.",
-         save="Save model and optimizer state (if `with_opt`) to `self.path/self.model_dir/file`",
-         load="Load model and optimizer state (if `with_opt`) from `self.path/self.model_dir/file` using `device`",
          to_detach="Calls `to_detach` if `self.dl` provides a `.to_detach` function otherwise calls global `to_detach`",
          __call__="Call `event_name` for all `Callback`s in `self.cbs`"
          )
@@ -501,9 +495,9 @@ show_doc(Learner)
 # - `model` is a standard PyTorch model. You can use anyone you like, just make sure it accepts the number of inputs you have in your `DataLoaders` and returns as many outputs as you have targets.
 # - `loss_func` can be any loss function you like. It needs to be one of fastai's if you want to use `Learn.predict` or `Learn.get_preds`, or you will have to implement special methods (see more details after the `BaseLoss` documentation).
 
-# Now let's look at the main thing the `Learner` class implements: the training loop.
-
 # ### Training loop
+
+# Now let's look at the main thing the `Learner` class implements: the training loop.
 
 # export
 if not hasattr(defaults, 'callbacks'):
@@ -543,7 +537,7 @@ class TestTrainEvalCallback(Callback):
         test_eq([self.pct_train, self.train_iter], [0., 0])
         self.old_pct_train, self.old_train_iter = self.pct_train, self.train_iter
 
-    def before_batch(self): test_eq(next(self.model.parameters()).device, find_device(self.xb))
+    def before_batch(self): test_eq(next(self.parameters()).device, find_device(self.xb))
 
     def after_batch(self):
         assert self.training
@@ -587,16 +581,16 @@ class _TstModel(nn.Module):
 
 
 class _PutGrad(Callback):
-    def after_backward(self):
-        for p in self.learn.model.tst.parameters():
+    def before_step(self):
+        for p in self.learn.tst.parameters():
             p.grad = torch.ones_like(p.data)
 
 
 learn = synth_learner(n_train=5, opt_func=partial(SGD, wd=1, decouple_wd=True), cbs=_PutGrad)
 learn.model = _TstModel()
-init = [p.clone() for p in learn.model.tst.parameters()]
+init = [p.clone() for p in learn.tst.parameters()]
 learn.fit(1, lr=1e-2)
-end = list(learn.model.tst.parameters())
+end = list(learn.tst.parameters())
 assert not torch.allclose(end[0] - init[0], -0.05 * torch.ones_like(end[0]))
 for i in [1, 2, 3]:
     test_close(end[i] - init[i], -0.05 * torch.ones_like(end[i]))
@@ -617,33 +611,6 @@ test_eq(learn.pred, out)
 test_eq(learn.loss, learn.loss_func(out, b[1]))
 
 
-# More generally, the following attributes of `Learner` are available and updated during the training loop:
-# - `model`: the model used for training/validation
-# - `data`: the underlying `DataLoaders`
-# - `loss_func`: the loss function used
-# - `opt`: the optimizer used to update the model parameters
-# - `opt_func`: the function used to create the optimizer
-# - `cbs`: the list containing all `Callback`s
-# - `dl`: current `DataLoader` used for iteration
-# - `x`/`xb`: last input drawn from `self.dl` (potentially modified by callbacks). `xb` is always a tuple (potentially with one element) and `x` is detuplified. You can only assign to `xb`.
-# - `y`/`yb`: last target drawn from `self.dl` (potentially modified by callbacks). `yb` is always a tuple (potentially with one element) and `y` is detuplified. You can only assign to `yb`.
-# - `pred`: last predictions from `self.model` (potentially modified by callbacks)
-# - `loss`: last computed loss (potentially modified by callbacks)
-# - `n_epoch`: the number of epochs in this training
-# - `n_iter`: the number of iterations in the current `self.dl`
-# - `epoch`: the current epoch index (from 0 to `n_epoch-1`)
-# - `iter`: the current iteration index in `self.dl` (from 0 to `n_iter-1`)
-#
-# The following attributes are added by `TrainEvalCallback` and should be available unless you went out of your way to remove that callback:
-#
-# - `train_iter`: the number of training iterations done since the beginning of this training
-# - `pct_train`: from 0. to 1., the percentage of training iterations completed
-# - `training`:  flag to indicate if we're in training mode or not
-#
-# The following attribute is added by `Recorder` and should be available unless you went out of your way to remove that callback:
-#
-# - `smooth_loss`: an exponentially-averaged version of the training loss
-
 # hide
 class VerboseCallback(Callback):
     "Callback that prints the name of each event called"
@@ -660,7 +627,7 @@ class TestOneBatch(VerboseCallback):
         self.old_pred, self.old_loss = None, tensor(0.)
 
     def before_batch(self):
-        self.old_a, self.old_b = self.model.a.data.clone(), self.model.b.data.clone()
+        self.old_a, self.old_b = self.a.data.clone(), self.b.data.clone()
         test_eq(self.iter, self.i)
         test_eq(self.save_xb, *self.xb)
         test_eq(self.save_yb, *self.yb)
@@ -669,33 +636,33 @@ class TestOneBatch(VerboseCallback):
 
     def after_pred(self):
         self.old_pred = self.pred
-        test_eq(self.pred, self.model.a.data * self.x + self.model.b.data)
+        test_eq(self.pred, self.a.data * self.x + self.b.data)
         test_eq(self.loss, self.old_loss)
 
     def after_loss(self):
         self.old_loss = self.loss
         test_eq(self.loss, self.loss_func(self.old_pred, self.save_yb))
-        for p in self.model.parameters():
+        for p in self.parameters():
             if not hasattr(p, 'grad') or p.grad is not None:
                 test_eq(p.grad, tensor([0.]))
 
-    def after_backward(self):
+    def before_step(self):
         self.grad_a = (2 * self.x * (self.pred.data - self.y)).mean()
         self.grad_b = 2 * (self.pred.data - self.y).mean()
-        test_close(self.model.a.grad.data, self.grad_a)
-        test_close(self.model.b.grad.data, self.grad_b)
-        test_eq(self.model.a.data, self.old_a)
-        test_eq(self.model.b.data, self.old_b)
+        test_close(self.a.grad.data, self.grad_a)
+        test_close(self.b.grad.data, self.grad_b)
+        test_eq(self.a.data, self.old_a)
+        test_eq(self.b.data, self.old_b)
 
     def after_step(self):
-        test_close(self.model.a.data, self.old_a - self.lr * self.grad_a)
-        test_close(self.model.b.data, self.old_b - self.lr * self.grad_b)
-        self.old_a, self.old_b = self.model.a.data.clone(), self.model.b.data.clone()
-        test_close(self.model.a.grad.data, self.grad_a)
-        test_close(self.model.b.grad.data, self.grad_b)
+        test_close(self.a.data, self.old_a - self.lr * self.grad_a)
+        test_close(self.b.data, self.old_b - self.lr * self.grad_b)
+        self.old_a, self.old_b = self.a.data.clone(), self.b.data.clone()
+        test_close(self.a.grad.data, self.grad_a)
+        test_close(self.b.grad.data, self.grad_b)
 
     def after_batch(self):
-        for p in self.model.parameters():
+        for p in self.parameters():
             test_eq(p.grad, tensor([0.]))
 
 
@@ -707,9 +674,9 @@ learn = synth_learner(cbs=TestOneBatch(*b, 42), lr=1e-2)
 learn.cbs = learn.cbs[1:]
 # Setup
 learn.loss, learn.training = tensor(0.), True
-learn.opt = SGD(learn.model.parameters(), lr=learn.lr)
+learn.opt = SGD(learn.parameters(), lr=learn.lr)
 learn.model.train()
-batch_events = ['before_batch', 'after_pred', 'after_loss', 'before_backward', 'after_backward', 'after_step', 'after_batch']
+batch_events = ['before_batch', 'after_pred', 'after_loss', 'before_backward', 'before_step', 'after_step', 'after_batch']
 test_stdout(lambda: learn.one_batch(42, b), '\n'.join(batch_events))
 test_stdout(lambda: learn.one_batch(42, b), '\n'.join(batch_events))  # Check it works for a second batch
 
@@ -718,7 +685,7 @@ show_doc(Learner.all_batches)
 # +
 # hide
 learn = synth_learner(n_train=5, cbs=VerboseCallback())
-learn.opt = SGD(learn.model.parameters(), lr=learn.lr)
+learn.opt = SGD(learn.parameters(), lr=learn.lr)
 with redirect_stdout(io.StringIO()):
     learn(_before_epoch)
     learn.epoch, learn.dl = 0, learn.dls.train
@@ -740,7 +707,7 @@ test_stdout(lambda: learn(_before_epoch), 'before_fit\nbefore_epoch')
 test_eq(learn.loss, tensor(0.))
 
 # hide
-learn.opt = SGD(learn.model.parameters(), lr=learn.lr)
+learn.opt = SGD(learn.parameters(), lr=learn.lr)
 learn.epoch = 0
 test_stdout(lambda: learn._do_epoch_train(), '\n'.join(['before_train'] + batch_events * 5 + ['after_train']))
 
@@ -756,43 +723,6 @@ assert learn.opt is None
 learn.create_opt()
 assert learn.opt is not None
 test_eq(learn.opt.hypers[0]['lr'], learn.lr)
-
-# ### Serializing
-
-show_doc(Learner.save)
-
-# `file` can be a `Path`, a `string` or a buffer. `pickle_protocol` is passed along to `torch.save`.
-
-show_doc(Learner.load)
-
-# `file` can be a `Path`, a `string` or a buffer. Use `device` to load the model/optimizer state on a device different from the one it was saved.
-
-with tempfile.TemporaryDirectory() as d:
-    learn = synth_learner(path=d)
-    learn.fit(1)
-
-    # Test save created a file
-    learn.save('tmp')
-    assert (Path(d) / 'models/tmp.pth').exists()
-
-    # Test load did load the model
-    learn1 = synth_learner(path=d)
-    learn1 = learn1.load('tmp')
-    test_eq(learn.model.a, learn1.model.a)
-    test_eq(learn.model.b, learn1.model.b)
-    test_eq(learn.opt.state_dict(), learn1.opt.state_dict())
-
-# hide
-# Test load works when the model is saved without opt
-with tempfile.TemporaryDirectory() as d:
-    learn = synth_learner(path=d)
-    learn.fit(1)
-    learn.save('tmp', with_opt=False)
-    learn1 = synth_learner(path=d)
-    learn1 = learn1.load('tmp')
-    test_eq(learn.model.a, learn1.model.a)
-    test_eq(learn.model.b, learn1.model.b)
-    test_ne(learn.opt.state_dict(), learn1.opt.state_dict())
 
 
 # ### Callback handling
@@ -816,17 +746,7 @@ tst_learn = synth_learner(cbs=TstCallback())
 test_eq(len(tst_learn.cbs), 2)
 assert isinstance(tst_learn.cbs[1], TstCallback)
 assert hasattr(tst_learn, ('tst'))
-
-
 # -
-
-# A name that becomes an existing attribute of the `Learner` will throw an exception (here add_cb is a method of `Learner`).
-
-class AddCbCallback(Callback):
-    pass
-
-
-test_fail(lambda: synth_learner(cbs=AddCbCallback()))
 
 show_doc(Learner.__call__)
 
@@ -935,139 +855,100 @@ class TstCallback(Callback):
 def cb(self, xb, yb): return xb + 1000, yb - 1000
 
 
-# ### Control flow testing -
+# ### Serializing
+
+# export
+@patch
+@delegates(save_model)
+def save(self: Learner, file, **kwargs):
+    "Save model and optimizer state (if `with_opt`) to `self.path/self.model_dir/file`"
+    file = join_path_file(file, self.path / self.model_dir, ext='.pth')
+    save_model(file, self.model, getattr(self, 'opt', None), **kwargs)
+    return file
+
+
+# `file` can be a `Path`, a `string` or a buffer. `pickle_protocol` is passed along to `torch.save`.
+
+# export
+@patch
+@delegates(load_model)
+def load(self: Learner, file, device=None, **kwargs):
+    "Load model and optimizer state (if `with_opt`) from `self.path/self.model_dir/file` using `device`"
+    if device is None and hasattr(self.dls, 'device'):
+        device = self.dls.device
+    if self.opt is None:
+        self.create_opt()
+    file = join_path_file(file, self.path / self.model_dir, ext='.pth')
+    load_model(file, self.model, self.opt, device=device, **kwargs)
+    return self
+
+
+# `file` can be a `Path`, a `string` or a buffer. Use `device` to load the model/optimizer state on a device different from the one it was saved.
+
+with tempfile.TemporaryDirectory() as d:
+    learn = synth_learner(path=d)
+    learn.fit(1)
+
+    # Test save created a file
+    learn.save('tmp')
+    assert (Path(d) / 'models/tmp.pth').exists()
+
+    # Test load did load the model
+    learn1 = synth_learner(path=d)
+    learn1 = learn1.load('tmp')
+    test_eq(learn.a, learn1.a)
+    test_eq(learn.b, learn1.b)
+    test_eq(learn.opt.state_dict(), learn1.opt.state_dict())
 
 # hide
-batch_events = ['before_batch', 'after_pred', 'after_loss', 'before_backward', 'after_backward', 'after_step', 'after_batch']
-batchv_events = ['before_batch', 'after_pred', 'after_loss', 'after_batch']
-train_events = ['before_train'] + batch_events + ['after_train']
-valid_events = ['before_validate'] + batchv_events + ['after_validate']
-epoch_events = ['before_epoch'] + train_events + valid_events + ['after_epoch']
-cycle_events = ['before_fit'] + epoch_events + ['after_fit']
-
-# hide
-learn = synth_learner(n_train=1, n_valid=1)
-test_stdout(lambda: learn.fit(1, cbs=VerboseCallback()), '\n'.join(cycle_events))
-
-
-# hide
-class TestCancelCallback(VerboseCallback):
-    def __init__(self, cancel_at=event.before_batch, exception=CancelBatchException, train=None):
-        def _interrupt():
-            if train is None or train == self.training:
-                raise exception()
-        setattr(self, cancel_at, _interrupt)
+# Test load works when the model is saved without opt
+with tempfile.TemporaryDirectory() as d:
+    learn = synth_learner(path=d)
+    learn.fit(1)
+    learn.save('tmp', with_opt=False)
+    learn1 = synth_learner(path=d)
+    learn1 = learn1.load('tmp', with_opt=False)
+    test_eq(learn.a, learn1.a)
+    test_eq(learn.b, learn1.b)
+    test_ne(learn.opt.state_dict(), learn1.opt.state_dict())
 
 
-# +
-# hide
-# test cancel batch
-for i, e in enumerate(batch_events[:-1]):
-    be = batch_events[:i + 1] + ['after_cancel_batch', 'after_batch']
-    bev = be if i < 3 else batchv_events
-    cycle = cycle_events[:3] + be + ['after_train', 'before_validate'] + bev + cycle_events[-3:]
-    test_stdout(lambda: learn.fit(1, cbs=TestCancelCallback(cancel_at=e)), '\n'.join(cycle))
-
-# CancelBatchException not caught if thrown in any other event
-for e in cycle_events:
-    if e not in batch_events[:-1]:
-        with redirect_stdout(io.StringIO()):
-            cb = TestCancelCallback(cancel_at=e)
-            test_fail(lambda: learn.fit(1, cbs=cb))
-            learn.remove_cb(cb)  # Have to remove it manually
-
-# +
-# hide
-# test cancel train
-for i, e in enumerate(['before_train'] + batch_events):
-    be = batch_events[:i] + (['after_batch'] if i >= 1 and i < len(batch_events) else [])
-    be += ['after_cancel_train', 'after_train']
-    cycle = cycle_events[:3] + be + ['before_validate'] + batchv_events + cycle_events[-3:]
-    test_stdout(lambda: learn.fit(1, cbs=TestCancelCallback(e, CancelTrainException, True)), '\n'.join(cycle))
-
-# CancelTrainException not caught if thrown in any other event
-for e in cycle_events:
-    if e not in ['before_train'] + batch_events[:-1]:
-        with redirect_stdout(io.StringIO()):
-            cb = TestCancelCallback(e, CancelTrainException)
-            test_fail(lambda: learn.fit(1, cbs=cb))
-            learn.remove_cb(cb)  # Have to remove it manually
-
-# +
-# hide
-# test cancel valid
-for i, e in enumerate(['before_validate'] + batchv_events):
-    bev = batchv_events[:i] + (['after_batch'] if i >= 1 and i < len(batchv_events) else []) + ['after_cancel_validate']
-    cycle = cycle_events[:3] + batch_events + ['after_train', 'before_validate'] + bev + cycle_events[-3:]
-    test_stdout(lambda: learn.fit(1, cbs=TestCancelCallback(e, CancelValidException, False)), '\n'.join(cycle))
-
-# CancelValidException not caught if thrown in any other event
-for e in cycle_events:
-    if e not in ['before_validate'] + batch_events[:3]:
-        with redirect_stdout(io.StringIO()):
-            cb = TestCancelCallback(e, CancelValidException)
-            test_fail(lambda: learn.fit(1, cbs=cb))
-            learn.remove_cb(cb)  # Have to remove it manually
-
-# +
-# hide
-# test cancel epoch
-# In train
-for i, e in enumerate(['before_train'] + batch_events):
-    be = batch_events[:i] + (['after_batch'] if i >= 1 and i < len(batch_events) else [])
-    cycle = cycle_events[:3] + be + ['after_train', 'after_cancel_epoch'] + cycle_events[-2:]
-    test_stdout(lambda: learn.fit(1, cbs=TestCancelCallback(e, CancelEpochException, True)), '\n'.join(cycle))
-
-# In valid
-for i, e in enumerate(['before_validate'] + batchv_events):
-    bev = batchv_events[:i] + (['after_batch'] if i >= 1 and i < len(batchv_events) else [])
-    cycle = cycle_events[:3] + batch_events + ['after_train', 'before_validate'] + bev
-    cycle += ['after_validate', 'after_cancel_epoch'] + cycle_events[-2:]
-    test_stdout(lambda: learn.fit(1, cbs=TestCancelCallback(e, CancelEpochException, False)), '\n'.join(cycle))
-
-# In begin epoch
-test_stdout(lambda: learn.fit(1, cbs=TestCancelCallback('before_epoch', CancelEpochException, False)),
-            '\n'.join(cycle_events[:2] + ['after_cancel_epoch'] + cycle_events[-2:]))
-
-# CancelEpochException not caught if thrown in any other event
-for e in ['before_fit', 'after_epoch', 'after_fit']:
-    if e not in ['before_validate'] + batch_events[:3]:
-        with redirect_stdout(io.StringIO()):
-            cb = TestCancelCallback(e, CancelEpochException)
-            test_fail(lambda: learn.fit(1, cbs=cb))
-            learn.remove_cb(cb)  # Have to remove it manually
-
-# +
-# hide
-# test cancel fit
-# In begin fit
-test_stdout(lambda: learn.fit(1, cbs=TestCancelCallback('before_fit', CancelFitException)),
-            '\n'.join(['before_fit', 'after_cancel_fit', 'after_fit']))
-
-# In begin epoch
-test_stdout(lambda: learn.fit(1, cbs=TestCancelCallback('before_epoch', CancelFitException, False)),
-            '\n'.join(cycle_events[:2] + ['after_epoch', 'after_cancel_fit', 'after_fit']))
-# In train
-for i, e in enumerate(['before_train'] + batch_events):
-    be = batch_events[:i] + (['after_batch'] if i >= 1 and i < len(batch_events) else [])
-    cycle = cycle_events[:3] + be + ['after_train', 'after_epoch', 'after_cancel_fit', 'after_fit']
-    test_stdout(lambda: learn.fit(1, cbs=TestCancelCallback(e, CancelFitException, True)), '\n'.join(cycle))
-
-# In valid
-for i, e in enumerate(['before_validate'] + batchv_events):
-    bev = batchv_events[:i] + (['after_batch'] if i >= 1 and i < len(batchv_events) else [])
-    cycle = cycle_events[:3] + batch_events + ['after_train', 'before_validate'] + bev
-    cycle += ['after_validate', 'after_epoch', 'after_cancel_fit', 'after_fit']
-    test_stdout(lambda: learn.fit(1, cbs=TestCancelCallback(e, CancelFitException, False)), '\n'.join(cycle))
-
-# CancelEpochException not caught if thrown in any other event
-with redirect_stdout(io.StringIO()):
-    cb = TestCancelCallback('after_fit', CancelEpochException)
-    test_fail(lambda: learn.fit(1, cbs=cb))
-    learn.remove_cb(cb)  # Have to remove it manually
+# export
+@patch
+def export(self: Learner, fname='export.pkl', pickle_module=pickle, pickle_protocol=2):
+    "Export the content of `self` without the items and the optimizer state for inference"
+    if rank_distrib():
+        return  # don't export if child proc
+    self._end_cleanup()
+    old_dbunch = self.dls
+    self.dls = self.dls.new_empty()
+    state = self.opt.state_dict() if self.opt is not None else None
+    self.opt = None
+    with warnings.catch_warnings():
+        # To avoid the warning that come from PyTorch about model not being checked
+        warnings.simplefilter("ignore")
+        torch.save(self, self.path / fname, pickle_module=pickle_module, pickle_protocol=pickle_protocol)
+    self.create_opt()
+    if state is not None:
+        self.opt.load_state_dict(state)
+    self.dls = old_dbunch
 
 
-# -
+# The `Learner` is saved in `self.path/fname`, using `pickle_protocol`. Note that serialization in Python saves the names of functions, not the code itself. Therefore, any custom code you have for models, data transformation, loss function etc... should be put in a module that you will import in your training environment before exporting, and in your deployment environment before loading it.
+
+# export
+def load_learner(fname, cpu=True, pickle_module=pickle):
+    "Load a `Learner` object in `fname`, optionally putting it on the `cpu`"
+    distrib_barrier()
+    res = torch.load(fname, map_location='cpu' if cpu else None, pickle_module=pickle_module)
+    if hasattr(res, 'to_fp32'):
+        res = res.to_fp32()
+    if cpu:
+        res.dls.cpu()
+    return res
+
+
+# > Warning: `load_learner` requires all your custom code be in the exact same place as when exporting your `Learner` (the main script, or the module you imported it from).
 
 # ### DataLoader aware `to_detach` -
 
@@ -1277,13 +1158,17 @@ test_eq(vm.name, 'metric_value_fn')
 # export
 def _maybe_item(t):
     t = t.value
-    return t.item() if isinstance(t, Tensor) and t.numel() == 1 else t
+    try:
+        return t.item()
+    except:
+        return t
 
 
 # export
 class Recorder(Callback):
     "Callback that registers statistics (lr, loss and metrics) during training"
-    remove_on_fetch, run_after = True, TrainEvalCallback
+    _stateattrs = ('lrs', 'iters', 'losses', 'values')
+    remove_on_fetch, order = True, 50
 
     def __init__(self, add_time=True, train_metrics=False, valid_metrics=True, beta=0.98):
         store_attr('add_time,train_metrics,valid_metrics')
@@ -1387,13 +1272,14 @@ def tst_metric(out, targ): return F.mse_loss(out, targ)
 
 
 learn = synth_learner(n_train=5, metrics=tst_metric)
-pat = r"[tensor\(\d.\d*\), tensor\(\d.\d*\), tensor\(\d.\d*\), 'dd:dd']"
+# pat = r"[tensor\(\d.\d*\), tensor\(\d.\d*\), tensor\(\d.\d*\), 'dd:dd']"
+pat = r"\[\d, \d+.\d+, \d+.\d+, \d+.\d+, '\d\d:\d\d'\]"
 test_stdout(lambda: learn.fit(1), pat, regex=True)
 
 
 # hide
 class TestRecorderCallback(Callback):
-    run_after = Recorder
+    order = 51
 
     def before_fit(self):
         self.train_metrics, self.add_time = self.recorder.train_metrics, self.recorder.add_time
@@ -1438,7 +1324,7 @@ class TestRecorderCallback(Callback):
     def after_train(self):
         mean = tensor(self.losses).mean()
         self.log += [self.smooth_loss, mean] if self.train_metrics else [self.smooth_loss]
-        test_eq(self.log, self.recorder.log)
+        test_close(self.log, self.recorder.log)
         self.losses = []
 
     def before_validate(self):
@@ -1452,7 +1338,8 @@ class TestRecorderCallback(Callback):
         self.log += [res, res]
         if self.add_time:
             self.log.append(format_time(time.time() - self.start_epoch))
-        test_eq(log, self.log)
+        test_close(log[:-1], self.log[:-1])
+        test_eq(log[-1], self.log[-1])
 
 
 # +
@@ -1513,18 +1400,12 @@ test_eq(res[0], res[1])
 x, y = learn.dls.valid_ds.tensors
 test_close(res[0], F.mse_loss(learn.model(x), y), 1e-3)
 
-# +
 # hide
 # Test other dl
 res = learn.validate(dl=learn.dls.train)
 test_eq(res[0], res[1])
 x, y = learn.dls.train_ds.tensors
 test_close(res[0], F.mse_loss(learn.model(x), y), 1e-3)
-
-# Test additional callback is executed.
-cycle = cycle_events[:2] + ['before_validate'] + batchv_events * 2 + cycle_events[-3:]
-test_stdout(lambda: learn.validate(cbs=VerboseCallback()), '\n'.join(cycle))
-# -
 
 show_doc(Learner.get_preds)
 
@@ -1754,8 +1635,8 @@ class _TstModel(nn.Module):
 
 
 class _PutGrad(Callback):
-    def after_backward(self):
-        for p in self.learn.model.tst.parameters():
+    def before_step(self):
+        for p in self.learn.tst.parameters():
             if p.requires_grad:
                 p.grad = torch.ones_like(p.data)
 
@@ -1766,9 +1647,9 @@ def _splitter(m): return [list(m.tst[0].parameters()), list(m.tst[1].parameters(
 learn = synth_learner(n_train=5, opt_func=partial(SGD), cbs=_PutGrad, splitter=_splitter, lr=1e-2)
 learn.model = _TstModel()
 learn.freeze()
-init = [p.clone() for p in learn.model.tst.parameters()]
+init = [p.clone() for p in learn.tst.parameters()]
 learn.fit(1, wd=0.)
-end = list(learn.model.tst.parameters())
+end = list(learn.tst.parameters())
 # linear was not trained
 for i in [0, 1]:
     test_close(end[i], init[i])
@@ -1781,17 +1662,17 @@ for i in [2, 3]:
 learn = synth_learner(n_train=5, opt_func=partial(SGD), cbs=_PutGrad, splitter=_splitter, train_bn=False, lr=1e-2)
 learn.model = _TstModel()
 learn.freeze()
-init = [p.clone() for p in learn.model.tst.parameters()]
+init = [p.clone() for p in learn.tst.parameters()]
 learn.fit(1, wd=0.)
-end = list(learn.model.tst.parameters())
+end = list(learn.tst.parameters())
 # linear and bn were not trained
 for i in range(4):
     test_close(end[i], init[i])
 
 learn.freeze_to(-2)
-init = [p.clone() for p in learn.model.tst.parameters()]
+init = [p.clone() for p in learn.tst.parameters()]
 learn.fit(1, wd=0.)
-end = list(learn.model.tst.parameters())
+end = list(learn.tst.parameters())
 # linear was not trained
 for i in [0, 1]:
     test_close(end[i], init[i])
@@ -1800,54 +1681,15 @@ for i in [2, 3]:
     test_close(end[i] - init[i], -0.05 * torch.ones_like(end[i]))
 
 learn.unfreeze()
-init = [p.clone() for p in learn.model.tst.parameters()]
+init = [p.clone() for p in learn.tst.parameters()]
 learn.fit(1, wd=0.)
-end = list(learn.model.tst.parameters())
+end = list(learn.tst.parameters())
 # linear and bn were trained
 for i in range(4):
     test_close(end[i] - init[i], -0.05 * torch.ones_like(end[i]), 1e-3)
 
 
 # -
-
-# ### Exporting a `Learner`
-
-# export
-@patch
-def export(self: Learner, fname='export.pkl', pickle_protocol=2):
-    "Export the content of `self` without the items and the optimizer state for inference"
-    if rank_distrib():
-        return  # don't export if child proc
-    self._end_cleanup()
-    old_dbunch = self.dls
-    self.dls = self.dls.new_empty()
-    state = self.opt.state_dict() if self.opt is not None else None
-    self.opt = None
-    with warnings.catch_warnings():
-        # To avoid the warning that come from PyTorch about model not being checked
-        warnings.simplefilter("ignore")
-        torch.save(self, self.path / fname, pickle_protocol=pickle_protocol)
-    self.create_opt()
-    if state is not None:
-        self.opt.load_state_dict(state)
-    self.dls = old_dbunch
-
-
-# The `Learner` is saved in `self.path/fname`, using `pickle_protocol`. Note that serialization in Python saves the names of functions, not the code itself. Therefore, any custom code you have for models, data transformation, loss function etc... should be put in a module that you will import in your training environment before exporting, and in your deployment environment before loading it.
-
-# export
-def load_learner(fname, cpu=True):
-    "Load a `Learner` object in `fname`, optionally putting it on the `cpu`"
-    distrib_barrier()
-    res = torch.load(fname, map_location='cpu' if cpu else None)
-    if hasattr(res, 'to_fp32'):
-        res = res.to_fp32()
-    if cpu:
-        res.dls.cpu()
-    return res
-
-
-# > Warning: `load_learner` requires all your custom code be in the exact same place as when exporting your `Learner` (the main script, or the module you imported it from).
 
 # ## TTA
 
@@ -1892,58 +1734,6 @@ dl = TfmdDL(Datasets(torch.arange(50), [noop, noop]))
 learn.dls = DataLoaders(dl, dl)
 preds, targs = learn.tta()
 assert len(preds), len(targs)
-
-
-# ## Gather arguments
-
-# export
-@patch
-def gather_args(self: Learner):
-    "Gather config parameters accessible to the learner"
-    # init_args
-    cb_args = {k: v for cb in self.cbs for k, v in getattr(cb, 'init_args', {}).items()}
-    args = {**getattr(self, 'init_args', {}), **cb_args, **getattr(self.dls, 'init_args', {}),
-            **getattr(self.opt, 'init_args', {}), **getattr(self.loss_func, 'init_args', {})}
-    # callbacks used
-    args.update({f'{cb}': True for cb in self.cbs})
-    # input dimensions
-    try:
-        n_inp = self.dls.train.n_inp
-        args['n_inp'] = n_inp
-        xb = self.dls.train.one_batch()[:n_inp]
-        args.update({f'input {n+1} dim {i+1}': d for n in range(n_inp) for i, d in enumerate(list(detuplify(xb[n]).shape))})
-    except:
-        print(f'Could not gather input dimensions')
-    # other useful information
-    with ignore_exceptions():
-        args['batch size'] = self.dls.bs
-    with ignore_exceptions():
-        args['batch per epoch'] = len(self.dls.train)
-    with ignore_exceptions():
-        args['model parameters'] = total_params(self.model)[0]
-    with ignore_exceptions():
-        args['loss function'] = f'{self.loss_func}'
-    with ignore_exceptions():
-        args['device'] = self.dls.device.type
-    with ignore_exceptions():
-        args['optimizer'] = self.opt_func.__name__
-    with ignore_exceptions():
-        args['frozen'] = bool(self.opt.frozen_idx)
-    with ignore_exceptions():
-        args['frozen idx'] = self.opt.frozen_idx
-    with ignore_exceptions():
-        args['dataset.tfms'] = f'{self.dls.dataset.tfms}'
-    with ignore_exceptions():
-        args['dls.after_item'] = f'{self.dls.after_item}'
-    with ignore_exceptions():
-        args['dls.before_batch'] = f'{self.dls.before_batch}'
-    with ignore_exceptions():
-        args['dls.after_batch'] = f'{self.dls.after_batch}'
-    return args
-
-
-learn = synth_learner(lr=1e-2)
-test_eq(learn.init_args['Learner.__init__.lr'], 0.01)
 
 # ## Export -
 

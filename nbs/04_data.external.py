@@ -102,8 +102,13 @@ from fastai.torch_basics import *
 # 1. **MACAQUES**: [7285 macaque coo calls](https://datadryad.org/stash/dataset/doi:10.5061/dryad.7f4p9) across 8 individuals from [Distributed acoustic cues for caller identity in macaque vocalization](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4806230).
 # 2. **ZEBRA_FINCH**: [3405 zebra finch calls](https://ndownloader.figshare.com/articles/11905533/versions/1) classified [across 11 call types](https://link.springer.com/article/10.1007/s10071-015-0933-6). Additional labels include name of individual making the vocalization and its age.
 #
-# **Medical Imaging datasets**:
+# **Medical imaging datasets**:
 # 1. **SIIM_SMALL**: A smaller version of the [SIIM dataset](https://www.kaggle.com/c/siim-acr-pneumothorax-segmentation/overview) where the objective is to classify pneumothorax from a set of chest radiographic images.
+# 2. **TCGA_SMALL**: A smaller version of the [TCGA-OV dataset](http://doi.org/10.7937/K9/TCIA.2016.NDO1MDFQ) with subcutaneous and visceral fat segmentations. Citations:
+#
+#     Holback, C., Jarosz, R., Prior, F., Mutch, D. G., Bhosale, P., Garcia, K., … Erickson, B. J. (2016). Radiology Data from The Cancer Genome Atlas Ovarian Cancer [TCGA-OV] collection. The Cancer Imaging Archive. http://doi.org/10.7937/K9/TCIA.2016.NDO1MDFQ
+#
+#     Clark K, Vendt B, Smith K, Freymann J, Kirby J, Koppel P, Moore S, Phillips S, Maffitt D, Pringle M, Tarbox L, Prior F. The Cancer Imaging Archive (TCIA): Maintaining and Operating a Public Information Repository, Journal of Digital Imaging, Volume 26, Number 6, December, 2013, pp 1045-1057. https://link.springer.com/article/10.1007/s10278-013-9622-7
 #
 # **Pretrained models**:
 # 1.    **OPENAI_TRANSFORMER**: The GPT2 Transformer pretrained weights.
@@ -319,8 +324,9 @@ class URLs():
     ZEBRA_FINCH = 'https://storage.googleapis.com/ml-animal-sounds-datasets/zebra_finch.zip'
 
     # Medical Imaging datasets
-    #SKIN_LESION        = f'{S3_IMAGELOC}skin_lesion.tgz'
+    # SKIN_LESION        = f'{S3_IMAGELOC}skin_lesion.tgz'
     SIIM_SMALL = f'{S3_IMAGELOC}siim_small.tgz'
+    TCGA_SMALL = f'{S3_IMAGELOC}tcga_small.tgz'
 
     # Pretrained models
     OPENAI_TRANSFORMER = f'{S3_MODEL}transformer.tgz'
@@ -641,6 +647,10 @@ To fix this, you need to run the following code in this notebook before making a
 url = URLs.{d}
 _add_check(url, URLs.path(url))
 """
+
+url = URLs.CALTECH_101
+untar_data(url)
+_add_check(url, URLs.path(url))
 
 # ## Export -
 

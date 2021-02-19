@@ -223,6 +223,8 @@ path.ls()
 
 images, lbl_bbox = get_annotations(path / 'train.json')
 img2bbox = dict(zip(images, lbl_bbox))
+
+
 def _pascal_lbl(o): return BBox.create(img2bbox[o.name])
 
 

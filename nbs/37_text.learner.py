@@ -159,14 +159,13 @@ def load_model_text(file, model, opt, with_opt=None, device=None, strict=True):
 
 
 # export
-@log_args(but_as=Learner.__init__)
 @delegates(Learner.__init__)
 class TextLearner(Learner):
     "Basic class for a `Learner` in NLP."
 
     def __init__(self, dls, model, alpha=2., beta=1., moms=(0.8, 0.7, 0.8), **kwargs):
         super().__init__(dls, model, moms=moms, **kwargs)
-        self.add_cbs([ModelResetter(), RNNRegularizer(alpha=alpha, beta=beta)])
+        self.add_cbs(rnn_cbs())
 
     def save_encoder(self, file):
         "Save the encoder to `file` in the model directory"
@@ -232,7 +231,7 @@ show_doc(TextLearner.load_encoder)
 
 # ## Language modeling predictions
 
-# For language modeling, the predict method is quite different form the other applications, which is why it needs its own subclass.
+# For language modeling, the predict method is quite different from the other applications, which is why it needs its own subclass.
 
 # export
 def decode_spec_tokens(tokens):
@@ -269,7 +268,6 @@ test_eq(decode_spec_tokens(['xxwrep', '3', 'word']), ['word', 'word', 'word'])
 
 
 # export
-@log_args(but_as=TextLearner.__init__)
 class LMLearner(TextLearner):
     "Add functionality to `TextLearner` when dealing with a language model"
 
@@ -327,7 +325,6 @@ def _get_text_vocab(dls):
 
 
 # export
-@log_args(to_return=True, but_as=Learner.__init__)
 @delegates(Learner.__init__)
 def language_model_learner(dls, arch, config=None, drop_mult=1., backwards=False, pretrained=True, pretrained_fnames=None, **kwargs):
     "Create a `Learner` with a language model from `dls` and `arch`."
@@ -370,7 +367,6 @@ learn.predict('This movie is about', n_words=20, only_last_word=True)
 
 
 # export
-@log_args(to_return=True, but_as=Learner.__init__)
 @delegates(Learner.__init__)
 def text_classifier_learner(dls, arch, seq_len=72, config=None, backwards=False, pretrained=True, drop_mult=0.5, n_out=None,
                             lin_ftrs=None, ps=None, max_len=72 * 20, y_range=None, **kwargs):

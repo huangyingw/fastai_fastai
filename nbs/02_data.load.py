@@ -17,6 +17,7 @@
 # hide
 # skip
 from torch.utils.data.dataloader import _MultiProcessingDataLoaderIter, _SingleProcessDataLoaderIter, _DatasetKind
+from subprocess import Popen, PIPE
 from nbdev.export import notebook2script
 from nbdev.showdoc import *
 from fastai.torch_basics import *
@@ -24,12 +25,10 @@ from fastai.torch_basics import *
 
 # +
 # default_exp data.load
-
-# +
-# export
-
-_loaders = (_MultiProcessingDataLoaderIter, _SingleProcessDataLoaderIter)
 # -
+
+# export
+_loaders = (_MultiProcessingDataLoaderIter, _SingleProcessDataLoaderIter)
 
 # hide
 
@@ -53,13 +52,15 @@ def _wif(worker_id):
 
 
 class _FakeLoader:
-    _IterableDataset_len_called, _auto_collation, collate_fn, drop_last = None, False, noops, False
+    def _fn_noops(self, x=None, *args, **kwargs): return x
+
+    _IterableDataset_len_called, _auto_collation, collate_fn, drop_last = None, False, _fn_noops, False
     _index_sampler, generator, prefetch_factor = Inf.count, None, 2
     dataset_kind = _dataset_kind = _DatasetKind.Iterable
 
-    def __init__(self, d, pin_memory, num_workers, timeout):
+    def __init__(self, d, pin_memory, num_workers, timeout, persistent_workers):
         self.dataset, self.default, self.worker_init_fn = self, d, _wif
-        store_attr('d,pin_memory,num_workers,timeout')
+        store_attr('d,pin_memory,num_workers,timeout,persistent_workers')
 
     def __iter__(self): return iter(self.d.create_batches(self.d.sample()))
 
@@ -134,7 +135,6 @@ show_doc(SkipItemException, title_level=3)
 # ## DataLoader -
 
 # export
-@log_args(but='dataset,wif,create_batch,create_batches,create_item,retain,get_idxs,sample,shuffle_fn,do_batch')
 @funcs_kwargs
 class DataLoader(GetAttr):
     _noop_methods = 'wif before_iter after_item before_batch after_batch after_iter'.split()
@@ -145,12 +145,15 @@ class DataLoader(GetAttr):
     _default = 'dataset'
 
     def __init__(self, dataset=None, bs=None, num_workers=0, pin_memory=False, timeout=0, batch_size=None,
-                 shuffle=False, drop_last=False, indexed=None, n=None, device=None, **kwargs):
+                 shuffle=False, drop_last=False, indexed=None, n=None, device=None, persistent_workers=False, **kwargs):
         if batch_size is not None:
             bs = batch_size  # PyTorch compatibility
         assert not (bs is None and drop_last)
         if indexed is None:
-            indexed = dataset is not None and hasattr(dataset, '__getitem__')
+            indexed = (hasattr(dataset, '__getitem__')
+                       and not isinstance(dataset, IterableDataset))
+        if not indexed and shuffle:
+            raise ValueError("Can only shuffle an indexed dataset (not an iterable one).")
         if n is None:
             try:
                 n = len(dataset)
@@ -158,7 +161,11 @@ class DataLoader(GetAttr):
                 pass
         store_attr('dataset,bs,shuffle,drop_last,indexed,n,pin_memory,timeout,device')
         self.rng, self.num_workers, self.offs = random.Random(random.randint(0, 2**32 - 1)), 1, 0
-        self.fake_l = _FakeLoader(self, pin_memory, num_workers, timeout)
+        if sys.platform == "win32" and IN_NOTEBOOK and num_workers > 0:
+            print("Due to IPython and Windows limitation, python multiprocessing isn't available now.")
+            print("So `number_workers` is changed to 0 to avoid getting stuck")
+            num_workers = 0
+        self.fake_l = _FakeLoader(self, pin_memory, num_workers, timeout, persistent_workers=persistent_workers)
 
     def __len__(self):
         if self.n is None:
@@ -191,7 +198,8 @@ class DataLoader(GetAttr):
             del(self.it)
 
     def create_batches(self, samps):
-        self.it = iter(self.dataset) if self.dataset is not None else None
+        if self.dataset is not None:
+            self.it = iter(self.dataset)
         res = filter(lambda o: o is not None, map(self.do_item, samps))
         yield from map(self.do_batch, self.chunkify(res))
 
@@ -203,7 +211,9 @@ class DataLoader(GetAttr):
         cur_kwargs = dict(dataset=dataset, num_workers=self.fake_l.num_workers, pin_memory=self.pin_memory, timeout=self.timeout,
                           bs=self.bs, shuffle=self.shuffle, drop_last=self.drop_last, indexed=self.indexed, device=self.device)
         for n in self._methods:
-            cur_kwargs[n] = getattr(self, n)
+            o = getattr(self, n)
+            if not isinstance(o, MethodType):
+                cur_kwargs[n] = o
         return cls(**merge(cur_kwargs, kwargs))
 
     @property
@@ -219,7 +229,15 @@ class DataLoader(GetAttr):
     def shuffle_fn(self, idxs): return self.rng.sample(idxs, len(idxs))
     def randomize(self): self.rng = random.Random(self.rng.randint(0, 2**32 - 1))
     def retain(self, res, b): return retain_types(res, b[0] if is_listy(b) else b)
-    def create_item(self, s): return next(self.it) if s is None else self.dataset[s]
+
+    def create_item(self, s):
+        if self.indexed:
+            return self.dataset[s or 0]
+        elif s is None:
+            return next(self.it)
+        else:
+            raise IndexError("Cannot index an iterable dataset numerically - must use `None`.")
+
     def create_batch(self, b): return (fa_collate, fa_convert)[self.prebatched](b)
     def do_batch(self, b): return self.retain(self.create_batch(self.before_batch(b)), b)
     def to(self, device): self.device = device
@@ -246,12 +264,12 @@ add_docs(DataLoader, "API compatible with PyTorch DataLoader, with a lot more ca
          shuffle_fn="Returns a random permutation of `idxs`.",
          randomize="Set's `DataLoader` random number generator state.",
          retain="Cast each item of `res` to type of matching item in `b` if its a superclass.",
-         create_item="Return a subset of the dataset containing the index values of the sample if there are samples, else return the next iterator.",
+         create_item="Subset of the dataset containing the index values of sample if exists, else next iterator.",
          create_batch="Collate a list of items into a batch.",
          do_batch="Combines `create_batch` and `before_batch` to get a batch of items. Input is a list of items to collate.",
          to="Sets `self.device=device`.",
          one_batch="Return one batch from `DataLoader`.",
-         wif="See pytorch `worker_init_fn` for details (https://pytorch.org/docs/stable/data.html#multi-process-data-loading).",
+         wif="See pytorch `worker_init_fn` for details.",
          before_iter="Called before `DataLoader` starts to read/iterate over the dataset.",
          after_item="Takes output of `create_item` as input and applies this function on it.",
          before_batch="It is called before collating a list of items into a batch. Input is a list of items.",
@@ -268,20 +286,9 @@ add_docs(DataLoader, "API compatible with PyTorch DataLoader, with a lot more ca
 # * `batch_size` (int): It is only provided for PyTorch compatibility. Use `bs`.
 # * `shuffle` (bool): If `True`, then data is shuffled every time dataloader is fully read/iterated.
 # * `drop_last` (bool): If `True`, then the last incomplete batch is dropped.
-# * `indexed` (bool): Set to `False`, if you are using iterable-style dataset. Otherwise it is set to `True` by default.
-# * `n` (int): Defaults to `len(dataset)`. If you are using iterable-style dataset, you can specify the size of batch using `n`.
+# * `indexed` (bool): The `DataLoader` will make a guess as to whether the dataset can be indexed (or is iterable), but you can override it with this parameter. `True` by default.
+# * `n` (int): Defaults to `len(dataset)`. If you are using iterable-style dataset, you can specify the size with `n`.
 # * `device` (torch.device): Defaults to `default_device()` which is CUDA by default. You can specify device as `torch.device('cpu').
-
-# Override `get_idxs` to return the same index until consumption of the DL. This is intented to test consistent sampling behavior when `num_workers`>1. Note it does not need to use `self.rng` anymore to maintain consistent behavior across workers.
-
-class AdamantDL(DataLoader):
-    def get_idxs(self):
-        r = random.randint(0, self.n - 1)
-        return [r] * self.n
-
-
-test_eq(torch.cat(tuple(AdamantDL((list(range(50))), bs=16, num_workers=4))).unique().numel(), 1)
-
 
 # Override `item` and use the default infinite sampler to get a stream of unknown length (`stop()` when you want to stop the stream).
 
@@ -300,11 +307,12 @@ L(RandDL(bs=4, drop_last=True)).map(len)
 dl = RandDL(bs=4, num_workers=4, drop_last=True)
 L(dl).map(len)
 
-test_eq(dl.fake_l.num_workers, 4)
+test_num_workers = 0 if sys.platform == "win32" else 4
+test_eq(dl.fake_l.num_workers, test_num_workers)
 with dl.fake_l.no_multiproc():
     test_eq(dl.fake_l.num_workers, 0)
     L(dl).map(len)
-test_eq(dl.fake_l.num_workers, 4)
+test_eq(dl.fake_l.num_workers, test_num_workers)
 
 
 # +
@@ -333,7 +341,7 @@ t2 = L(tensor([0, 1, 2]), tensor([3, 4, 5]))
 ds2 = DataLoader(t2)
 test_eq_type(L(ds2), t2)
 
-t3 = L(array([0, 1, 2]), array([3, 4, 5]))
+t3 = L(array([0, 1, 2], dtype=np.int64), array([3, 4, 5], dtype=np.int64))
 ds3 = DataLoader(t3)
 test_eq_type(L(ds3), t3.map(tensor))
 
@@ -367,6 +375,27 @@ it = iter(DataLoader(map(noop, range(20)), bs=4, num_workers=1))
 test_eq_type([next(it) for _ in range(3)], [tensor([0, 1, 2, 3]), tensor([4, 5, 6, 7]), tensor([8, 9, 10, 11])])
 
 
+# -
+
+# Iterable dataloaders require specific tests.
+
+# +
+class DummyIterableDataset(IterableDataset):
+    def __iter__(self):
+        yield from range(11)
+
+
+ds1 = DataLoader(DummyIterableDataset(), bs=4)
+# Check it yields fine, and check we can do multiple passes
+for i in range(3):
+    test_eq_type(L(ds1), L(tensor([0, 1, 2, 3]), tensor([4, 5, 6, 7]), tensor([8, 9, 10])))
+
+# Check `drop_last` works fine (with multiple passes, since this will prematurely terminate the iterator)
+ds1 = DataLoader(DummyIterableDataset(), bs=4, drop_last=True)
+for i in range(3):
+    test_eq_type(L(ds1), L(tensor([0, 1, 2, 3]), tensor([4, 5, 6, 7])))
+
+
 # +
 class SleepyDL(list):
     def __getitem__(self, i):
@@ -383,6 +412,7 @@ t = SleepyDL(letters)
 dl = DataLoader(t, shuffle=True, num_workers=1)
 test_shuffled(L(dl), letters)
 test_shuffled(L(dl), L(dl))
+L(dl)
 
 
 # +
@@ -405,11 +435,11 @@ for o in range(30):
     q.put(o)
 it = SleepyQueue(q)
 
-# %time test_shuffled(L(DataLoader(it, num_workers=4)), range(30))
+if not (sys.platform == "win32" and IN_NOTEBOOK):
+    %time test_shuffled(L(DataLoader(it, num_workers=4)), L(range(30)))
+
 
 # +
-
-
 class A(TensorBase):
     pass
 
@@ -442,9 +472,29 @@ test_eq(type(b), A)
 
 # Unknown attributes are delegated to `dataset`
 test_eq(tdl.pop(), tensor(1, 2))
+
+
+# -
+
+# Override `get_idxs` to return the same index until consumption of the DL. This is intented to test consistent sampling behavior when `num_workers`>1.
+
+# +
+class AdamantDL(DataLoader):
+    def get_idxs(self):
+        r = random.randint(0, self.n - 1)
+        return [r] * self.n
+
+
+test_eq(torch.cat(tuple(AdamantDL((list(range(50))), bs=16, num_workers=4))).unique().numel(), 1)
 # -
 
 # ## Export -
 
 # hide
 notebook2script()
+
+# test num_workers > 0 in scripts works when python process start method is spawn
+process = Popen(["python", "dltest.py"], stdout=PIPE)
+_, err = process.communicate(timeout=15)
+exit_code = process.wait()
+test_eq(exit_code, 0)

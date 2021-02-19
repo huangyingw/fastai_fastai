@@ -173,8 +173,8 @@ pred_class
 # @app.route("/classify-url", methods=["GET"])
 # async def classify_url(request):
 #     bytes = await get_bytes(request.query_params["url"])
-#     img = open_image(BytesIO(bytes))
-#     _,_,probs = learner.predict(BytesIO(bytes))
+#     img = PILImage.create(bytes)
+#     _,_,probs = learner.predict(img)
 #     return JSONResponse({
 #         "predictions": sorted(
 #             zip(cat_learner.dls.vocab, map(float, probs)),

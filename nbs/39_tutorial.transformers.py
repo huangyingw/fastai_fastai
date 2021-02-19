@@ -130,16 +130,13 @@ tls.tfms(tls.train.items[0]).shape, tls.tfms(tls.valid.items[0]).shape
 
 # And we can have a look at both decodes using `show_at`:
 
-# +
-# show_at(tls.train, 0)
+show_at(tls.train, 0)
 
-# +
-# show_at(tls.valid, 0)
-# -
+show_at(tls.valid, 0)
 
-# The fastai library expects the data to be assembled in a `DataLoaders` object (something that has a training and validation dataloader). We can get one by using the `dataloaders` method. We just have to specify a batch size and a sequence length. Since the GPT2 model was trained with sequences of size 1024, we use this sequence length (it's a stateless model, so it will change the perplexity if we use less):
+# The fastai library expects the data to be assembled in a `DataLoaders` object (something that has a training and validation dataloader). We can get one by using the `dataloaders` method. We just have to specify a batch size and a sequence length. We'll train with sequences of size 256 (GPT2 used sequence length 1024, but not everyone has enough GPU RAM for that):
 
-bs, sl = 8, 1024
+bs, sl = 4, 256
 dls = tls.dataloaders(bs=bs, seq_len=sl)
 
 # Note that you may have to reduce the batch size depending on your GPU RAM.
@@ -229,4 +226,6 @@ inp.shape
 
 preds = learn.model.generate(inp, max_length=40, num_beams=5, temperature=1.5)
 
-tokenizer.decode(preds[0])
+tokenizer.decode(preds[0].cpu().numpy())
+
+# ### fin -

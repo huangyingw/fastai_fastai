@@ -54,10 +54,13 @@ if torch.cuda.is_available():
 
 # export
 @delegates(plt.subplots, keep=True)
-def subplots(nrows=1, ncols=1, figsize=None, imsize=3, add_vert=0, **kwargs):
+def subplots(nrows=1, ncols=1, figsize=None, imsize=3, suptitle=None, **kwargs):
     if figsize is None:
-        figsize = (ncols * imsize, nrows * imsize + add_vert)
+        h = nrows * imsize if suptitle is None or imsize > 2 else nrows * imsize + 0.6  # https://github.com/matplotlib/matplotlib/issues/5355
+        figsize = (ncols * imsize, h)
     fig, ax = plt.subplots(nrows, ncols, figsize=figsize, **kwargs)
+    if suptitle is not None:
+        fig.suptitle(suptitle)
     if nrows * ncols == 1:
         ax = array([ax])
     return fig, ax
@@ -131,10 +134,12 @@ def show_titled_image(o, **kwargs):
 show_titled_image((im3, 'A puppy'), figsize=(2, 2))
 
 
+# Show all images `ims` as subplots with `rows` using `titles`. `suptitle` provides a way to create a figure title for all images. If you use `suptitle`, `constrained_layout` is used unless you set `constrained_layout` to `False`.
+
 # export
 @delegates(subplots)
 def show_images(ims, nrows=1, ncols=None, titles=None, **kwargs):
-    "Show all images `ims` as subplots with `rows` using `titles`"
+    "Show all images `ims` as subplots with `rows` using `titles`."
     if ncols is None:
         ncols = int(math.ceil(len(ims) / nrows))
     if titles is None:
@@ -144,7 +149,7 @@ def show_images(ims, nrows=1, ncols=None, titles=None, **kwargs):
         show_image(im, ax=ax, title=t)
 
 
-show_images((im, im3), titles=('number', 'puppy'), imsize=2)
+show_images((im, im3), titles=('number', 'puppy'), suptitle='Number Puppy', imsize=3)
 
 
 # `ArrayImage`, `ArrayImageBW` and `ArrayMask` are subclasses of `ndarray` that know how to show themselves.
@@ -205,6 +210,11 @@ def __array_eq__(self: Tensor, b):
 def _array2tensor(x):
     if x.dtype == np.uint16:
         x = x.astype(np.float32)
+    # windows default numpy int dytpe is int32, while torch tensor default int dtype is int64
+    # https://github.com/numpy/numpy/issues/9464
+    if sys.platform == "win32":
+        if x.dtype == np.int:
+            x = x.astype(np.int64)
     return torch.from_numpy(x)
 
 
@@ -397,6 +407,8 @@ test_eq(t, tensor([1]).view(1, 1, 1))
 
 # export
 def _fa_rebuild_tensor(cls, *args, **kwargs): return cls(torch._utils._rebuild_tensor_v2(*args, **kwargs))
+
+
 def _fa_rebuild_qtensor(cls, *args, **kwargs): return cls(torch._utils._rebuild_qtensor(*args, **kwargs))
 
 
@@ -465,10 +477,12 @@ def default_device(use_cuda=-1):
 
 
 # cuda
-_td = torch.device(torch.cuda.current_device())
-test_eq(default_device(None), _td)
-test_eq(default_device(True), _td)
-test_eq(default_device(False), torch.device('cpu'))
+if torch.cuda.is_available():
+    _td = torch.device(torch.cuda.current_device())
+    test_eq(default_device(None), _td)
+    test_eq(default_device(True), _td)
+else:
+    test_eq(default_device(False), torch.device('cpu'))
 default_device(None)
 
 
@@ -488,9 +502,10 @@ t = to_device((3, (tensor(3), tensor(2))))
 t1, (t2, t3) = t
 
 # cuda
-test_eq_type(t, (3, (tensor(3).cuda(), tensor(2).cuda())))
-test_eq(t2.type(), "torch.cuda.LongTensor")
-test_eq(t3.type(), "torch.cuda.LongTensor")
+if torch.cuda.is_available():
+    test_eq_type(t, (3, (tensor(3).cuda(), tensor(2).cuda())))
+    test_eq(t2.type(), "torch.cuda.LongTensor")
+    test_eq(t3.type(), "torch.cuda.LongTensor")
 
 
 # export
@@ -550,28 +565,17 @@ test_eq(type(to_concat([dict(foo=tensor([1, 2]), bar=tensor(3, 4))])), dict)
 
 # export
 @patch
-def set_meta(self: Tensor, x, copy_meta=False):
+def set_meta(self: Tensor, x, as_copy=False):
     "Set all metadata in `__dict__`"
     if not hasattr(x, '__dict__'):
         return
-    d = x.__dict__
-    if copy_meta:
-        d = copy(d)
-        if '_meta' in d:
-            d['_meta'] = copy(d['_meta'])
-    self.__dict__ = d
-
-
-# export
-@patch
-def get_meta(self: Tensor, n, d=None):
-    "Set `n` from `self._meta` if it exists and returns default `d` otherwise"
-    return getattr(self, '_meta', {}).get(n, d)
+    # XXX: change to `deepcopy` once PyTorch 1.7.1 is out, and check nb 23 segmentation fit works
+    self.__dict__ = copy(x.__dict__) if as_copy else x.__dict__
 
 
 # export
 if not hasattr(torch, 'as_subclass'):
-    setattr(torch, 'as_subclass', torch.Tensor.as_subclass)
+    torch.as_subclass = torch.Tensor.as_subclass
 
 
 # export
@@ -581,30 +585,43 @@ def as_subclass(self: Tensor, typ):
     return retain_meta(self, torch.as_subclass(self, typ))
 
 
-# `Tensor.set_meta` and `Tensor.as_subclass` work together to maintain `_meta` after casting.
+# `Tensor.set_meta` and `Tensor.as_subclass` work together to maintain `__dict__` after casting.
 
 class _T(Tensor):
     pass
 
 
 t = tensor(1.).requires_grad_()
-t._meta = {'img_size': 1}
+t.img_size = 1
 t2 = t.as_subclass(_T)
-test_eq(t._meta, t2._meta)
-test_eq(t2.get_meta('img_size'), 1)
+test_eq(t.img_size, t2.img_size)
+test_eq(t2.img_size, 1)
 assert(t2.requires_grad_)
 
 
 # export
+def _torch_handled(args, opt, func):
+    if func not in opt:
+        return False
+    for oks in opt[func]:
+        if all(isinstance(arg, ok) for arg, ok in zip(args, oks) if ok):
+            return True
+
+
+# export
 class TensorBase(Tensor):
+    "A `Tensor` which support subclass pickling, and maintains metadata when casting or after methods"
+    debug, _opt = False, defaultdict(list)
+
     def __new__(cls, x, **kwargs):
         res = cast(tensor(x), cls)
-        if kwargs:
-            res._meta = kwargs
+        for k, v in kwargs.items():
+            setattr(res, k, v)
         return res
 
     @classmethod
     def _before_cast(cls, x): return tensor(x)
+    def __repr__(self): return re.sub('tensor', self.__class__.__name__, super().__repr__())
 
     def __reduce_ex__(self, proto):
         torch.utils.hooks.warn_if_has_hooks(self)
@@ -614,68 +631,75 @@ class TensorBase(Tensor):
         f = _fa_rebuild_qtensor if self.is_quantized else _fa_rebuild_tensor
         return (f, args + (self.requires_grad, OrderedDict()))
 
-    def gi(self, i):
-        res = self[i]
-        return res.as_subclass(type(self)) if isinstance(res, Tensor) else res
+    @classmethod
+    def register_func(cls, func, *oks): cls._opt[func].append(oks)
 
-    def __repr__(self):
-        return re.sub('tensor', self.__class__.__name__, super().__repr__())
+    def __torch_function__(self, func, types, args=(), kwargs=None):
+        if self.debug and func.__name__ not in ('__str__', '__repr__'):
+            print(func, types, args, kwargs)
+        convert = False
+        if _torch_handled(args, self._opt, func):
+            convert, types = type(self), (torch.Tensor,)
+        res = super().__torch_function__(func, types, args=args, kwargs=kwargs)
+        if convert:
+            res = convert(res)
+        if isinstance(res, TensorBase):
+            res.set_meta(self, as_copy=True)
+        return res
+
+    def new_tensor(self, size, dtype=None, device=None, requires_grad=False):
+        cls = type(self)
+        return self.as_subclass(Tensor).new_tensor(size, dtype=dtype, device=device, requires_grad=requires_grad).as_subclass(cls)
+
+    def new_ones(self, data, dtype=None, device=None, requires_grad=False):
+        cls = type(self)
+        return self.as_subclass(Tensor).new_ones(data, dtype=dtype, device=device, requires_grad=requires_grad).as_subclass(cls)
+
+    def new(self, x=None):
+        cls = type(self)
+        res = self.as_subclass(Tensor).new() if x is None else self.as_subclass(Tensor).new(x)
+        return res.as_subclass(cls)
+
+    def requires_grad_(self, requires_grad=True):
+        # Workaround https://github.com/pytorch/pytorch/issues/50219
+        self.requires_grad = requires_grad
+        return self
+
+
+# `TensorBase` hooks into `__torch_function__` to ensure metadata is not lost. To see all functions being called, set `debug`.
+
+a = TensorBase(1)
+a.debug = True
+1 / (a + 1)
+
+
+class _TImage(TensorBase):
+    pass
+
+
+class _TImage2(_TImage):
+    pass
+
+
+t1 = _TImage([1.])
+t2 = _TImage2([1.])
+t2 + t1
 
 
 # +
-# export
-def _patch_tb():
-    if getattr(TensorBase, '_patched', False):
-        return
-    TensorBase._patched = True
-
-    def get_f(fn):
-        def _f(self, *args, **kwargs):
-            cls = self.__class__
-            res = getattr(super(TensorBase, self), fn)(*args, **kwargs)
-            return retain_type(res, self, copy_meta=True)
-        return _f
-
-    t = tensor([1])
-    skips = 'as_subclass imag real __getitem__ __class__ __deepcopy__ __delattr__ __dir__ __doc__ __getattribute__ __hash__ __init__ \
-        __init_subclass__ __new__ __reduce__ __reduce_ex__ __repr__ __module__ __setstate__'.split()
-
-    for fn in dir(t):
-        if fn in skips:
-            continue
-        f = getattr(t, fn)
-        if isinstance(f, (MethodWrapperType, BuiltinFunctionType, BuiltinMethodType, MethodType, FunctionType)):
-            setattr(TensorBase, fn, get_f(fn))
-
-
-_patch_tb()
-
-
-# -
-
-# export
-class TensorCategory(TensorBase):
-    pass
-
-
-# export
-class TensorMultiCategory(TensorCategory):
-    pass
-
-
 class _T(TensorBase):
     pass
 
 
-# +
 t = _T(range(5))
 test_eq(t[0], 0)
-test_eq_type(t.gi(0), _T(0))
-test_eq_type(t.gi(slice(2)), _T([0, 1]))
 test_eq_type(t + 1, _T(range(1, 6)))
 test_eq(repr(t), '_T([0, 1, 2, 3, 4])')
-
+test_eq_type(t[_T([False, False, True, True, True])], _T([2, 3, 4]))
+test_eq_type(t[_T([2, 3, 4])], _T([2, 3, 4]))
 test_eq(type(pickle.loads(pickle.dumps(t))), _T)
+test_eq_type(t.new_ones(1), _T([1]))
+test_eq_type(t.new_tensor([1., 2.]), _T([1, 2]))
 # -
 
 t = tensor([1, 2, 3])
@@ -687,17 +711,35 @@ m = cast(tensor([[False, True, True],
 test_eq(t[m], tensor([2, 3, 2, 3]))
 
 t = tensor([[1, 2, 3], [1, 2, 3]])
-t._meta = {'img_size': 1}
+t.img_size = 1
 t2 = cast(t, TensorBase)
-test_eq(t2._meta, t._meta)
+test_eq(t2.img_size, t.img_size)
 x = retain_type(tensor([4, 5, 6]), t2)
-test_eq(x._meta, t._meta)
+test_eq(x.img_size, t.img_size)
 t3 = TensorBase([[1, 2, 3], [1, 2, 3]], img_size=1)
-test_eq(t3._meta, t._meta)
+test_eq(t3.img_size, t.img_size)
 t4 = t2 + 1
-t4._meta['img_size'] = 2
-test_eq(t2._meta, {'img_size': 1})
-test_eq(t4._meta, {'img_size': 2})
+t4.img_size = 2
+test_eq(t2.img_size, 1)
+test_eq(t4.img_size, 2)
+
+
+# hide
+# test of https://github.com/pytorch/pytorch/issues/47186
+class _T(TensorBase):
+    ...
+
+
+t = _T([1.])
+test_eq_type(t.new([1, 2]), _T([1., 2.]))
+test_eq_type(t.new(), _T([]))
+
+# hide
+# test of https://github.com/pytorch/pytorch/issues/50219
+x = TensorBase(torch.rand(4, 3, 16, 16))
+with torch.no_grad():
+    y = x.requires_grad_()
+    assert y.requires_grad and x.requires_grad
 
 
 # export
@@ -723,11 +765,21 @@ class TensorMask(TensorImageBase):
     _show_args = ArrayMask._show_args
 
     def show(self, ctx=None, **kwargs):
-        codes = self.get_meta('codes')
+        codes = getattr(self, 'codes', None)
         if codes is not None:
             kwargs = merge({'vmin': 1, 'vmax': len(codes)}, kwargs)
         return super().show(ctx=ctx, **kwargs)
 
+
+# +
+# export
+for o in Tensor.__ne__, Tensor.__eq__, Tensor.add, Tensor.sub, Tensor.mul, Tensor.div, Tensor.__rsub__, Tensor.__radd__, Tensor.matmul, Tensor.bmm:
+    TensorBase.register_func(o, TensorMask, TensorImageBase)
+    TensorBase.register_func(o, TensorImageBase, TensorMask)
+
+TensorMask.register_func(torch.einsum, str, TensorImageBase, TensorMask)
+TensorMask.register_func(torch.einsum, str, TensorMask, TensorImageBase)
+# -
 
 im = Image.open(TEST_IMAGE)
 im_t = cast(array(im), TensorImage)
@@ -736,13 +788,41 @@ test_eq(type(im_t), TensorImage)
 im_t2 = cast(tensor(1), TensorMask)
 test_eq(type(im_t2), TensorMask)
 test_eq(im_t2, tensor(1))
-
 ax = im_t.show(figsize=(2, 2))
+_ = (im_t == im_t2)
 
 test_fig_exists(ax)
 
+# Operations between `TensorMask` and `TensorImageBase` objects return the type of the `TensorImageBase` object:
+
+a = TensorMask([1, 2])
+test_eq_type(TensorImage(1) + a, TensorImage([2, 3]))
+test_eq_type(1 - a, TensorMask([0, -1]))
+
 # hide (last test of to_concat)
 test_eq_type(to_concat([TensorImage([1, 2]), TensorImage([3, 4])]), TensorImage([1, 2, 3, 4]))
+
+
+# export
+class TensorFlowField(TensorBase):
+    pass
+
+
+TensorImage.register_func(F.grid_sample, TensorImageBase, TensorFlowField)
+
+t1 = TensorImage([1.]).view(1, 1, 1, 1)
+t2 = TensorFlowField([1., 1.]).view(1, 1, 1, 2)
+test_eq_type(F.grid_sample(t1, t2), TensorImage([[[[0.25]]]]))
+
+
+# export
+class TensorCategory(TensorBase):
+    pass
+
+
+# export
+class TensorMultiCategory(TensorCategory):
+    pass
 
 
 # export
@@ -1274,10 +1354,12 @@ def rank_distrib():
 
 # export
 def distrib_barrier():
-    "Place a synchronization barrier in distributed training so that ALL sub-processes in the pytorch process group must arrive here before proceeding."
+    "Place a synchronization barrier in distributed training"
     if num_distrib() > 1 and torch.distributed.is_initialized():
         torch.distributed.barrier()
 
+
+# After calling this, ALL sub-processes in the pytorch process group must arrive here before proceeding.
 
 # export
 # Saving arrays requires pytables - optional dependency
@@ -1309,11 +1391,6 @@ def load_array(p: Path):
     "Save numpy array to a `pytables` file"
     with tables.open_file(p, 'r') as f:
         return f.root.data.read()
-
-
-inspect.getdoc(load_array)
-
-str(inspect.signature(load_array))
 
 
 # export

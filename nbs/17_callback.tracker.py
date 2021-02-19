@@ -43,7 +43,7 @@ from fastai.basics import *
 # export
 class TerminateOnNaNCallback(Callback):
     "A `Callback` that terminates training if loss is NaN."
-    run_before = Recorder
+    order = -9
 
     def after_batch(self):
         "Test if `last_loss` is NaN and interrupts training."
@@ -64,7 +64,7 @@ for l in learn.recorder.losses:
 # export
 class TrackerCallback(Callback):
     "A `Callback` that keeps track of the best value in `monitor`."
-    remove_on_fetch, run_after = True, Recorder
+    order, remove_on_fetch = 60, True
 
     def __init__(self, monitor='valid_loss', comp=None, min_delta=0., reset_on_fit=True):
         if comp is None:
@@ -99,9 +99,7 @@ class TrackerCallback(Callback):
 # +
 # hide
 class FakeRecords(Callback):
-    run_after = Recorder
-    run_before = TrackerCallback
-
+    order = 51
     def __init__(self, monitor, values): self.monitor, self.values = monitor, values
 
     def before_fit(self): self.idx = list(self.recorder.metric_names[1:]).index(self.monitor)
@@ -109,7 +107,7 @@ class FakeRecords(Callback):
 
 
 class TestTracker(Callback):
-    run_after = TrackerCallback
+    order = 61
     def before_fit(self): self.bests, self.news = [], []
 
     def after_epoch(self):
@@ -177,7 +175,6 @@ assert not hasattr(learn, 'new_best')
 # ## EarlyStoppingCallback -
 
 # export
-@log_args
 class EarlyStoppingCallback(TrackerCallback):
     "A `TrackerCallback` that terminates training when monitored quantity stops improving."
 
@@ -185,7 +182,8 @@ class EarlyStoppingCallback(TrackerCallback):
         super().__init__(monitor=monitor, comp=comp, min_delta=min_delta, reset_on_fit=reset_on_fit)
         self.patience = patience
 
-    def before_fit(self): self.wait = 0; super().before_fit()
+    def before_fit(self): self.wait = 0
+    super().before_fit()
 
     def after_epoch(self):
         "Compare the value monitored to its best score and maybe stop training."
@@ -216,19 +214,18 @@ test_eq(len(learn.recorder.values), 3)
 # ## SaveModelCallback -
 
 # export
-@log_args
 class SaveModelCallback(TrackerCallback):
     "A `TrackerCallback` that saves the model's best during training and loads it at the end."
     _only_train_loop = True
 
-    def __init__(self, monitor='valid_loss', comp=None, min_delta=0., fname='model', every_epoch=False, with_opt=False, reset_on_fit=True):
+    def __init__(self, monitor='valid_loss', comp=None, min_delta=0., fname='model', every_epoch=False,
+                 with_opt=False, reset_on_fit=True):
         super().__init__(monitor=monitor, comp=comp, min_delta=min_delta, reset_on_fit=reset_on_fit)
         # keep track of file path for loggers
         self.last_saved_path = None
         store_attr('fname,every_epoch,with_opt')
 
-    def _save(self, name):
-        self.last_saved_path = self.learn.save(name, with_opt=self.with_opt)
+    def _save(self, name): self.last_saved_path = self.learn.save(name, with_opt=self.with_opt)
 
     def after_epoch(self):
         "Compare the value monitored to its best score and save if best."
@@ -243,7 +240,7 @@ class SaveModelCallback(TrackerCallback):
     def after_fit(self, **kwargs):
         "Load the best model."
         if not self.every_epoch:
-            self.learn.load(f'{self.fname}')
+            self.learn.load(f'{self.fname}', with_opt=self.with_opt)
 
 
 # `comp` is the comparison operator used to determine if a value is best than another (defaults to `np.less` if 'loss' is in the name passed in `monitor`, `np.greater` otherwise) and `min_delta` is an optional float that requires a new value to go over the current best (depending on `comp`) by at least that amount. Model will be saved in `learn.path/learn.model_dir/name.pth`, maybe `every_epoch` or at each improvement of the monitored quantity.
@@ -260,7 +257,6 @@ shutil.rmtree(Path.cwd() / 'tmp')
 # ## ReduceLROnPlateau
 
 # export
-@log_args
 class ReduceLROnPlateau(TrackerCallback):
     "A `TrackerCallback` that reduces learning rate when a metric has stopped improving."
 
@@ -268,7 +264,8 @@ class ReduceLROnPlateau(TrackerCallback):
         super().__init__(monitor=monitor, comp=comp, min_delta=min_delta, reset_on_fit=reset_on_fit)
         self.patience, self.factor, self.min_lr = patience, factor, min_lr
 
-    def before_fit(self): self.wait = 0; super().before_fit()
+    def before_fit(self): self.wait = 0
+    super().before_fit()
 
     def after_epoch(self):
         "Compare the value monitored to its best score and reduce LR by `factor` if no improvement."

@@ -33,7 +33,7 @@ from fastai.data.all import *
 # hide
 
 
-# # Interpretation
+# # Interpretation of Predictions
 #
 # > Classes to build objects to better interpret predictions of a model
 
@@ -151,6 +151,12 @@ class ClassificationInterpretation(Interpretation):
         "Print scikit-learn classification report"
         d, t = flatten_check(self.decoded, self.targs)
         print(skm.classification_report(t, d, labels=list(self.vocab.o2i.values()), target_names=[str(v) for v in self.vocab]))
+
+
+# export
+class SegmentationInterpretation(Interpretation):
+    "Interpretation methods for segmentation models."
+    pass
 
 
 # ## Export -

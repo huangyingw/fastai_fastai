@@ -35,20 +35,40 @@ from fastai.basics import *
 #
 # > Callbacks and helper functions to train in parallel or use distributed training
 
-# ## Parallel
+# When using multiple GPUs, you will most probably want to fit using distributed training. See [examples/distrib.py](https://github.com/fastai/fastai/blob/master/nbs/examples/distrib.py) for a complete example. To use distributed training, there are only two required steps:
+#
+# 1. Add `with learn.distrib_ctx():` before your `learn.fit` call
+# 2. Run your training script with `python -m fastai.launch scriptname.py ...args...`
+#
+# After `fastai.launch` you can add `--gpus 0,1` for instance, to use only using GPUs 1 and 2.
+#
+# If you're using `untar_data`, or may be downloading or uncompressing data or models as part of your script, you should wrap that code with `rank0_first`, which forces that step to occur first just once on the master process, prior to the remaining processes running it in parallel. E.g. instead of:
+#
+# ```python
+# path = untar_data(URLs.IMAGEWOOF_320)
+# ```
+#
+# ...you instead use:
+#
+# ```python
+# path = rank0_first(untar_data, URLs.IMAGEWOOF_320)
+# ```
+#
+# See below for details on the full API and underlying helper functions, if needed -- however, note that you will not need anything except the above unless you need to change how the distributed training is implemented.
 
-# Patch the parallel models so they work with RNNs
+# ## Parallel
 
 # export
 @patch
 def reset(self: DataParallel):
+    "Patch required `reset` call into `DataParallel`"
     if hasattr(self.module, 'reset'):
         self.module.reset()
 
 
 # export
-@log_args
 class ParallelTrainer(Callback):
+    "Wrap a model `DataParallel` automatically"
     run_after, run_before = TrainEvalCallback, Recorder
     def __init__(self, device_ids): self.device_ids = device_ids
     def before_fit(self): self.learn.model = DataParallel(self.learn.model, device_ids=self.device_ids)
@@ -58,6 +78,7 @@ class ParallelTrainer(Callback):
 # export
 @patch
 def to_parallel(self: Learner, device_ids=None):
+    "Add `ParallelTrainer` callback to a `Learner`"
     self.add_cb(ParallelTrainer(device_ids))
     return self
 
@@ -65,7 +86,7 @@ def to_parallel(self: Learner, device_ids=None):
 # export
 @patch
 def detach_parallel(self: Learner):
-    "Remove ParallelTrainer callback from Learner."
+    "Remove `ParallelTrainer` callback from a Learner"
     self.remove_cb(ParallelTrainer)
     return self
 
@@ -84,19 +105,19 @@ def parallel_ctx(self: Learner, device_ids=None):
 
 # ## Distributed
 
-# Patch the parallel models so they work with RNNs
+# ### Helper functions
 
 # export
 @patch
 def reset(self: DistributedDataParallel):
+    "Patch required `reset` call into `DistributedDataParallel`"
     if hasattr(self.module, 'reset'):
         self.module.reset()
 
 
-# Convenience functions to set up/tear down torch distributed data parallel mode.
-
 # export
 def setup_distrib(gpu=None):
+    "Setup this process to participate in distributed training"
     if gpu is None:
         return gpu
     gpu = int(gpu)
@@ -108,19 +129,30 @@ def setup_distrib(gpu=None):
 
 # export
 def teardown_distrib():
+    "Free distributed training resources"
     if torch.distributed.is_initialized():
         torch.distributed.destroy_process_group()
 
 
 # ### DataLoader
 
-# We need to change the dataloaders so that they only get one part of the batch each (otherwise there is no point in using distributed training).
+# export
+def _round_to_multiple(number, multiple): return int(math.ceil(number / multiple) * multiple)
+
 
 # export
-@log_args(but_as=TfmdDL.__init__)
 class DistributedDL(TfmdDL):
+    "A `TfmdDL` which splits a batch into equal size pieces for each worker"
 
-    def _round_to_multiple(number, multiple): return int(math.ceil(number / multiple) * multiple)
+    def __init__(self, dl, rank=None, world_size=None):
+        if rank is None:
+            rank = rank_distrib()
+        if world_size is None:
+            world_size = num_distrib()
+        store_attr()
+        self.bs, self.device, self.drop_last, self.dataset, fake, self.num_workers, self.offs = \
+            attrgetter('bs', 'device', 'drop_last', 'dataset', 'fake_l', 'num_workers', 'offs')(dl)
+        self.fake_l = _FakeLoader(self, fake.pin_memory, fake.num_workers, fake.timeout, persistent_workers=fake.persistent_workers)
 
     def _broadcast(self, t, rank):
         "Broadcasts t from rank `rank` to all other ranks. Returns t so t is same for all ranks after call."
@@ -129,16 +161,14 @@ class DistributedDL(TfmdDL):
         return t.cpu().tolist()
 
     def _to_detach(self, b, cpu=True, gather=True): return to_detach(b, cpu, gather)  # member func so we can override for test
-
-    def __len__(self):
-        return DistributedDL._round_to_multiple(len(self.dl), self.world_size) // self.world_size
+    def __len__(self): return _round_to_multiple(len(self.dl), self.world_size) // self.world_size
 
     def get_idxs(self):
-        idxs = self.dl.get_idxs()       # compute get_idxs in all ranks (we'll only use rank 0 but size must be consistent)
+        idxs = list(self.dl.get_idxs())  # compute get_idxs in all ranks (we'll only use rank 0 but size must be consistent)
         idxs = self._broadcast(idxs, 0)  # broadcast and receive it from rank 0 to all
         self.n = len(idxs)              # we assumed n was dl.n but we really care about number of idxs
         # add extra samples to make it evenly divisible
-        self.n_padded = DistributedDL._round_to_multiple(self.n, self.world_size)
+        self.n_padded = _round_to_multiple(self.n, self.world_size)
         idxs += (idxs * (self.n_padded // self.n))[:self.n_padded - self.n]  # idx needs to be repeated when n_padded>>n
         # slice padded idxs so that each rank gets self.n_padded//self.world_size tensors
         return idxs[self.rank * self.n_padded // self.world_size:(self.rank + 1) * self.n_padded // self.world_size]
@@ -153,9 +183,7 @@ class DistributedDL(TfmdDL):
         self.i += find_bs(b)
         return self.dl.after_batch(b)
 
-    def after_iter(self):
-        self.dl.after_iter()
-
+    def after_iter(self): self.dl.after_iter()
     def create_batches(self, samps): return self.dl.create_batches(samps)
 
     def to_detach(self, b, cpu=True, gather=True):
@@ -168,19 +196,12 @@ class DistributedDL(TfmdDL):
                                     self.n - (self.i + r * self.n_padded // self.world_size))) for r in range(self.world_size)])
                 b = b[:n or None]
             return b
-        return apply(_inner, b) if gather and hasattr(self, 'i') and hasattr(self, 'n') and hasattr(self, 'n_padded') else b
-
-    def __init__(self, dl, rank, world_size):
-        store_attr('dl,rank,world_size')
-        self.bs, self.device, self.drop_last, self.dataset = dl.bs, dl.device, dl.drop_last, dl.dataset
-        self.fake_l = _FakeLoader(self, dl.fake_l.pin_memory, dl.fake_l.num_workers, dl.fake_l.timeout)
+        return apply(_inner, b) if gather and all(hasattr(self, o) for o in ('i', 'n', 'n_padded')) else b
 
 
 # hide
-_tmp_file = tempfile.NamedTemporaryFile().name  # i tried putting this inside self / _broadcast to no avail
+_tmp_file = tempfile.NamedTemporaryFile().name
 # patch _broadcast with a mocked version so we can test DistributedDL w/o a proper DDP setup
-
-
 @patch
 def _broadcast(self: DistributedDL, t, rank):
     t = LongTensor(t)
@@ -190,8 +211,6 @@ def _broadcast(self: DistributedDL, t, rank):
         t.data = torch.load(_tmp_file)
     return t.tolist()
 # patch _to_detach with a mocked version that will return right gathered size but -100 for other rank tensors
-
-
 @patch
 def _to_detach(self: DistributedDL, b, cpu=True, gather=True):
     b = to_detach(b, cpu, gather)
@@ -211,17 +230,20 @@ for i in range(4):
     dl1 = DistributedDL(dl, i, 4)
     test_eq(list(dl1), (torch.arange(i * 13, i * 13 + 12) % 50, torch.tensor([i * 13 + 12]) % 50))
 
+# hide
 dl = TfmdDL(list(zip(range(50), range(100, 150))), bs=12, num_workers=4)
 for i in range(4):
     dl1 = DistributedDL(dl, i, 4)
     test_eq(list(dl1), [(torch.arange(i * 13, i * 13 + 12) % 50, 100 + torch.arange(i * 13, i * 13 + 12) % 50),
                         ((torch.tensor([i * 13 + 12]) % 50), 100 + torch.tensor([i * 13 + 12]) % 50)])
 
+# hide
 dl = TfmdDL(list(range(50)), bs=12, num_workers=2, drop_last=True)
 for i in range(4):
     dl1 = DistributedDL(dl, i, 4)
     test_eq(list(dl1), [torch.arange(i * 13, i * 13 + 12) % 50])
 
+# hide
 dl = TfmdDL(list(zip(range(12), range(100, 112))), bs=12, num_workers=4)
 res, dls = [], []
 for i in range(5):
@@ -231,6 +253,7 @@ for b in zip(*dls):
         d = L(dls[r].to_detach(b[r]))
         test_eq(d.map(lambda x: (x != -100).sum().item()), (3, 3) if r != 4 else (0, 0))
 
+# hide
 dl = TfmdDL(list(range(10)), bs=4, num_workers=2, shuffle=True)
 res = []
 for i in range(3):
@@ -239,6 +262,8 @@ for i in range(3):
     bd = dl1.to_detach(b)
     test_eq(b[:None if i < 2 else 2], bd[4 * i:4 * (i + 1)])
 
+# +
+# hide
 
 dl = WeightedDL(list(range(50)), bs=16, num_workers=2, shuffle=True, wgts=list(np.arange(50) >= 25))
 res = []
@@ -249,12 +274,15 @@ test(res, [25] * len(res), operator.ge)        # all res >=25
 test(res, [25] * len(res), lambda a, b: ~(a < b))  # all res NOT < 25
 
 
+# -
+
+# ### DistributedTrainer -
+
 # export
-@log_args
 class DistributedTrainer(Callback):
-    run_after, run_before = TrainEvalCallback, Recorder
-    fup = None  # for `find_unused_parameters` in DistributedDataParallel()
-    def __init__(self, cuda_id=0, sync_bn=True): store_attr('cuda_id,sync_bn')
+    "Wrap `model` in `DistributedDataParallel` and `dls` in `DistributedDL`"
+    fup = None
+    def __init__(self, cuda_id=0, sync_bn=True): store_attr()
 
     def before_fit(self):
         opt_kwargs = {'find_unused_parameters': DistributedTrainer.fup} if DistributedTrainer.fup is not None else {}
@@ -263,27 +291,21 @@ class DistributedTrainer(Callback):
             device_ids=[self.cuda_id], output_device=self.cuda_id, **opt_kwargs)
         self.old_dls = list(self.dls)
         self.learn.dls.loaders = [self._wrap_dl(dl) for dl in self.dls]
-        if rank_distrib() > 0:
+        if rank_distrib():
             self.learn.logger = noop
 
-    def _wrap_dl(self, dl):
-        return dl if isinstance(dl, DistributedDL) else DistributedDL(dl, rank_distrib(), num_distrib())
-
+    def _wrap_dl(self, dl): return dl if isinstance(dl, DistributedDL) else DistributedDL(dl)
     def before_train(self): self.learn.dl = self._wrap_dl(self.learn.dl)
     def before_validate(self): self.learn.dl = self._wrap_dl(self.learn.dl)
+    def after_fit(self): self.learn.model, self.learn.dls.loaders = self.learn.model.module, self.old_dls
 
-    def after_fit(self):
-        self.learn.model = self.learn.model.module
-        self.learn.dls.loaders = self.old_dls
-
-
-# Attach, remove a callback which adapts the model to use DistributedDL to train in distributed data parallel mode.
 
 # export
 @patch
 def to_distributed(self: Learner, cuda_id, sync_bn=True):
+    "Add `DistributedTrainer` to a learner"
     self.add_cb(DistributedTrainer(cuda_id, sync_bn))
-    if rank_distrib() > 0:
+    if rank_distrib():
         self.remove_cb(ProgressCallback)
     return self
 
@@ -291,13 +313,16 @@ def to_distributed(self: Learner, cuda_id, sync_bn=True):
 # export
 @patch
 def detach_distributed(self: Learner):
+    "Remove `DistributedTrainer` from a learner"
     if num_distrib() <= 1:
         return self
     self.remove_cb(DistributedTrainer)
-    if rank_distrib() > 0 and not hasattr(self, 'progress'):
+    if rank_distrib() and not hasattr(self, 'progress'):
         self.add_cb(ProgressCallback())
     return self
 
+
+# ### `distrib_ctx` context manager
 
 # export
 @patch
@@ -314,7 +339,7 @@ def distrib_ctx(self: Learner, cuda_id=None, sync_bn=True):
         cleanup_dpg = False
     # Adapt self to DistributedDataParallel, yield, and cleanup afterwards.
     try:
-        if num_distrib() > 1:
+        if num_distrib():
             self.to_distributed(cuda_id, sync_bn)
         yield self
     finally:
@@ -323,52 +348,50 @@ def distrib_ctx(self: Learner, cuda_id=None, sync_bn=True):
             teardown_distrib()
 
 
-# ### `distrib_ctx` context manager
+# `distrib_ctx` prepares a learner to train in distributed data parallel mode.  It assumes these [environment variables](https://pytorch.org/tutorials/intermediate/dist_tuto.html#initialization-methods) have all been setup properly, such as those launched by [`python -m fastai.launch`](https://github.com/fastai/fastai/blob/master/fastai/launch.py).
 #
-# **`distrib_ctx(cuda_id)`** prepares a learner to train in distributed data parallel mode.  It assumes these [environment variables](https://pytorch.org/tutorials/intermediate/dist_tuto.html#initialization-methods) have all been setup properly, such as those launched by [`python -m fastai.launch`](https://github.com/fastai/fastai/blob/master/fastai/launch.py).
+# Typical usage:
 #
-# #### Typical usage:
 # ```
 # with learn.distrib_ctx(): learn.fit(.....)
 # ```
 #
 # It attaches a `DistributedTrainer` callback and `DistributedDL` data loader to  the learner, then executes `learn.fit(.....)`.  Upon exiting the context, it removes the `DistributedTrainer` and `DistributedDL`, and destroys any locally created distributed process group.  The process is still attached to the GPU though.
-#
 
 # export
-def rank0_first(func):
+def rank0_first(func, *args, **kwargs):
     "Execute `func` in the Rank-0 process first, then in other ranks in parallel."
+    if args or kwargs:
+        func = partial(func, *args, **kwargs)
     dummy_l = Learner(DataLoaders(device='cpu'), nn.Linear(1, 1), loss_func=lambda: 0)
     with dummy_l.distrib_ctx():
-        if rank_distrib() == 0:
+        if not rank_distrib():
             res = func()
         distrib_barrier()
-        if rank_distrib() != 0:
+        if rank_distrib():
             res = func()
     return res
 
 
-# **`rank0_first(f)`** calls `f()` in rank-0 process first, then in parallel on the rest, in distributed training mode. In single process, non-distributed training mode, `f()` is called only once as expected.
+# `rank0_first` calls `f()` in rank-0 process first, then in parallel on the rest, in distributed training mode. In single process, non-distributed training mode, `f()` is called only once as expected.
 #
-# One application of `rank0_first()` is to make fresh downloads via `untar_data()` safe in distributed training scripts launched by `python -m fastai.launch <script>`:
+# One application of `rank0_first()` is to make fresh downloads via `untar_data` safe in distributed training scripts launched by `python -m fastai.launch <script>`:
 #
-# > <code>path = untar_data(URLs.IMDB)</code>
-#
-# becomes:
-#
-# > <code>path = <b>rank0_first(lambda:</b> untar_data(URLs.IMDB))</code>
-#
-#
-# Some learner factory methods may use `untar_data()` to **download pretrained models** by default:
-#
-# > <code>learn = text_classifier_learner(dls, AWD_LSTM, drop_mult=0.5, metrics=accuracy)</code>
+# <code>path = untar_data(URLs.IMDB)</code>
 #
 # becomes:
 #
-# > <code>learn = <b>rank0_first(lambda:</b> text_classifier_learner(dls, AWD_LSTM, drop_mult=0.5, metrics=accuracy))</code>
+# <code>path = rank0_first(lambda: untar_data(URLs.IMDB))</code>
+#
+# Some learner factory methods may use `untar_data` to download pretrained models:
+#
+# <code>learn = text_classifier_learner(dls, AWD_LSTM, drop_mult=0.5, metrics=accuracy)</code>
+#
+# becomes:
+#
+# <code>learn = rank0_first(lambda: text_classifier_learner(dls, AWD_LSTM, drop_mult=0.5, metrics=accuracy))</code>
 #
 # Otherwise, multiple processes will download at the same time and corrupt the data.
-#
 
 # ## Export -
 

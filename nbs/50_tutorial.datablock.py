@@ -332,7 +332,7 @@ dls.show_batch()
 # For this example we will use a small sample of the [BiWi kinect head pose dataset](https://www.kaggle.com/kmader/biwi-kinect-head-pose-database). It contains pictures of people and the task is to predict where the center of their head is. We have saved this small dataet with a dictionary filename to center:
 
 biwi_source = untar_data(URLs.BIWI_SAMPLE)
-fn2ctr = (biwi_source / 'centers.pkl').load()
+fn2ctr = load_pickle(biwi_source / 'centers.pkl')
 
 # Then we can go over our usual questions:
 #
@@ -476,3 +476,5 @@ to = TabularPandas(df, procs, cat_names, cont_names, y_names="salary", splits=sp
 
 dls = to.dataloaders()
 dls.show_batch()
+
+# ### fin -

@@ -133,6 +133,8 @@ SpTok()
 
 nlp = English()
 sp_tokenizer = nlp.Defaults.create_tokenizer(nlp)
+
+
 def spacy_tok(s): return L(sp_tokenizer(str(s))).map(str)
 
 
