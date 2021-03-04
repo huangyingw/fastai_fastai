@@ -2,6 +2,19 @@
 
 <!-- do not remove -->
 
+## 2.2.7
+
+### Bugs Squashed
+
+- Regression fix: Ensure `add_datepart` adds elapsed as numeric column ([#3230](https://github.com/fastai/fastai/pull/3230)), thanks to [@aberres](https://github.com/aberres)
+
+
+## 2.2.6
+
+### Bugs Squashed
+
+- 2.2.5 was not released correctly - it was actually 2.2.3
+
 ## 2.2.5
 
 ### New Features
