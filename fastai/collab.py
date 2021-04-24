@@ -71,13 +71,13 @@ class EmbeddingDotBias(Module):
         "Bias for item or user (based on `is_item`) for all in `arr`"
         idx = self._get_idx(arr, is_item)
         layer = (self.i_bias if is_item else self.u_bias).eval().cpu()
-        return to_detach(layer(idx).squeeze())
+        return to_detach(layer(idx).squeeze(),gather=False)
 
     def weight(self, arr, is_item=True):
         "Weight for item or user (based on `is_item`) for all in `arr`"
         idx = self._get_idx(arr, is_item)
         layer = (self.i_weight if is_item else self.u_weight).eval().cpu()
-        return to_detach(layer(idx))
+        return to_detach(layer(idx),gather=False)
 
 # Cell
 class EmbeddingNN(TabularModel):
@@ -87,7 +87,6 @@ class EmbeddingNN(TabularModel):
         super().__init__(emb_szs=emb_szs, n_cont=0, out_sz=1, layers=layers, **kwargs)
 
 # Cell
-@log_args(to_return=True, but_as=Learner.__init__)
 @delegates(Learner.__init__)
 def collab_learner(dls, n_factors=50, use_nn=False, emb_szs=None, layers=None, config=None, y_range=None, loss_func=None, **kwargs):
     "Create a Learner for collaborative filtering on `dls`."

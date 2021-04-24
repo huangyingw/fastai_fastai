@@ -7,8 +7,16 @@ git submodule init
 git submodule sync --recursive
 git submodule update --recursive
 
-pip install -e "fastai[dev]"
+conda install -c fastai -c pytorch -c anaconda fastai gh anaconda
+pip install -Uqq fastbook
+pip install waterfallcharts treeinterpreter dtreeviz
+pip install nbdev --upgrade
+#pip install -e ".[dev]"
+#pip install -e "fastai[dev]"
 
-conda install -c conda-forge \
+conda install -c conda-forge -y \
+    autoflake \
+    graphviz \
+    ipynb-py-convert \
     jupytext \
     neovim

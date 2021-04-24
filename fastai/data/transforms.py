@@ -15,6 +15,8 @@ from .external import *
 
 from sklearn.model_selection import train_test_split
 
+import posixpath
+
 # Cell
 def _get_files(p, fs, extensions=None):
     p = Path(p)
@@ -58,7 +60,7 @@ def get_image_files(path, recurse=True, folders=None):
 
 # Cell
 def ImageGetter(suf='', recurse=True, folders=None):
-    "Create `get_image_files` partial function that searches path suffix `suf` and passes along `kwargs`, only in `folders`, if specified."
+    "Create `get_image_files` partial that searches suffix `suf` and passes along `kwargs`, only in `folders`, if specified"
     def _inner(o, recurse=recurse, folders=folders): return get_image_files(o/suf, recurse, folders)
     return _inner
 
@@ -78,7 +80,7 @@ class ItemGetter(ItemTransform):
 class AttrGetter(ItemTransform):
     "Creates a proper transform that applies `attrgetter(nm)` (even on a tuple)"
     _retain = False
-    def __init__(self, nm, default=None): store_attr(self, 'nm,default')
+    def __init__(self, nm, default=None): store_attr()
     def encodes(self, x): return getattr(x, self.nm, self.default)
 
 # Cell
@@ -86,7 +88,7 @@ def RandomSplitter(valid_pct=0.2, seed=None):
     "Create function that splits `items` between train/val with `valid_pct` randomly."
     def _inner(o):
         if seed is not None: torch.manual_seed(seed)
-        rand_idx = L(int(i) for i in torch.randperm(len(o)))
+        rand_idx = L(list(torch.randperm(len(o)).numpy()))
         cut = int(valid_pct * len(o))
         return rand_idx[cut:],rand_idx[:cut]
     return _inner
@@ -95,7 +97,8 @@ def RandomSplitter(valid_pct=0.2, seed=None):
 def TrainTestSplitter(test_size=0.2, random_state=None, stratify=None, train_size=None, shuffle=True):
     "Split `items` into random train and test subsets using sklearn train_test_split utility."
     def _inner(o, **kwargs):
-        train, valid = train_test_split(range(len(o)), test_size=test_size, random_state=random_state, stratify=stratify, train_size=train_size, shuffle=shuffle)
+        train,valid = train_test_split(range_of(o), test_size=test_size, random_state=random_state,
+                                        stratify=stratify, train_size=train_size, shuffle=shuffle)
         return L(train), L(valid)
     return _inner
 
@@ -136,7 +139,7 @@ def MaskSplitter(mask):
 # Cell
 def FileSplitter(fname):
     "Split `items` by providing file `fname` (contains names of valid items separated by newline)."
-    valid = Path(fname).read().split('\n')
+    valid = Path(fname).read_text().split('\n')
     def _func(x): return x.name in valid
     def _inner(o): return FuncSplitter(_func)(o)
     return _inner
@@ -160,7 +163,7 @@ def RandomSubsetSplitter(train_sz, valid_sz, seed=None):
     def _inner(o):
         if seed is not None: torch.manual_seed(seed)
         train_len,valid_len = int(len(o)*train_sz),int(len(o)*valid_sz)
-        idxs = L(int(i) for i in torch.randperm(len(o)))
+        idxs = L(list(torch.randperm(len(o)).numpy()))
         return idxs[:train_len],idxs[train_len:train_len+valid_len]
     return _inner
 
@@ -177,21 +180,21 @@ class RegexLabeller():
         self.matcher = self.pat.match if match else self.pat.search
 
     def __call__(self, o):
-        res = self.matcher(str(o))
+        o = str(o).replace(os.sep, posixpath.sep)
+        res = self.matcher(o)
         assert res,f'Failed to find "{self.pat}" in "{o}"'
         return res.group(1)
 
 # Cell
 class ColReader(DisplayedTransform):
     "Read `cols` in `row` with potential `pref` and `suff`"
-    store_attrs = 'cols'
     def __init__(self, cols, pref='', suff='', label_delim=None):
-        store_attr(self, 'suff,label_delim')
+        store_attr()
         self.pref = str(pref) + os.path.sep if isinstance(pref, Path) else pref
         self.cols = L(cols)
 
     def _do_one(self, r, c):
-        o = r[c] if isinstance(c, int) else r[c] if c=='name' else getattr(r, c)
+        o = r[c] if isinstance(c, int) else r[c] if c=='name' or c=='cat' else getattr(r, c)
         if len(self.pref)==0 and len(self.suff)==0 and self.label_delim is None: return o
         if self.label_delim is None: return f'{self.pref}{o}{self.suff}'
         else: return o.split(self.label_delim) if len(o)>0 else []
@@ -229,16 +232,20 @@ class CategoryMap(CollBase):
 # Cell
 class Categorize(DisplayedTransform):
     "Reversible transform of category string to `vocab` id"
-    loss_func,order,store_attrs=CrossEntropyLossFlat(),1,'vocab,add_na'
+    loss_func,order=CrossEntropyLossFlat(),1
     def __init__(self, vocab=None, sort=True, add_na=False):
-        store_attr(self, self.store_attrs+',sort')
-        self.vocab = None if vocab is None else CategoryMap(vocab, sort=sort, add_na=add_na)
+        if vocab is not None: vocab = CategoryMap(vocab, sort=sort, add_na=add_na)
+        store_attr()
 
     def setups(self, dsets):
         if self.vocab is None and dsets is not None: self.vocab = CategoryMap(dsets, sort=self.sort, add_na=self.add_na)
         self.c = len(self.vocab)
 
-    def encodes(self, o): return TensorCategory(self.vocab.o2i[o])
+    def encodes(self, o):
+        try:
+            return TensorCategory(self.vocab.o2i[o])
+        except KeyError as e:
+            raise KeyError(f"Label '{o}' was not included in the training dataset") from e
     def decodes(self, o): return Category      (self.vocab    [o])
 
 # Cell
@@ -248,7 +255,7 @@ class Category(str, ShowTitle): _show_args = {'label': 'category'}
 class MultiCategorize(Categorize):
     "Reversible transform of multi-category strings to `vocab` id"
     loss_func,order=BCEWithLogitsLossFlat(),1
-    def __init__(self, vocab=None, add_na=False): super().__init__(vocab=vocab,add_na=add_na)
+    def __init__(self, vocab=None, add_na=False): super().__init__(vocab=vocab,add_na=add_na,sort=vocab==None)
 
     def setups(self, dsets):
         if not dsets: return
@@ -257,7 +264,12 @@ class MultiCategorize(Categorize):
             for b in dsets: vals = vals.union(set(b))
             self.vocab = CategoryMap(list(vals), add_na=self.add_na)
 
-    def encodes(self, o): return TensorMultiCategory([self.vocab.o2i[o_] for o_ in o])
+    def encodes(self, o):
+        if not all(elem in self.vocab.o2i.keys() for elem in o):
+            diff = [elem for elem in o if elem not in self.vocab.o2i.keys()]
+            diff_str = "', '".join(diff)
+            raise KeyError(f"Labels '{diff_str}' were not included in the training dataset")
+        return TensorMultiCategory([self.vocab.o2i[o_] for o_ in o])
     def decodes(self, o): return MultiCategory      ([self.vocab    [o_] for o_ in o])
 
 # Cell
@@ -268,9 +280,8 @@ class MultiCategory(L):
 # Cell
 class OneHotEncode(DisplayedTransform):
     "One-hot encodes targets"
-    order,store_attrs=2,'c'
-    def __init__(self, c=None):
-        self.c = c
+    order=2
+    def __init__(self, c=None): store_attr()
 
     def setups(self, dsets):
         if self.c is None: self.c = len(L(getattr(dsets, 'vocab', None)))
@@ -284,7 +295,7 @@ class EncodedMultiCategorize(Categorize):
     "Transform of one-hot encoded multi-category that decodes with `vocab`"
     loss_func,order=BCEWithLogitsLossFlat(),1
     def __init__(self, vocab):
-        super().__init__(vocab)
+        super().__init__(vocab, sort=vocab==None)
         self.c = len(vocab)
     def encodes(self, o): return TensorMultiCategory(tensor(o).float())
     def decodes(self, o): return MultiCategory (one_hot_decode(o, self.vocab))
@@ -292,9 +303,8 @@ class EncodedMultiCategorize(Categorize):
 # Cell
 class RegressionSetup(DisplayedTransform):
     "Transform that floatifies targets"
-    loss_func,store_attrs=MSELossFlat(),'c'
-    def __init__(self, c=None):
-        self.c = c
+    loss_func=MSELossFlat()
+    def __init__(self, c=None): store_attr()
 
     def encodes(self, o): return tensor(o).float()
     def decodes(self, o): return TitledFloat(o) if o.ndim==0 else TitledTuple(o_.item() for o_ in o)
@@ -320,9 +330,8 @@ class ToTensor(Transform):
 # Cell
 class IntToFloatTensor(DisplayedTransform):
     "Transform image to float tensor, optionally dividing by 255 (e.g. for images)."
-    order,store_attrs = 10,'div,div_mask' #Need to run after PIL transforms on the GPU
-    def __init__(self, div=255., div_mask=1):
-        store_attr(self, 'div,div_mask')
+    order = 10 #Need to run after PIL transforms on the GPU
+    def __init__(self, div=255., div_mask=1): store_attr()
     def encodes(self, o:TensorImage): return o.float().div_(self.div)
     def encodes(self, o:TensorMask ): return o.long() // self.div_mask
     def decodes(self, o:TensorImage): return ((o.clamp(0., 1.) * self.div).long()) if self.div else o
@@ -339,9 +348,8 @@ def broadcast_vec(dim, ndim, *t, cuda=True):
 @docs
 class Normalize(DisplayedTransform):
     "Normalize/denorm batch of `TensorImage`"
-    parameters,order,store_attrs=L('mean', 'std'),99, 'mean,std,axes'
-    def __init__(self, mean=None, std=None, axes=(0,2,3)):
-        self.mean,self.std,self.axes = mean,std,axes
+    parameters,order = L('mean', 'std'),99
+    def __init__(self, mean=None, std=None, axes=(0,2,3)): store_attr()
 
     @classmethod
     def from_stats(cls, mean, std, dim=1, ndim=4, cuda=True): return cls(*broadcast_vec(dim, ndim, mean, std, cuda=cuda))

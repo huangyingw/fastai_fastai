@@ -11,7 +11,7 @@ from ..core import *
 # Cell
 def dropout_mask(x, sz, p):
     "Return a dropout mask of the same type as `x`, size `sz`, with probability `p` to cancel an element."
-    return x.new(*sz).bernoulli_(1-p).div_(1-p)
+    return x.new_empty(*sz).bernoulli_(1-p).div_(1-p)
 
 # Cell
 class RNNDropout(Module):
@@ -20,7 +20,7 @@ class RNNDropout(Module):
 
     def forward(self, x):
         if not self.training or self.p == 0.: return x
-        return x * dropout_mask(x.data, (x.size(0), 1, x.size(2)), self.p)
+        return x * dropout_mask(x.data, (x.size(0), 1, *x.shape[2:]), self.p)
 
 # Cell
 class WeightDropout(Module):
@@ -50,7 +50,7 @@ class WeightDropout(Module):
         with warnings.catch_warnings():
             # To avoid the warning that comes because the weights aren't flattened.
             warnings.simplefilter("ignore", category=UserWarning)
-            return self.module.forward(*args)
+            return self.module(*args)
 
     def reset(self):
         for layer in self.layer_names:
@@ -84,7 +84,7 @@ class AWD_LSTM(Module):
 
     def __init__(self, vocab_sz, emb_sz, n_hid, n_layers, pad_token=1, hidden_p=0.2, input_p=0.6, embed_p=0.1,
                  weight_p=0.5, bidir=False):
-        store_attr(self, 'emb_sz,n_hid,n_layers,pad_token')
+        store_attr('emb_sz,n_hid,n_layers,pad_token')
         self.bs = 1
         self.n_dir = 2 if bidir else 1
         self.encoder = nn.Embedding(vocab_sz, emb_sz, padding_idx=pad_token)

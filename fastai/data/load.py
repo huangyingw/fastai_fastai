@@ -4,10 +4,7 @@ __all__ = ['fa_collate', 'fa_convert', 'SkipItemException', 'DataLoader']
 
 # Cell
 from ..torch_basics import *
-
 from torch.utils.data.dataloader import _MultiProcessingDataLoaderIter,_SingleProcessDataLoaderIter,_DatasetKind
-
-# Cell
 _loaders = (_MultiProcessingDataLoaderIter,_SingleProcessDataLoaderIter)
 
 # Cell
@@ -15,16 +12,20 @@ def _wif(worker_id):
     set_num_threads(1)
     info = get_worker_info()
     ds = info.dataset.d
-    ds.nw,ds.offs = info.num_workers,info.id
+    ds.num_workers,ds.offs = info.num_workers,info.id
     set_seed(info.seed)
     ds.wif()
 
 class _FakeLoader:
-    _IterableDataset_len_called,_auto_collation,collate_fn,drop_last,dataset_kind,_dataset_kind,_index_sampler,generator,prefetch_factor = (
-        None,False,noops,False,_DatasetKind.Iterable,_DatasetKind.Iterable,Inf.count,None,2)
-    def __init__(self, d, pin_memory, num_workers, timeout):
+    def _fn_noops(self, x=None, *args, **kwargs): return x
+
+    _IterableDataset_len_called,_auto_collation,collate_fn,drop_last = None,False,_fn_noops,False
+    _index_sampler,generator,prefetch_factor  = Inf.count,None,2
+    dataset_kind = _dataset_kind = _DatasetKind.Iterable
+
+    def __init__(self, d, pin_memory, num_workers, timeout, persistent_workers):
         self.dataset,self.default,self.worker_init_fn = self,d,_wif
-        store_attr(self, 'd,pin_memory,num_workers,timeout')
+        store_attr('d,pin_memory,num_workers,timeout,persistent_workers')
 
     def __iter__(self): return iter(self.d.create_batches(self.d.sample()))
 
@@ -33,11 +34,11 @@ class _FakeLoader:
 
     @contextmanager
     def no_multiproc(self):
-        old_nw = self.num_workers
+        old_num_workers = self.num_workers
         try:
             self.num_workers = 0
             yield self.d
-        finally: self.num_workers = old_nw
+        finally: self.num_workers = old_num_workers
 
 _collate_types = (ndarray, Tensor, typing.Mapping, str)
 
@@ -62,7 +63,6 @@ class SkipItemException(Exception):
     pass
 
 # Cell
-@log_args(but='dataset,wif,create_batch,create_batches,create_item,retain,get_idxs,sample,shuffle_fn,do_batch')
 @funcs_kwargs
 class DataLoader(GetAttr):
     _noop_methods = 'wif before_iter after_item before_batch after_batch after_iter'.split()
@@ -71,16 +71,22 @@ class DataLoader(GetAttr):
         get_idxs sample shuffle_fn do_batch create_batch'.split()
     _default = 'dataset'
     def __init__(self, dataset=None, bs=None, num_workers=0, pin_memory=False, timeout=0, batch_size=None,
-                 shuffle=False, drop_last=False, indexed=None, n=None, device=None, **kwargs):
+                 shuffle=False, drop_last=False, indexed=None, n=None, device=None, persistent_workers=False, **kwargs):
         if batch_size is not None: bs = batch_size # PyTorch compatibility
         assert not (bs is None and drop_last)
-        if indexed is None: indexed = dataset is not None and hasattr(dataset,'__getitem__')
+        if indexed is None: indexed = (hasattr(dataset,'__getitem__')
+                                       and not isinstance(dataset, IterableDataset))
+        if not indexed and shuffle: raise ValueError("Can only shuffle an indexed dataset (not an iterable one).")
         if n is None:
             try: n = len(dataset)
             except TypeError: pass
-        store_attr(self, 'dataset,bs,shuffle,drop_last,indexed,n,pin_memory,timeout,device')
-        self.rng,self.nw,self.offs = random.Random(random.randint(0,2**32-1)),1,0
-        self.fake_l = _FakeLoader(self, pin_memory, num_workers, timeout)
+        store_attr('dataset,bs,shuffle,drop_last,indexed,n,pin_memory,timeout,device')
+        self.rng,self.num_workers,self.offs = random.Random(random.randint(0,2**32-1)),1,0
+        if sys.platform == "win32" and IN_NOTEBOOK and num_workers > 0:
+            print("Due to IPython and Windows limitation, python multiprocessing isn't available now.")
+            print("So `number_workers` is changed to 0 to avoid getting stuck")
+            num_workers = 0
+        self.fake_l = _FakeLoader(self, pin_memory, num_workers, timeout, persistent_workers=persistent_workers)
 
     def __len__(self):
         if self.n is None: raise TypeError
@@ -94,20 +100,22 @@ class DataLoader(GetAttr):
         return idxs
 
     def sample(self):
-        idxs = self.get_idxs()
-        return (b for i,b in enumerate(idxs) if i//(self.bs or 1)%self.nw==self.offs)
+        return (b for i,b in enumerate(self.__idxs) if i//(self.bs or 1)%self.num_workers==self.offs)
 
     def __iter__(self):
         self.randomize()
         self.before_iter()
+        self.__idxs=self.get_idxs() # called in context of main process (not workers/subprocesses)
         for b in _loaders[self.fake_l.num_workers==0](self.fake_l):
-            if self.device is not None: b = to_device(b, self.device)
+            # fix issue 2899. If the process start method isn't fork, the data will be copied to cuda in learner one_batch.
+            if self.device is not None and multiprocessing.get_start_method().lower() == "fork":
+                b = to_device(b, self.device)
             yield self.after_batch(b)
         self.after_iter()
-        if hasattr(self, 'it'): delattr(self, 'it')
+        if hasattr(self, 'it'): del(self.it)
 
     def create_batches(self, samps):
-        self.it = iter(self.dataset) if self.dataset is not None else None
+        if self.dataset is not None: self.it = iter(self.dataset)
         res = filter(lambda o:o is not None, map(self.do_item, samps))
         yield from map(self.do_batch, self.chunkify(res))
 
@@ -116,7 +124,9 @@ class DataLoader(GetAttr):
         if cls is None: cls = type(self)
         cur_kwargs = dict(dataset=dataset, num_workers=self.fake_l.num_workers, pin_memory=self.pin_memory, timeout=self.timeout,
                           bs=self.bs, shuffle=self.shuffle, drop_last=self.drop_last, indexed=self.indexed, device=self.device)
-        for n in self._methods: cur_kwargs[n] = getattr(self, n)
+        for n in self._methods:
+            o = getattr(self, n)
+            if not isinstance(o, MethodType): cur_kwargs[n] = o
         return cls(**merge(cur_kwargs, kwargs))
 
     @property
@@ -128,7 +138,10 @@ class DataLoader(GetAttr):
     def shuffle_fn(self, idxs): return self.rng.sample(idxs, len(idxs))
     def randomize(self): self.rng = random.Random(self.rng.randint(0,2**32-1))
     def retain(self, res, b):  return retain_types(res, b[0] if is_listy(b) else b)
-    def create_item(self, s):  return next(self.it) if s is None else self.dataset[s]
+    def create_item(self, s):
+        if self.indexed: return self.dataset[s or 0]
+        elif s is None:  return next(self.it)
+        else: raise IndexError("Cannot index an iterable dataset numerically - must use `None`.")
     def create_batch(self, b): return (fa_collate,fa_convert)[self.prebatched](b)
     def do_batch(self, b): return self.retain(self.create_batch(self.before_batch(b)), b)
     def to(self, device): self.device = device
@@ -147,15 +160,15 @@ add_docs(DataLoader, "API compatible with PyTorch DataLoader, with a lot more ca
          prebatched     = "Check if `bs` is None.",
          do_item        = "Combines `after_item` and `create_item` to get an item from dataset by providing index as input.",
          chunkify       = "Used by `create_batches` to turn generator of items (`b`) into batches.",
-         shuffle_fn     = "Returns a random permutation of `idxs`. Use python's `random` functionality to implement it.",
+         shuffle_fn     = "Returns a random permutation of `idxs`.",
          randomize      = "Set's `DataLoader` random number generator state.",
          retain         = "Cast each item of `res` to type of matching item in `b` if its a superclass.",
-         create_item    = "Return a subset of the dataset containing the index values of the sample if there are samples, else return the next iterator.",
+         create_item    = "Subset of the dataset containing the index values of sample if exists, else next iterator.",
          create_batch   = "Collate a list of items into a batch.",
          do_batch       = "Combines `create_batch` and `before_batch` to get a batch of items. Input is a list of items to collate.",
          to             = "Sets `self.device=device`.",
          one_batch      = "Return one batch from `DataLoader`.",
-         wif            = "See pytorch `worker_init_fn` for details (https://pytorch.org/docs/stable/data.html#multi-process-data-loading).",
+         wif            = "See pytorch `worker_init_fn` for details.",
          before_iter    = "Called before `DataLoader` starts to read/iterate over the dataset.",
          after_item     = "Takes output of `create_item` as input and applies this function on it.",
          before_batch   = "It is called before collating a list of items into a batch. Input is a list of items.",

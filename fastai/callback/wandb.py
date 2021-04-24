@@ -11,12 +11,11 @@ from .hook import total_params
 
 # Cell
 import wandb
-from wandb.wandb_config import ConfigError
 
 # Cell
 class WandbCallback(Callback):
     "Saves model topology, losses & metrics"
-    toward_end,remove_on_fetch,run_after = True,True,FetchPredsCallback
+    remove_on_fetch,order = True,Recorder.order+1
     # Record if watch has been called previously (even in another instance)
     _wandb_watch_called = False
 
@@ -27,7 +26,7 @@ class WandbCallback(Callback):
         # W&B log step
         self._wandb_step = wandb.run.step - 1  # -1 except if the run has previously logged data (incremented at each batch)
         self._wandb_epoch = 0 if not(wandb.run.step) else math.ceil(wandb.run.summary['epoch']) # continue to next epoch
-        store_attr(self, 'log,log_preds,log_model,log_dataset,dataset_name,valid_dl,n_preds,seed,reorder')
+        store_attr('log,log_preds,log_model,log_dataset,dataset_name,valid_dl,n_preds,seed,reorder')
 
     def before_fit(self):
         "Call watch method to log model topology, gradients & weights"
@@ -121,7 +120,36 @@ class WandbCallback(Callback):
                 log_model(self.save_model.last_saved_path, metadata=metadata)
         self.run = True
         if self.log_preds: self.remove_cb(FetchPredsCallback)
-        wandb.log({}) # ensure sync of last step
+        wandb.log({})  # ensure sync of last step
+        self._wandb_step += 1
+
+# Cell
+@patch
+def gather_args(self:Learner):
+    "Gather config parameters accessible to the learner"
+    # args stored by `store_attr`
+    cb_args = {f'{cb}':getattr(cb,'__stored_args__',True) for cb in self.cbs}
+    args = {'Learner':self, **cb_args}
+    # input dimensions
+    try:
+        n_inp = self.dls.train.n_inp
+        args['n_inp'] = n_inp
+        xb = self.dls.train.one_batch()[:n_inp]
+        args.update({f'input {n+1} dim {i+1}':d for n in range(n_inp) for i,d in enumerate(list(detuplify(xb[n]).shape))})
+    except: print(f'Could not gather input dimensions')
+    # other useful information
+    with ignore_exceptions():
+        args['batch size'] = self.dls.bs
+        args['batch per epoch'] = len(self.dls.train)
+        args['model parameters'] = total_params(self.model)[0]
+        args['device'] = self.dls.device.type
+        args['frozen'] = bool(self.opt.frozen_idx)
+        args['frozen idx'] = self.opt.frozen_idx
+        args['dataset.tfms'] = f'{self.dls.dataset.tfms}'
+        args['dls.after_item'] = f'{self.dls.after_item}'
+        args['dls.before_batch'] = f'{self.dls.before_batch}'
+        args['dls.after_batch'] = f'{self.dls.after_batch}'
+    return args
 
 # Cell
 def _make_plt(img):
@@ -137,13 +165,22 @@ def _make_plt(img):
     return fig, ax
 
 # Cell
-def _format_config(log_config):
+def _format_config_value(v):
+    if isinstance(v, list):
+        return [_format_config_value(item) for item in v]
+    elif hasattr(v, '__stored_args__'):
+        return {**_format_config(v.__stored_args__), '_name': v}
+    return v
+
+# Cell
+def _format_config(config):
     "Format config parameters before logging them"
-    for k,v in log_config.items():
-        if callable(v):
-            if hasattr(v,'__qualname__') and hasattr(v,'__module__'): log_config[k] = f'{v.__module__}.{v.__qualname__}'
-            else: log_config[k] = str(v)
-        if isinstance(v, slice): log_config[k] = dict(slice_start=v.start, slice_step=v.step, slice_stop=v.stop)
+    for k,v in config.items():
+        if isinstance(v, dict):
+            config[k] = _format_config(v)
+        else:
+            config[k] = _format_config_value(v)
+    return config
 
 # Cell
 def _format_metadata(metadata):
@@ -151,7 +188,7 @@ def _format_metadata(metadata):
     for k,v in metadata.items(): metadata[k] = str(v)
 
 # Cell
-def log_dataset(path, name=None, metadata={}):
+def log_dataset(path, name=None, metadata={}, description='raw dataset'):
     "Log dataset folder"
     # Check if wandb.init has been called in case datasets are logged manually
     if wandb.run is None:
@@ -161,7 +198,7 @@ def log_dataset(path, name=None, metadata={}):
         raise f'path must be a valid directory: {path}'
     name = ifnone(name, path.name)
     _format_metadata(metadata)
-    artifact_dataset = wandb.Artifact(name=name, type='dataset', description='raw dataset', metadata=metadata)
+    artifact_dataset = wandb.Artifact(name=name, type='dataset', metadata=metadata, description=description)
     # log everything except "models" folder
     for p in path.ls():
         if p.is_dir():
@@ -170,7 +207,7 @@ def log_dataset(path, name=None, metadata={}):
     wandb.run.use_artifact(artifact_dataset)
 
 # Cell
-def log_model(path, name=None, metadata={}):
+def log_model(path, name=None, metadata={}, description='trained model'):
     "Log model file"
     if wandb.run is None:
         raise ValueError('You must call wandb.init() before log_model()')
@@ -179,8 +216,9 @@ def log_model(path, name=None, metadata={}):
         raise f'path must be a valid file: {path}'
     name = ifnone(name, f'run-{wandb.run.id}-model')
     _format_metadata(metadata)
-    artifact_model = wandb.Artifact(name=name, type='model', description='trained model', metadata=metadata)
-    artifact_model.add_file(str(path.resolve()))
+    artifact_model = wandb.Artifact(name=name, type='model', metadata=metadata, description=description)
+    with artifact_model.new_file(name, mode='wb') as fa:
+        fa.write(path.read_bytes())
     wandb.run.log_artifact(artifact_model)
 
 # Cell
@@ -210,7 +248,8 @@ def wandb_process(x:TensorImage, y:(TensorCategory,TensorMultiCategory), samples
 @typedispatch
 def wandb_process(x:TensorImage, y:TensorMask, samples, outs):
     res = []
-    class_labels = {i:f'{c}' for i,c in enumerate(y.get_meta('codes'))} if y.get_meta('codes') is not None else None
+    codes = getattr(y, 'codes', None)
+    class_labels = {i:f'{c}' for i,c in enumerate(codes)} if codes is not None else None
     for s,o in zip(samples, outs):
         img = s[0].permute(1,2,0)
         masks = {}

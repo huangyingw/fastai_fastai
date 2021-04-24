@@ -11,7 +11,6 @@ def _get_sz_change_idxs(sizes):
     "Get the indexes of the layers where the size of the activation changes."
     feature_szs = [size[-1] for size in sizes]
     sz_chg_idxs = list(np.where(np.array(feature_szs[:-1]) != np.array(feature_szs[1:]))[0])
-    if feature_szs[0] != feature_szs[1]: sz_chg_idxs = [0] + sz_chg_idxs
     return sz_chg_idxs
 
 # Cell
@@ -52,7 +51,7 @@ class ResizeToOrig(Module):
 # Cell
 class DynamicUnet(SequentialEx):
     "Create a U-Net from a given architecture."
-    def __init__(self, encoder, n_classes, img_size, blur=False, blur_final=True, self_attention=False,
+    def __init__(self, encoder, n_out, img_size, blur=False, blur_final=True, self_attention=False,
                  y_range=None, last_cross=True, bottle=False, act_cls=defaults.activation,
                  init=nn.init.kaiming_normal_, norm_type=None, **kwargs):
         imsize = img_size
@@ -84,7 +83,7 @@ class DynamicUnet(SequentialEx):
             layers.append(MergeLayer(dense=True))
             ni += in_channels(encoder)
             layers.append(ResBlock(1, ni, ni//2 if bottle else ni, act_cls=act_cls, norm_type=norm_type, **kwargs))
-        layers += [ConvLayer(ni, n_classes, ks=1, act_cls=None, norm_type=norm_type, **kwargs)]
+        layers += [ConvLayer(ni, n_out, ks=1, act_cls=None, norm_type=norm_type, **kwargs)]
         apply_init(nn.Sequential(layers[3], layers[-2]), init)
         #apply_init(nn.Sequential(layers[2]), init)
         if y_range is not None: layers.append(SigmoidRange(*y_range))

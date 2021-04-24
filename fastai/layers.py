@@ -4,12 +4,11 @@ __all__ = ['module', 'Identity', 'Lambda', 'PartialLambda', 'Flatten', 'View', '
            'sigmoid_range', 'SigmoidRange', 'AdaptiveConcatPool1d', 'AdaptiveConcatPool2d', 'PoolType', 'adaptive_pool',
            'PoolFlatten', 'NormType', 'BatchNorm', 'InstanceNorm', 'BatchNorm1dFlat', 'LinBnDrop', 'sigmoid',
            'sigmoid_', 'vleaky_relu', 'init_default', 'init_linear', 'ConvLayer', 'AdaptiveAvgPool', 'MaxPool',
-           'AvgPool', 'BaseLoss', 'CrossEntropyLossFlat', 'BCEWithLogitsLossFlat', 'BCELossFlat', 'MSELossFlat',
-           'L1LossFlat', 'LabelSmoothingCrossEntropy', 'LabelSmoothingCrossEntropyFlat', 'trunc_normal_', 'Embedding',
-           'SelfAttention', 'PooledSelfAttention2d', 'SimpleSelfAttention', 'icnr_init', 'PixelShuffle_ICNR',
-           'sequential', 'SequentialEx', 'MergeLayer', 'Cat', 'SimpleCNN', 'ProdLayer', 'inplace_relu', 'SEModule',
-           'ResBlock', 'SEBlock', 'SEResNeXtBlock', 'SeparableBlock', 'swish', 'Swish', 'MishJitAutoFn', 'mish', 'Mish',
-           'ParameterModule', 'children_and_parameters', 'flatten_model', 'NoneReduce', 'in_channels']
+           'AvgPool', 'trunc_normal_', 'Embedding', 'SelfAttention', 'PooledSelfAttention2d', 'SimpleSelfAttention',
+           'icnr_init', 'PixelShuffle_ICNR', 'sequential', 'SequentialEx', 'MergeLayer', 'Cat', 'SimpleCNN',
+           'ProdLayer', 'inplace_relu', 'SEModule', 'ResBlock', 'SEBlock', 'SEResNeXtBlock', 'SeparableBlock', 'swish',
+           'Swish', 'MishJitAutoFn', 'mish', 'Mish', 'ParameterModule', 'children_and_parameters', 'has_children',
+           'flatten_model', 'NoneReduce', 'in_channels']
 
 # Cell
 from .imports import *
@@ -67,7 +66,7 @@ class PartialLambda(Lambda):
 @module(full=False)
 def Flatten(self, x):
     "Flatten `x` to a single dimension, e.g. at end of a model. `full` for rank-1 tensor"
-    return x.view(-1) if self.full else x.view(x.size(0), -1)
+    return TensorBase(x.view(-1) if self.full else x.view(x.size(0), -1))
 
 # Cell
 class View(Module):
@@ -273,104 +272,6 @@ def AvgPool(ks=2, stride=None, padding=0, ndim=2, ceil_mode=False):
     return getattr(nn, f"AvgPool{ndim}d")(ks, stride=stride, padding=padding, ceil_mode=ceil_mode)
 
 # Cell
-@log_args
-class BaseLoss():
-    "Same as `loss_cls`, but flattens input and target."
-    activation=decodes=noops
-    def __init__(self, loss_cls, *args, axis=-1, flatten=True, floatify=False, is_2d=True, **kwargs):
-        store_attr(self, "axis,flatten,floatify,is_2d")
-        self.func = loss_cls(*args,**kwargs)
-        functools.update_wrapper(self, self.func)
-
-    def __repr__(self): return f"FlattenedLoss of {self.func}"
-    @property
-    def reduction(self): return self.func.reduction
-    @reduction.setter
-    def reduction(self, v): self.func.reduction = v
-
-    def __call__(self, inp, targ, **kwargs):
-        inp  = inp .transpose(self.axis,-1).contiguous()
-        targ = targ.transpose(self.axis,-1).contiguous()
-        if self.floatify and targ.dtype!=torch.float16: targ = targ.float()
-        if targ.dtype in [torch.int8, torch.int16, torch.int32]: targ = targ.long()
-        if self.flatten: inp = inp.view(-1,inp.shape[-1]) if self.is_2d else inp.view(-1)
-        return self.func.__call__(inp, targ.view(-1) if self.flatten else targ, **kwargs)
-
-# Cell
-@log_args
-@delegates()
-class CrossEntropyLossFlat(BaseLoss):
-    "Same as `nn.CrossEntropyLoss`, but flattens input and target."
-    y_int = True
-    @use_kwargs_dict(keep=True, weight=None, ignore_index=-100, reduction='mean')
-    def __init__(self, *args, axis=-1, **kwargs): super().__init__(nn.CrossEntropyLoss, *args, axis=axis, **kwargs)
-    def decodes(self, x):    return x.argmax(dim=self.axis)
-    def activation(self, x): return F.softmax(x, dim=self.axis)
-
-# Cell
-@log_args
-@delegates()
-class BCEWithLogitsLossFlat(BaseLoss):
-    "Same as `nn.CrossEntropyLoss`, but flattens input and target."
-    @use_kwargs_dict(keep=True, weight=None, reduction='mean', pos_weight=None)
-    def __init__(self, *args, axis=-1, floatify=True, thresh=0.5, **kwargs):
-        super().__init__(nn.BCEWithLogitsLoss, *args, axis=axis, floatify=floatify, is_2d=False, **kwargs)
-        self.thresh = thresh
-
-    def decodes(self, x):    return x>self.thresh
-    def activation(self, x): return torch.sigmoid(x)
-
-# Cell
-@log_args(to_return=True)
-@use_kwargs_dict(weight=None, reduction='mean')
-def BCELossFlat(*args, axis=-1, floatify=True, **kwargs):
-    "Same as `nn.BCELoss`, but flattens input and target."
-    return BaseLoss(nn.BCELoss, *args, axis=axis, floatify=floatify, is_2d=False, **kwargs)
-
-# Cell
-@log_args(to_return=True)
-@use_kwargs_dict(reduction='mean')
-def MSELossFlat(*args, axis=-1, floatify=True, **kwargs):
-    "Same as `nn.MSELoss`, but flattens input and target."
-    return BaseLoss(nn.MSELoss, *args, axis=axis, floatify=floatify, is_2d=False, **kwargs)
-
-# Cell
-@log_args(to_return=True)
-@use_kwargs_dict(reduction='mean')
-def L1LossFlat(*args, axis=-1, floatify=True, **kwargs):
-    "Same as `nn.L1Loss`, but flattens input and target."
-    return BaseLoss(nn.L1Loss, *args, axis=axis, floatify=floatify, is_2d=False, **kwargs)
-
-# Cell
-@log_args
-class LabelSmoothingCrossEntropy(Module):
-    y_int = True
-    def __init__(self, eps:float=0.1, reduction='mean'): self.eps,self.reduction = eps,reduction
-
-    def forward(self, output, target):
-        c = output.size()[-1]
-        log_preds = F.log_softmax(output, dim=-1)
-        if self.reduction=='sum': loss = -log_preds.sum()
-        else:
-            loss = -log_preds.sum(dim=-1) #We divide by that size at the return line so sum and not mean
-            if self.reduction=='mean':  loss = loss.mean()
-        return loss*self.eps/c + (1-self.eps) * F.nll_loss(log_preds, target.long(), reduction=self.reduction)
-
-    def activation(self, out): return F.softmax(out, dim=-1)
-    def decodes(self, out):    return out.argmax(dim=-1)
-
-# Cell
-@log_args
-@delegates()
-class LabelSmoothingCrossEntropyFlat(BaseLoss):
-    "Same as `LabelSmoothingCrossEntropy`, but flattens input and target."
-    y_int = True
-    @use_kwargs_dict(keep=True, eps=0.1, reduction='mean')
-    def __init__(self, *args, axis=-1, **kwargs): super().__init__(LabelSmoothingCrossEntropy, *args, axis=axis, **kwargs)
-    def activation(self, out): return F.softmax(out, dim=-1)
-    def decodes(self, out):    return out.argmax(dim=-1)
-
-# Cell
 def trunc_normal_(x, mean=0., std=1.):
     "Truncated normal initialization (approximation)"
     # From https://discuss.pytorch.org/t/implementing-truncated-normal-initializer/4778/12
@@ -379,9 +280,9 @@ def trunc_normal_(x, mean=0., std=1.):
 # Cell
 class Embedding(nn.Embedding):
     "Embedding layer with truncated normal initialization"
-    def __init__(self, ni, nf):
+    def __init__(self, ni, nf, std=0.01):
         super().__init__(ni, nf)
-        trunc_normal_(self.weight.data, std=0.01)
+        trunc_normal_(self.weight.data, std=std)
 
 # Cell
 class SelfAttention(Module):
@@ -495,7 +396,7 @@ class SequentialEx(Module):
             res.orig = x
             nres = l(res)
             # We have to remove res.orig to avoid hanging refs and therefore memory leaks
-            res.orig = None
+            res.orig, nres.orig = None, None
             res = nres
         return res
 
@@ -667,17 +568,15 @@ def children_and_parameters(m):
     return children
 
 # Cell
-def _has_children(m:nn.Module):
+def has_children(m):
     try: next(m.children())
     except StopIteration: return False
     return True
 
-nn.Module.has_children = property(_has_children)
-
 # Cell
 def flatten_model(m):
     "Return the list of all submodules and parameters of `m`"
-    return sum(map(flatten_model,children_and_parameters(m)),[]) if m.has_children else [m]
+    return sum(map(flatten_model,children_and_parameters(m)),[]) if has_children(m) else [m]
 
 # Cell
 class NoneReduce():
