@@ -2,6 +2,22 @@
 
 <!-- do not remove -->
 
+## 2.3.0
+### Breaking Changes
+
+- fix optimwrapper to work with `param_groups` ([#3241](https://github.com/fastai/fastai/pull/3241)), thanks to [@tmabraham](https://github.com/tmabraham)
+  - OptimWrapper now has a different constructor signature, which makes it easier to wrap PyTorch optimizers
+
+### New Features
+
+- Support discriminative learning with OptimWrapper ([#2829](https://github.com/fastai/fastai/issues/2829))
+
+### Bugs Squashed
+
+- Updated to support adding transforms to multiple dataloaders ([#3268](https://github.com/fastai/fastai/pull/3268)), thanks to [@marii-moe](https://github.com/marii-moe)
+  - This fixes an issue in 2.2.7 which resulted in incorrect validation metrics when using Normalization
+
+
 ## 2.2.7
 
 ### Bugs Squashed
