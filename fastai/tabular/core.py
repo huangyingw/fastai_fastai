@@ -71,11 +71,11 @@ def add_elapsed_times(df, field_names, date_field, base_field):
         work_df = work_df.set_index(date_field)
         tmp = (work_df[[base_field] + field_names].sort_index(ascending=a)
                       .groupby(base_field).rolling(7, min_periods=1).sum())
-        tmp.drop(base_field,1,inplace=True)
+        if base_field in tmp: tmp.drop(base_field, axis=1,inplace=True)
         tmp.reset_index(inplace=True)
         work_df.reset_index(inplace=True)
         work_df = work_df.merge(tmp, 'left', [date_field, base_field], suffixes=['', s])
-    work_df.drop(field_names,1,inplace=True)
+    work_df.drop(field_names, axis=1, inplace=True)
     return df.merge(work_df, 'left', [date_field, base_field])
 
 # Cell
@@ -165,8 +165,8 @@ class Tabular(CollBase, GetAttr, FilteredBase):
         self.split = len(df) if splits is None else len(splits[0])
         if do_setup: self.setup()
 
-    def new(self, df):
-        return type(self)(df, do_setup=False, reduce_memory=False, y_block=TransformBlock(),
+    def new(self, df, inplace=False):
+        return type(self)(df, do_setup=False, reduce_memory=False, y_block=TransformBlock(), inplace=inplace,
                           **attrdict(self, 'procs','cat_names','cont_names','y_names', 'device'))
 
     def subset(self, i): return self.new(self.items[slice(0,self.split) if i==0 else slice(self.split,len(self))])
@@ -296,9 +296,9 @@ class FillMissing(TabularProc):
         if fill_vals is None: fill_vals = defaultdict(int)
         store_attr()
 
-    def setups(self, dsets):
-        missing = pd.isnull(dsets.conts).any()
-        store_attr(but='to', na_dict={n:self.fill_strategy(dsets[n], self.fill_vals[n])
+    def setups(self, to):
+        missing = pd.isnull(to.conts).any()
+        store_attr(but='to', na_dict={n:self.fill_strategy(to[n], self.fill_vals[n])
                             for n in missing[missing].keys()})
         self.fill_strategy = self.fill_strategy.__name__
 
