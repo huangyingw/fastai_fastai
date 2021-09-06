@@ -1,5 +1,5 @@
 diff --git a/settings.ini b/settings.ini
-index 3a4ef9ae5..26e26e273 100644
+index 55018c895..022320cd6 100644
 --- ./settings.ini
 +++ ./settings.ini
 @@ -13,7 +13,7 @@ status = 4
