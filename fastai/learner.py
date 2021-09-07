@@ -146,6 +146,9 @@ class Learner(GetAttr):
 
     def _bn_bias_state(self, with_bias): return norm_bias_params(self.model, with_bias).map(self.opt.state)
     def create_opt(self):
+        if isinstance(self.opt_func, partial):
+            if 'lr' in self.opt_func.keywords:
+                self.lr = self.opt_func.keywords['lr']
         self.opt = self.opt_func(self.splitter(self.model), lr=self.lr)
         if not self.wd_bn_bias:
             for p in self._bn_bias_state(True ): p['do_wd'] = False
@@ -178,10 +181,16 @@ class Learner(GetAttr):
         self._with_events(self.opt.step, 'step', CancelStepException)
         self.opt.zero_grad()
 
+    def _set_device(self, b):
+        model_device = torch.device(torch.cuda.current_device()) if next(self.model.parameters()).is_cuda else torch.device('cpu')
+        dls_device = getattr(self.dls, 'device', default_device())
+        if model_device == dls_device: return to_device(b, dls_device)
+        else: return to_device(b, model_device)
+
     def one_batch(self, i, b):
         self.iter = i
-        b_on_device = tuple( e.to(device=self.dls.device) for e in b if hasattr(e, "to")) if self.dls.device is not None else b
-        self._split(b_on_device)
+        b = self._set_device(b)
+        self._split(b)
         self._with_events(self._do_one_batch, 'batch', CancelBatchException)
 
     def _do_epoch_train(self):
@@ -229,7 +238,7 @@ class Learner(GetAttr):
     @delegates(GatherPredsCallback.__init__)
     def get_preds(self, ds_idx=1, dl=None, with_input=False, with_decoded=False, with_loss=False, act=None,
                   inner=False, reorder=True, cbs=None, **kwargs):
-        if dl is None: dl = self.dls[ds_idx].new(shuffled=False, drop_last=False)
+        if dl is None: dl = self.dls[ds_idx].new(shuffle=False, drop_last=False)
         else:
             try: len(dl)
             except TypeError as e:
@@ -570,7 +579,7 @@ add_docs(Learner,
 @patch
 def tta(self:Learner, ds_idx=1, dl=None, n=4, item_tfms=None, batch_tfms=None, beta=0.25, use_max=False):
     "Return predictions on the `ds_idx` dataset or `dl` using Test Time Augmentation"
-    if dl is None: dl = self.dls[ds_idx]
+    if dl is None: dl = self.dls[ds_idx].new(shuffled=False, drop_last=False)
     if item_tfms is not None or batch_tfms is not None: dl = dl.new(after_item=item_tfms, after_batch=batch_tfms)
     try:
         self(_before_epoch)

@@ -146,7 +146,7 @@ def layer_info(learn, *xb):
     "Return layer infos of `model` on `xb` (only support batch first inputs)"
     def _track(m, i, o):
         params, trainable, shape = '', '', ''
-        same = any((x[0].shape[1:] == x[1].shape for x in zip(i, o)))
+        same = any((isinstance(x[0], torch.Tensor) and x[0].shape[1:] == x[1].shape for x in zip(i, o)))
         if hasattr(m, 'weight'): # non activation layer
             params, trainable = total_params(m)
             shape = apply(lambda x: x.shape, o)
@@ -201,7 +201,7 @@ def module_summary(learn, *xb):
 @patch
 def summary(self:Learner):
     "Print a summary of the model, optimizer and loss function."
-    xb = self.dls.train.one_batch()[:self.dls.train.n_inp]
+    xb = self.dls.train.one_batch()[:getattr(self.dls.train, "n_inp", 1)]
     res = module_summary(self, *xb)
     res += f"Optimizer used: {self.opt_func}\nLoss function: {self.loss_func}\n\n"
     if self.opt is not None:

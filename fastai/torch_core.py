@@ -131,7 +131,7 @@ def tensor(x, *rest, **kwargs):
            else torch.tensor(x, **kwargs) if isinstance(x, (tuple,list))
            else _array2tensor(x) if isinstance(x, ndarray)
            else as_tensor(x.values, **kwargs) if isinstance(x, (pd.Series, pd.DataFrame))
-           else as_tensor(x, **kwargs) if hasattr(x, '__array__') or is_iter(x)
+#            else as_tensor(array(x, **kwargs)) if hasattr(x, '__array__') or is_iter(x)
            else _array2tensor(array(x), **kwargs))
     if res.dtype is torch.float64: return res.float()
     return res
@@ -247,11 +247,14 @@ def default_device(use_cuda=-1):
     return torch.device(torch.cuda.current_device()) if use else torch.device('cpu')
 
 # Cell
-def to_device(b, device=None):
+def to_device(b, device=None, non_blocking=False):
     "Recursively put `b` on `device`."
     if defaults.use_cuda==False: device='cpu'
     elif device is None: device=default_device()
-    def _inner(o): return o.to(device, non_blocking=True) if isinstance(o,Tensor) else o.to_device(device) if hasattr(o, "to_device") else o
+    def _inner(o):
+        if isinstance(o,Tensor): return o.to(device, non_blocking=non_blocking)
+#         if hasattr(o, "to_device"): return o.to_device(device)
+        return o
     return apply(_inner, b)
 
 # Cell
@@ -300,6 +303,13 @@ def _torch_handled(args, opt, func):
         if all(isinstance(arg,ok) for arg,ok in zip(args,oks) if ok): return True
 
 # Cell
+# from https://github.com/pytorch/pytorch/blob/13c975684a220ec096216ec6468ccd0dc90ff50a/torch/_tensor.py#L34
+def _rebuild_from_type(func, type, args, dict):
+    ret = func(*args).as_subclass(type)
+    ret.__dict__ = dict
+    return ret
+
+# Cell
 class TensorBase(Tensor):
     "A `Tensor` which support subclass pickling, and maintains metadata when casting or after methods"
     debug,_opt = False,defaultdict(list)
@@ -314,10 +324,11 @@ class TensorBase(Tensor):
 
     def __reduce_ex__(self,proto):
         torch.utils.hooks.warn_if_has_hooks(self)
-        args = (type(self), self.storage(), self.storage_offset(), tuple(self.size()), self.stride())
+        args = (self.storage(), self.storage_offset(), tuple(self.size()), self.stride())
         if self.is_quantized: args = args + (self.q_scale(), self.q_zero_point())
-        f = _fa_rebuild_qtensor if self.is_quantized else  _fa_rebuild_tensor
-        return (f, args + (self.requires_grad, OrderedDict()))
+        args = args + (self.requires_grad, OrderedDict())
+        f = torch._utils._rebuild_qtensor if self.is_quantized else  torch._utils._rebuild_tensor_v2
+        return (_rebuild_from_type, (f, type(self), args, self.__dict__))
 
     @classmethod
     def register_func(cls, func, *oks): cls._opt[func].append(oks)
@@ -367,11 +378,11 @@ class TensorMask(TensorImageBase):
 
     def show(self, ctx=None, **kwargs):
         codes = getattr(self, 'codes', None)
-        if codes is not None: kwargs = merge({'vmin': 1, 'vmax': len(codes)}, kwargs)
+        if codes is not None: kwargs = merge({'vmin': 0, 'vmax': len(codes)}, kwargs)
         return super().show(ctx=ctx, **kwargs)
 
 # Cell
-for o in Tensor.__ne__,Tensor.__eq__,Tensor.add,Tensor.sub,Tensor.mul,Tensor.div,Tensor.__rsub__,Tensor.__radd__,Tensor.matmul,Tensor.bmm:
+for o in Tensor.__getitem__, Tensor.__ne__,Tensor.__eq__,Tensor.add,Tensor.sub,Tensor.mul,Tensor.div,Tensor.__rsub__,Tensor.__radd__,Tensor.matmul,Tensor.bmm:
     TensorBase.register_func(o, TensorMask, TensorImageBase)
     TensorBase.register_func(o, TensorImageBase, TensorMask)
 
@@ -384,6 +395,8 @@ TensorImage.register_func(F.grid_sample, TensorImageBase, TensorFlowField)
 
 # Cell
 class TensorCategory(TensorBase): pass
+
+TensorBase.register_func(Tensor.__getitem__, TensorImageBase, TensorCategory)
 
 # Cell
 class TensorMultiCategory(TensorCategory): pass

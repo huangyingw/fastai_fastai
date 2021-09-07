@@ -49,9 +49,7 @@ class TfmdDL(DataLoader):
 
     def _one_pass(self):
         b = self.do_batch([self.do_item(None)])
-        # since pickle doesn't support cuda variable, we have to move data to cuda in learner one_batch if process star method isn't fork
-        if self.device is not None and multiprocessing.get_start_method().lower() == "fork":
-            b = to_device(b, self.device)
+        if self.device is not None: b = to_device(b, self.device)
         its = self.after_batch(b)
         self._n_inp = 1 if not isinstance(its, (list,tuple)) or len(its)==1 else len(its)-1
         self._types = explode_types(its)
@@ -164,6 +162,19 @@ class DataLoaders(GetAttr):
         self.device = device
         return self
 
+    def _add_tfms(self, tfms, event, dl_idx):
+        "Adds `tfms` to `event` on `dl`"
+        if(isinstance(dl_idx,str)): dl_idx = 0 if(dl_idx=='train') else 1
+        dl_tfms = getattr(self[dl_idx], event)
+        apply(dl_tfms.add, tfms)
+
+    def add_tfms(self,tfms,event,loaders=None):
+        "Adds `tfms` to `events` on `loaders`"
+        if(loaders is None): loaders=range(len(self.loaders))
+        if not is_listy(loaders): loaders = listify(loaders)
+        for loader in loaders:
+            self._add_tfms(tfms,event,loader)
+
     def cuda(self): return self.to(device=default_device())
     def cpu(self):  return self.to(device=torch.device('cpu'))
 
@@ -171,9 +182,8 @@ class DataLoaders(GetAttr):
     def from_dsets(cls, *ds, path='.',  bs=64, device=None, dl_type=TfmdDL, **kwargs):
         default = (True,) + (False,) * (len(ds)-1)
         defaults = {'shuffle': default, 'drop_last': default}
-        for nm in _batch_tfms:
-            if nm in kwargs: kwargs[nm] = Pipeline(kwargs[nm])
-        kwargs = merge(defaults, {k: tuplify(v, match=ds) for k,v in kwargs.items()})
+        tfms = {k:tuple(Pipeline(kwargs[k]) for i in range_of(ds)) for k in _batch_tfms if k in kwargs}
+        kwargs = merge(defaults, {k: tuplify(v, match=ds) for k,v in kwargs.items() if k not in _batch_tfms}, tfms)
         kwargs = [{k: v[i] for k,v in kwargs.items()} for i in range_of(ds)]
         return cls(*[dl_type(d, bs=bs, **k) for d,k in zip(ds, kwargs)], path=path, device=device)
 
@@ -187,6 +197,7 @@ class DataLoaders(GetAttr):
                train_ds="Training `Dataset`",
                valid_ds="Validation `Dataset`",
                to="Use `device`",
+               add_tfms="Add `tfms` to `loaders` for `event",
                cuda="Use the gpu if available",
                cpu="Use the cpu",
                new_empty="Create a new empty version of `self` with the same transforms",
@@ -311,7 +322,7 @@ def show_at(o, idx, **kwargs):
 @docs
 @delegates(TfmdLists)
 class Datasets(FilteredBase):
-    "A dataset that creates a tuple from each `tfms`, passed through `item_tfms`"
+    "A dataset that creates a tuple from each `tfms`"
     def __init__(self, items=None, tfms=None, tls=None, n_inp=None, dl_type=None, **kwargs):
         super().__init__(dl_type=dl_type)
         self.tls = L(tls if tls else [TfmdLists(items, t, **kwargs) for t in L(ifnone(tfms,[None]))])

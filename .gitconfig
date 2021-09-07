@@ -8,7 +8,7 @@
     remote = origin
 [gsync]
     remote = fastai
-    branch = master
+    target = fastai/master
 [branch "dev"]
     remote = origin
     merge = refs/heads/dev
@@ -16,3 +16,4 @@
     ignore = dev_nbs/*.py 
     ignore = install_fastai.sh
     ignore = nbs/*.py
+    ignore = test.py
