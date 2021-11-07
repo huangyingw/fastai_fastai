@@ -27,6 +27,7 @@
             "Advanced": {
                 "Albumentations Tutorial": "/tutorial.albumentations.html",
                 "Siamese Tutorial": "/tutorial.siamese.html",
+                "Image Sequences/Video Tutorial": "/tutorial.image_sequence.html",
                 "Performance Tips and Tricks": "/dev/performance.html"
             }
         },
@@ -117,7 +118,8 @@
         "Captum": "/callback.captum.html",
         "Weights & Biases": "/callback.wandb.html",
         "Neptune": "/callback.neptune.html",
-        "TensorBoard": "/callback.tensorboard.html"
+        "TensorBoard": "/callback.tensorboard.html",
+        "Azure ML": "/callback.azureml.html"
     },
     "fastai Development": {
         "Developers Guide": "/dev-setup.html",
